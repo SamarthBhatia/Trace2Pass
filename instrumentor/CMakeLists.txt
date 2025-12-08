@@ -9,6 +9,7 @@ message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
 # Add LLVM definitions and include directories
 include_directories(${LLVM_INCLUDE_DIRS})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
 add_definitions(${LLVM_DEFINITIONS_LIST})
 
@@ -24,6 +25,17 @@ target_link_libraries(HelloPass LLVM)
 
 # Don't add 'lib' prefix to the output
 set_target_properties(HelloPass PROPERTIES PREFIX "")
+
+# Build Trace2Pass instrumentation framework
+add_library(Trace2PassLib STATIC
+    src/PassInstrumentor.cpp
+)
+
+target_include_directories(Trace2PassLib PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(Trace2PassLib LLVM)
 
 # Build standalone test runner
 add_executable(test_runner test_runner.cpp)
