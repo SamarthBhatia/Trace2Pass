@@ -1,0 +1,157 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, 'feature/**' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-macos:
+    name: Build on macOS
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install LLVM and dependencies
+      run: |
+        brew install llvm cmake ninja
+        echo "LLVM installed at: $(brew --prefix llvm)"
+        echo "LLVM version: $(brew info llvm | head -1)"
+
+    - name: Verify LLVM installation
+      run: |
+        export PATH="$(brew --prefix llvm)/bin:$PATH"
+        clang --version
+        llvm-config --version
+
+    - name: Configure CMake
+      working-directory: instrumentor
+      run: |
+        mkdir -p build
+        cd build
+        cmake -DCMAKE_PREFIX_PATH=$(brew --prefix llvm) \
+              -DCMAKE_BUILD_TYPE=Release \
+              ..
+
+    - name: Build instrumentor
+      working-directory: instrumentor/build
+      run: |
+        make -j$(sysctl -n hw.ncpu)
+        echo "Build artifacts:"
+        ls -lh HelloPass.so test_runner
+
+    - name: Generate test IR
+      working-directory: instrumentor
+      run: |
+        export PATH="$(brew --prefix llvm)/bin:$PATH"
+        clang -S -emit-llvm test_program.c -o test_program.ll
+        echo "Generated IR:"
+        head -20 test_program.ll
+
+    - name: Run basic tests
+      working-directory: instrumentor/build
+      run: |
+        ./test_runner ../test_program.ll
+        echo "✅ Test runner executed successfully"
+
+    - name: Verify pass output
+      working-directory: instrumentor/build
+      run: |
+        OUTPUT=$(./test_runner ../test_program.ll 2>&1)
+        echo "$OUTPUT"
+
+        # Check that HelloPass found the expected functions
+        if echo "$OUTPUT" | grep -q "Function: add"; then
+          echo "✅ Found function: add"
+        else
+          echo "❌ Failed to find function: add"
+          exit 1
+        fi
+
+        if echo "$OUTPUT" | grep -q "Function: multiply"; then
+          echo "✅ Found function: multiply"
+        else
+          echo "❌ Failed to find function: multiply"
+          exit 1
+        fi
+
+        if echo "$OUTPUT" | grep -q "Function: main"; then
+          echo "✅ Found function: main"
+        else
+          echo "❌ Failed to find function: main"
+          exit 1
+        fi
+
+        echo "✅ All expected functions detected by HelloPass"
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: build-artifacts-macos
+        path: |
+          instrumentor/build/HelloPass.so
+          instrumentor/build/test_runner
+          instrumentor/test_program.ll
+        retention-days: 7
+
+  build-ubuntu:
+    name: Build on Ubuntu (LLVM from apt)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install LLVM and dependencies
+      run: |
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo ./llvm.sh 18
+        sudo apt-get install -y cmake ninja-build llvm-18-dev clang-18
+        sudo ln -sf /usr/bin/clang-18 /usr/bin/clang
+        sudo ln -sf /usr/bin/llvm-config-18 /usr/bin/llvm-config
+
+    - name: Verify LLVM installation
+      run: |
+        clang --version
+        llvm-config --version
+
+    - name: Configure CMake
+      working-directory: instrumentor
+      run: |
+        mkdir -p build
+        cd build
+        cmake -DCMAKE_BUILD_TYPE=Release ..
+
+    - name: Build instrumentor
+      working-directory: instrumentor/build
+      run: |
+        make -j$(nproc)
+        echo "Build artifacts:"
+        ls -lh HelloPass.so test_runner
+
+    - name: Generate test IR
+      working-directory: instrumentor
+      run: |
+        clang -S -emit-llvm test_program.c -o test_program.ll
+
+    - name: Run basic tests
+      working-directory: instrumentor/build
+      run: |
+        ./test_runner ../test_program.ll
+        echo "✅ Test runner executed successfully"
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: build-artifacts-ubuntu
+        path: |
+          instrumentor/build/HelloPass.so
+          instrumentor/build/test_runner
+          instrumentor/test_program.ll
+        retention-days: 7

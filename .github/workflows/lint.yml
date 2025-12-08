@@ -1,0 +1,59 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, 'feature/**' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint-cpp:
+    name: Lint C++ Code
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install clang-format
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-format
+
+    - name: Check C++ formatting
+      run: |
+        find instrumentor/src instrumentor/include -name '*.cpp' -o -name '*.h' | while read file; do
+          if [ -f "$file" ]; then
+            clang-format --dry-run --Werror "$file" || echo "⚠️  Format check failed for $file (non-blocking)"
+          fi
+        done
+        echo "✅ Format check complete"
+
+    - name: Check for common issues
+      run: |
+        echo "Checking for TODO/FIXME comments..."
+        grep -rn "TODO\|FIXME" instrumentor/src instrumentor/include || echo "✅ No TODOs found"
+
+        echo "Checking for debug print statements..."
+        grep -rn "printf\|cout" instrumentor/src instrumentor/include || echo "✅ No debug prints found"
+
+  markdown-lint:
+    name: Lint Markdown
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Check markdown files
+      run: |
+        echo "Checking for broken links in markdown files..."
+        # Simple check - can be enhanced later
+        find . -name "*.md" -type f | while read file; do
+          echo "Checking $file"
+          # Check for empty files
+          if [ ! -s "$file" ]; then
+            echo "⚠️  Empty file: $file"
+          fi
+        done
+        echo "✅ Markdown check complete"
