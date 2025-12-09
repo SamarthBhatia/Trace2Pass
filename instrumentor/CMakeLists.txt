@@ -49,6 +49,18 @@ target_include_directories(InstrumentedInstCombine PRIVATE
 target_link_libraries(InstrumentedInstCombine Trace2PassLib LLVM)
 set_target_properties(InstrumentedInstCombine PROPERTIES PREFIX "")
 
+# Build InstrumentedGVN pass plugin
+add_library(InstrumentedGVN MODULE
+    src/InstrumentedGVNPass.cpp
+)
+
+target_include_directories(InstrumentedGVN PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(InstrumentedGVN Trace2PassLib LLVM)
+set_target_properties(InstrumentedGVN PROPERTIES PREFIX "")
+
 # Build standalone test runner
 add_executable(test_runner test_runner.cpp)
 
