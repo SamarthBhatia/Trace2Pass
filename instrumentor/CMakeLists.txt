@@ -73,6 +73,18 @@ target_include_directories(InstrumentedDSE PRIVATE
 target_link_libraries(InstrumentedDSE Trace2PassLib LLVM)
 set_target_properties(InstrumentedDSE PROPERTIES PREFIX "")
 
+# Build InstrumentedLICM pass plugin
+add_library(InstrumentedLICM MODULE
+    src/InstrumentedLICMPass.cpp
+)
+
+target_include_directories(InstrumentedLICM PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(InstrumentedLICM Trace2PassLib LLVM)
+set_target_properties(InstrumentedLICM PROPERTIES PREFIX "")
+
 # Build standalone test runner
 add_executable(test_runner test_runner.cpp)
 
