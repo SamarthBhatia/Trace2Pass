@@ -37,6 +37,18 @@ target_include_directories(Trace2PassLib PUBLIC
 
 target_link_libraries(Trace2PassLib LLVM)
 
+# Build InstrumentedInstCombine pass plugin
+add_library(InstrumentedInstCombine MODULE
+    src/InstrumentedInstCombinePass.cpp
+)
+
+target_include_directories(InstrumentedInstCombine PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(InstrumentedInstCombine Trace2PassLib LLVM)
+set_target_properties(InstrumentedInstCombine PROPERTIES PREFIX "")
+
 # Build standalone test runner
 add_executable(test_runner test_runner.cpp)
 
