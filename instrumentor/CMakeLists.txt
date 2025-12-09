@@ -37,6 +37,9 @@ target_include_directories(Trace2PassLib PUBLIC
 
 target_link_libraries(Trace2PassLib LLVM)
 
+# Enable PIC for linking into shared libraries (required on Linux)
+set_target_properties(Trace2PassLib PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 # Build InstrumentedInstCombine pass plugin
 add_library(InstrumentedInstCombine MODULE
     src/InstrumentedInstCombinePass.cpp
