@@ -24,13 +24,8 @@ struct InstrumentedInstCombinePass : public PassInfoMixin<InstrumentedInstCombin
     if (F.isDeclaration())
       return PreservedAnalyses::all();
 
-    errs() << "[Trace2Pass] Processing function: " << F.getName() << "\n";
-
     // Capture IR before InstCombine
     IRSnapshot Before(F);
-    errs() << "  Before: " << Before.getInstructionCount() << " instructions, "
-           << Before.getBasicBlockCount() << " BBs, "
-           << "hash=" << Before.getHash() << "\n";
 
     // Run InstCombine
     InstCombinePass InstCombine;
@@ -38,23 +33,17 @@ struct InstrumentedInstCombinePass : public PassInfoMixin<InstrumentedInstCombin
 
     // Capture IR after InstCombine
     IRSnapshot After(F);
-    errs() << "  After:  " << After.getInstructionCount() << " instructions, "
-           << After.getBasicBlockCount() << " BBs, "
-           << "hash=" << After.getHash() << "\n";
 
-    // Compare and report
+    // Compare and report only if changes detected
     IRDiffer::DiffResult Diff = IRDiffer::compare(Before, After);
 
     if (Diff.HasChanges) {
-      errs() << "  ✅ Changes detected: " << Diff.ChangeDescription << "\n";
-
+      errs() << "[Trace2Pass] " << F.getName() << ": " << Diff.ChangeDescription;
       if (Diff.IsSuspicious) {
-        errs() << "  ⚠️  SUSPICIOUS transformation detected!\n";
+        errs() << " ⚠️  SUSPICIOUS";
       }
-    } else {
-      errs() << "  No changes\n";
+      errs() << "\n";
     }
-    errs() << "\n";
 
     return PA;
   }

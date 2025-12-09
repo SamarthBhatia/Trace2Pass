@@ -21,19 +21,15 @@ IRSnapshot::IRSnapshot(Function &F)
   // Count basic blocks
   BasicBlockCount = F.size();
 
-  // Count instructions and build IR string
-  std::string IR;
-  raw_string_ostream OS(IR);
-
+  // Count instructions (without building expensive string)
   for (BasicBlock &BB : F) {
     for (Instruction &I : BB) {
       InstructionCount++;
-      I.print(OS);
-      OS << "\n";
     }
   }
 
-  IRString = OS.str();
+  // Don't build IR string unless needed (lazy evaluation)
+  // IRString is left empty for now
   Hash = computeHash(F);
 }
 
