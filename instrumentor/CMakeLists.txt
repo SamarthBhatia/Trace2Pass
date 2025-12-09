@@ -61,6 +61,18 @@ target_include_directories(InstrumentedGVN PRIVATE
 target_link_libraries(InstrumentedGVN Trace2PassLib LLVM)
 set_target_properties(InstrumentedGVN PROPERTIES PREFIX "")
 
+# Build InstrumentedDSE pass plugin
+add_library(InstrumentedDSE MODULE
+    src/InstrumentedDSEPass.cpp
+)
+
+target_include_directories(InstrumentedDSE PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(InstrumentedDSE Trace2PassLib LLVM)
+set_target_properties(InstrumentedDSE PROPERTIES PREFIX "")
+
 # Build standalone test runner
 add_executable(test_runner test_runner.cpp)
 
