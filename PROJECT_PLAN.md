@@ -95,7 +95,7 @@
 
 ---
 
-### **PHASE 2: Instrumentor - Runtime Check Injection (Weeks 5-10) - 58% COMPLETE**
+### **PHASE 2: Instrumentor - Runtime Check Injection (Weeks 5-10) - 65% COMPLETE**
 
 **Goal:** Build LLVM pass that injects lightweight runtime checks into binaries
 
@@ -150,14 +150,18 @@
    - ✅ Detect shift overflow (shl with shift_amount >= bit_width)
    - **Tests:** 15+ test cases, runtime value tests to prevent constant folding
 
-2. **Control flow checks:**
+2. **Control flow checks:** ✅ Started (Week 8)
    ```cpp
-   // Insert at function entry:
-   cfi_register_function("foo", expected_caller_list);
-
-   // Insert at suspicious branches:
-   if (unlikely_condition) cfi_verify();
+   // Detect unreachable code execution:
+   unreachable  // LLVM instruction
+   // After instrumentation:
+   trace2pass_report_unreachable(pc, "unreachable code executed");
+   unreachable
    ```
+   - ✅ Unreachable code detection (instruments `UnreachableInst`)
+   - **Tests:** 2 test files, 5 unreachable blocks instrumented
+   - ⏳ TODO: Value consistency checks (pure function outputs)
+   - ⏳ TODO: Branch invariant checks
 
 3. **Memory bounds checks:**
    ```cpp
@@ -171,8 +175,10 @@
 - [x] Arithmetic checks implemented (mul, add, sub, shl)
 - [x] Unit tests for arithmetic checks (15+ test cases)
 - [x] Test programs triggering overflow detection
-- [ ] Control flow integrity checks (Week 8)
-- [ ] Memory bounds checks (Week 8)
+- [x] Control flow integrity - unreachable code detection (Week 8)
+- [x] Unit tests for CFI (2 test files, 5 unreachable blocks)
+- [ ] Memory bounds checks (Week 8-9)
+- [ ] Additional CFI checks (value consistency, branch invariants)
 
 ---
 
@@ -691,10 +697,10 @@
 ## Current Status & Immediate Next Steps
 
 ### Where We Are:
-- **Week:** 7 of 24
+- **Week:** 8 of 24
 - **Phase 1:** 100% complete ✅
-- **Phase 2:** 58% complete (Week 5-7: foundation + arithmetic checks done)
-- **Overall Progress:** ~45% (Phase 1 complete + Week 5-7 of Phase 2)
+- **Phase 2:** 65% complete (Week 5-8: foundation + arithmetic + CFI unreachable)
+- **Overall Progress:** ~48% (Phase 1 complete + Week 5-8 of Phase 2)
 
 ### Week 5 Accomplishments (2024-12-10 AM):
 
@@ -743,13 +749,34 @@
 - Deduplication working correctly (reports once per PC)
 - All overflow types successfully detected with runtime values
 
-### Immediate Next Steps (Week 8):
+### Week 8 Accomplishments (2024-12-10):
+
+**Control Flow Integrity - Unreachable Code Detection** ✅
+- [x] Implemented `instrumentUnreachableCode()` method in LLVM pass
+- [x] Detects `UnreachableInst` in LLVM IR and instruments them
+- [x] Added `trace2pass_report_unreachable()` to runtime library
+- [x] Created 2 comprehensive test files (test_unreachable.c, test_forced_unreachable.c)
+- [x] Successfully instrumented 5 unreachable blocks in test program
+- [x] Updated runtime library header and implementation
+- [x] Updated instrumentor README with CFI status
+
+**Technical Implementation:**
+- Scans functions for `unreachable` LLVM instructions
+- Inserts reporting call before unreachable (before program would abort)
+- Catches optimizer bugs where "impossible" code paths become reachable
+- Thread-safe with deduplication (same as arithmetic checks)
+
+**Test Results:**
+- 5 unreachable blocks successfully instrumented
+- Covers: explicit `__builtin_unreachable()`, noreturn functions, switch exhaustiveness
+- Compilation successful, no false positives during normal execution
+
+### Immediate Next Steps (Week 8-9):
 
 **Next Session:**
-- [ ] Implement control flow integrity checks
 - [ ] Add memory bounds checks (GEP instruction instrumentation)
-- [ ] Measure overhead on benchmark program
-- [ ] Begin optimization planning
+- [ ] Measure overhead on simple benchmark program
+- [ ] Begin optimization planning for Week 9-10
 
 ---
 
@@ -763,7 +790,7 @@ Week 15-18:[░░░░░░░░░░░░░░░░░░░░] Phase 
 Week 19-21:[░░░░░░░░░░░░░░░░░░░░] Phase 4 Reporter + Evaluation
 Week 22-24:[░░░░░░░░░░░░░░░░░░░░] Phase 5 Thesis Writing
 
-Current: Week 7 ───────────────────▲
+Current: Week 8 ───────────────────▲
                                    You are here
 ```
 
