@@ -20,6 +20,8 @@ void trace2pass_report_sign_mismatch(void* pc, long long signed_val,
 
 void trace2pass_report_cfi_violation(void* pc, const char* reason);
 
+void trace2pass_report_unreachable(void* pc, const char* message);
+
 void trace2pass_report_inconsistency(void* pc, const char* function_name,
                                       long long arg, long long result1,
                                       long long result2);
