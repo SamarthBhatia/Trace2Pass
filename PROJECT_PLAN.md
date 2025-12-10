@@ -771,6 +771,17 @@
 - Covers: explicit `__builtin_unreachable()`, noreturn functions, switch exhaustiveness
 - Compilation successful, no false positives during normal execution
 
+**Real Bug Validation** ✅
+- [x] Tested on Bug #97330 (InstCombine + unreachable blocks)
+  - Successfully instrumented 2 unreachable blocks in buggy function
+  - Bug directly targeted by our CFI detection
+- [x] Tested on Bug #64598 (GVN wrong-code)
+  - Successfully instrumented 10 arithmetic operations
+  - Complex nested pointer code handled correctly
+- [x] Created validation test suite (`run_bug_tests.sh`)
+- [x] Documentation: `instrumentor/test/REAL_BUGS_VALIDATION.md`
+- **Coverage:** 2/54 bugs from Phase 1 dataset validated (3.7%)
+
 ### Immediate Next Steps (Week 8-9):
 
 **Next Session:**
