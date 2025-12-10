@@ -22,6 +22,8 @@ private:
   bool instrumentArithmeticOperations(Function &F);
   void insertOverflowCheck(IRBuilder<> &Builder, Instruction *I,
                            Value *LHS, Value *RHS);
+  void insertShiftCheck(IRBuilder<> &Builder, Instruction *I,
+                        Value *ShiftValue, Value *ShiftAmount);
 
   // Runtime function declarations
   FunctionCallee getOverflowReportFunc(Module &M);
@@ -73,9 +75,9 @@ bool Trace2PassInstrumentorPass::instrumentArithmeticOperations(Function &F) {
           case Instruction::Mul:
           case Instruction::Add:
           case Instruction::Sub:
+          case Instruction::Shl:  // Left shift can overflow
             ToInstrument.push_back(&I);
             break;
-          // TODO: Add shift operations (shl)
           default:
             break;
         }
@@ -107,6 +109,12 @@ void Trace2PassInstrumentorPass::insertOverflowCheck(IRBuilder<> &Builder,
   Module &M = *I->getModule();
   LLVMContext &Ctx = M.getContext();
   Type *IntTy = I->getType();
+
+  // Handle shift operations separately (no intrinsic available)
+  if (I->getOpcode() == Instruction::Shl) {
+    insertShiftCheck(Builder, I, LHS, RHS);
+    return;
+  }
 
   // Select the appropriate overflow intrinsic based on operation
   Intrinsic::ID IntrinsicID;
@@ -190,6 +198,67 @@ void Trace2PassInstrumentorPass::insertOverflowCheck(IRBuilder<> &Builder,
 
   // The original instruction is now dead, but we keep it for now
   // (it will be cleaned up by DCE)
+}
+
+void Trace2PassInstrumentorPass::insertShiftCheck(IRBuilder<> &Builder,
+                                                    Instruction *I,
+                                                    Value *ShiftValue, Value *ShiftAmount) {
+  Module &M = *I->getModule();
+  LLVMContext &Ctx = M.getContext();
+  Type *IntTy = I->getType();
+
+  // For shift operations, check if shift amount >= bit width
+  unsigned BitWidth = IntTy->getIntegerBitWidth();
+  Value *BitWidthConst = Builder.getInt32(BitWidth);
+
+  // Convert shift amount to i32 for comparison
+  Value *ShiftAmount_i32 = Builder.CreateZExtOrTrunc(ShiftAmount, Builder.getInt32Ty());
+
+  // Check: shift_amount >= bit_width
+  Value *IsInvalid = Builder.CreateICmpUGE(ShiftAmount_i32, BitWidthConst);
+
+  // Create basic blocks
+  BasicBlock *InvalidShiftBB = BasicBlock::Create(Ctx, "invalid_shift",
+                                                   I->getFunction());
+  BasicBlock *ContinueBB = BasicBlock::Create(Ctx, "continue",
+                                               I->getFunction());
+
+  // Branch based on validity
+  Builder.CreateCondBr(IsInvalid, InvalidShiftBB, ContinueBB);
+
+  // Fill in the invalid shift handler
+  Builder.SetInsertPoint(InvalidShiftBB);
+
+  // Get the runtime report function
+  FunctionCallee ReportFunc = getOverflowReportFunc(M);
+
+  // Prepare arguments
+  Function *ReturnAddrIntrinsic = Intrinsic::getOrInsertDeclaration(
+      &M, Intrinsic::returnaddress);
+  Value *PC = Builder.CreateCall(ReturnAddrIntrinsic,
+                                  {Builder.getInt32(0)});
+
+  // Create expression string
+  std::string ExprStr = "x shl y";
+  Value *ExprGlobal = Builder.CreateGlobalString(ExprStr);
+
+  // Convert operands to i64 for reporting
+  Value *Value_i64 = Builder.CreateSExtOrTrunc(ShiftValue, Builder.getInt64Ty());
+  Value *ShiftAmount_i64 = Builder.CreateZExtOrTrunc(ShiftAmount, Builder.getInt64Ty());
+
+  // Call the report function
+  Builder.CreateCall(ReportFunc, {PC, ExprGlobal, Value_i64, ShiftAmount_i64});
+
+  // Continue execution
+  Builder.CreateBr(ContinueBB);
+
+  // Move remaining instructions to continue block
+  BasicBlock *CurrentBB = I->getParent();
+  ContinueBB->splice(ContinueBB->begin(), CurrentBB,
+                     I->getIterator(), CurrentBB->end());
+
+  // Note: For shifts, the result is undefined if shift >= bitwidth,
+  // so we just continue with whatever LLVM produces
 }
 
 FunctionCallee Trace2PassInstrumentorPass::getOverflowReportFunc(Module &M) {
