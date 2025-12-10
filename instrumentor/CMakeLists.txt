@@ -16,18 +16,14 @@ add_definitions(${LLVM_DEFINITIONS_LIST})
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Build HelloPass as a shared library (LLVM pass plugin)
-add_library(HelloPass MODULE src/HelloPass.cpp)
+# Build Trace2PassInstrumentor as a shared library (LLVM pass plugin)
+add_library(Trace2PassInstrumentor MODULE src/Trace2PassInstrumentor.cpp)
 
 # Link against LLVM libraries
-target_link_libraries(HelloPass LLVM)
+target_link_libraries(Trace2PassInstrumentor LLVM)
 
 # Don't add 'lib' prefix to the output
-set_target_properties(HelloPass PROPERTIES PREFIX "")
+set_target_properties(Trace2PassInstrumentor PROPERTIES PREFIX "")
 
-# Build standalone test runner
-add_executable(test_runner test_runner.cpp)
-
-# Get proper LLVM libraries for the test runner
-llvm_map_components_to_libnames(llvm_libs support core irreader passes)
-target_link_libraries(test_runner ${llvm_libs})
+# Enable PIC for linking
+set_target_properties(Trace2PassInstrumentor PROPERTIES POSITION_INDEPENDENT_CODE ON)
