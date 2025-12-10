@@ -20,6 +20,7 @@ public:
 private:
   // Instrumentation helper functions
   bool instrumentArithmeticOperations(Function &F);
+  bool instrumentUnreachableCode(Function &F);
   void insertOverflowCheck(IRBuilder<> &Builder, Instruction *I,
                            Value *LHS, Value *RHS);
   void insertShiftCheck(IRBuilder<> &Builder, Instruction *I,
@@ -27,9 +28,11 @@ private:
 
   // Runtime function declarations
   FunctionCallee getOverflowReportFunc(Module &M);
+  FunctionCallee getUnreachableReportFunc(Module &M);
 
   // Statistics
   unsigned NumInstrumented = 0;
+  unsigned NumUnreachableInstrumented = 0;
 };
 
 PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
@@ -49,9 +52,16 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
   // Instrument arithmetic operations
   Modified |= instrumentArithmeticOperations(F);
 
+  // Instrument unreachable code
+  Modified |= instrumentUnreachableCode(F);
+
   if (Modified) {
     errs() << "Trace2Pass: Instrumented " << NumInstrumented
-           << " operations in " << F.getName() << "\n";
+           << " arithmetic operations";
+    if (NumUnreachableInstrumented > 0) {
+      errs() << " and " << NumUnreachableInstrumented << " unreachable blocks";
+    }
+    errs() << " in " << F.getName() << "\n";
 
     // We modified the function, so we need to invalidate analyses
     return PreservedAnalyses::none();
@@ -276,6 +286,67 @@ FunctionCallee Trace2PassInstrumentorPass::getOverflowReportFunc(Module &M) {
       false);
 
   return M.getOrInsertFunction("trace2pass_report_overflow", FT);
+}
+
+bool Trace2PassInstrumentorPass::instrumentUnreachableCode(Function &F) {
+  bool Modified = false;
+  Module &M = *F.getParent();
+
+  // Collect unreachable instructions to instrument
+  SmallVector<UnreachableInst *, 8> ToInstrument;
+
+  for (BasicBlock &BB : F) {
+    for (Instruction &I : BB) {
+      if (auto *UI = dyn_cast<UnreachableInst>(&I)) {
+        ToInstrument.push_back(UI);
+      }
+    }
+  }
+
+  // Instrument collected unreachable instructions
+  for (UnreachableInst *UI : ToInstrument) {
+    IRBuilder<> Builder(UI);
+
+    // Get the runtime report function
+    FunctionCallee ReportFunc = getUnreachableReportFunc(M);
+
+    // Get PC (return address)
+    Function *ReturnAddrIntrinsic = Intrinsic::getOrInsertDeclaration(
+        &M, Intrinsic::returnaddress);
+    Value *PC = Builder.CreateCall(ReturnAddrIntrinsic,
+                                    {Builder.getInt32(0)});
+
+    // Create message string
+    std::string Message = "unreachable code executed";
+    Value *MessageGlobal = Builder.CreateGlobalString(Message);
+
+    // Call the report function before the unreachable instruction
+    Builder.CreateCall(ReportFunc, {PC, MessageGlobal});
+
+    // Note: We don't remove the unreachable instruction itself
+    // If code reaches here, report will be called, then unreachable will abort
+
+    Modified = true;
+    NumUnreachableInstrumented++;
+  }
+
+  return Modified;
+}
+
+FunctionCallee Trace2PassInstrumentorPass::getUnreachableReportFunc(Module &M) {
+  LLVMContext &Ctx = M.getContext();
+
+  // void trace2pass_report_unreachable(void* pc, const char* message)
+  Type *VoidTy = Type::getVoidTy(Ctx);
+  Type *VoidPtrTy = PointerType::getUnqual(Ctx);
+  Type *CharPtrTy = PointerType::getUnqual(Ctx);
+
+  FunctionType *FT = FunctionType::get(
+      VoidTy,
+      {VoidPtrTy, CharPtrTy},
+      false);
+
+  return M.getOrInsertFunction("trace2pass_report_unreachable", FT);
 }
 
 } // anonymous namespace

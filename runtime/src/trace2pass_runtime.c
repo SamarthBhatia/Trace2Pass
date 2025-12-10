@@ -170,6 +170,26 @@ void trace2pass_report_cfi_violation(void* pc, const char* reason) {
     pthread_mutex_unlock(&output_mutex);
 }
 
+void trace2pass_report_unreachable(void* pc, const char* message) {
+    uint64_t hash = hash_report(pc, "unreachable");
+    if (bloom_contains(seen_reports, hash)) return;
+    bloom_insert(seen_reports, hash);
+
+    char timestamp[32];
+    get_timestamp(timestamp, sizeof(timestamp));
+
+    pthread_mutex_lock(&output_mutex);
+    FILE* out = get_output_file();
+    fprintf(out, "\n=== Trace2Pass Report ===\n");
+    fprintf(out, "Timestamp: %s\n", timestamp);
+    fprintf(out, "Type: unreachable_code_executed\n");
+    fprintf(out, "PC: %p\n", pc);
+    fprintf(out, "Message: %s\n", message);
+    fprintf(out, "========================\n\n");
+    fflush(out);
+    pthread_mutex_unlock(&output_mutex);
+}
+
 void trace2pass_report_inconsistency(void* pc, const char* function_name,
                                       long long arg, long long result1,
                                       long long result2) {
