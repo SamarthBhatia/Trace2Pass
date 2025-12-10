@@ -10,15 +10,15 @@ This LLVM pass injects lightweight runtime checks into binaries to detect arithm
 
 **Week 6-7 Implementation:**
 - ✅ Basic pass skeleton with New Pass Manager registration
-- ✅ Arithmetic overflow instrumentation for mul, add, sub operations
+- ✅ Arithmetic overflow instrumentation for mul, add, sub, shl operations
 - ✅ Integration with runtime library
-- ✅ Comprehensive test suite (12+ test cases)
+- ✅ Comprehensive test suite (15+ test cases)
 
 **Coverage:**
 - ✅ Arithmetic checks: Multiply (smul.with.overflow)
 - ✅ Arithmetic checks: Add (sadd.with.overflow)
 - ✅ Arithmetic checks: Subtract (ssub.with.overflow)
-- ⏳ TODO: Shift operations (shl)
+- ✅ Arithmetic checks: Shift left (custom check: shift_amount >= bit_width)
 - ⏳ TODO: Control flow integrity checks
 - ⏳ TODO: Memory bounds checks
 
@@ -149,8 +149,8 @@ Environment variables (passed to runtime):
 ## Development Roadmap
 
 ### Week 7-8: Extend Check Types
-- [ ] Add overflow: `add`, `sub` instructions
-- [ ] Shift overflow: `shl` with excessive shift amounts
+- [x] Add overflow: `add`, `sub` instructions
+- [x] Shift overflow: `shl` with excessive shift amounts
 - [ ] Control flow checks: Unreachable code detection
 - [ ] Memory bounds: GEP instruction checks
 
@@ -191,5 +191,5 @@ Environment variables (passed to runtime):
 
 ---
 
-**Status:** Week 6 complete (arithmetic checks functional)
-**Next:** Week 7 - Extend to add/sub/shift operations
+**Status:** Week 7 complete (arithmetic checks: mul, add, sub, shl)
+**Next:** Week 8 - Control flow and memory bounds checks
