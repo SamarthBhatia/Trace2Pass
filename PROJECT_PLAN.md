@@ -3,8 +3,8 @@
 **THIS IS THE OFFICIAL PLAN. FOLLOW IT EXACTLY.**
 
 **Last Updated:** 2024-12-10
-**Status:** Phase 1: 100% ✅ | Phase 2: 30% | Phase 3: 0% | Phase 4: 0%
-**Current Week:** 5 of 24
+**Status:** Phase 1: 100% ✅ | Phase 2: 50% | Phase 3: 0% | Phase 4: 0%
+**Current Week:** 6 of 24
 
 ---
 
@@ -95,14 +95,14 @@
 
 ---
 
-### **PHASE 2: Instrumentor - Runtime Check Injection (Weeks 5-10) - 30% COMPLETE**
+### **PHASE 2: Instrumentor - Runtime Check Injection (Weeks 5-10) - 50% COMPLETE**
 
 **Goal:** Build LLVM pass that injects lightweight runtime checks into binaries
 
 **Duration:** 6 weeks
 **Target Overhead:** <5% runtime on SPEC CPU 2017 or alternatives
 
-#### Week 5-6: Design & Foundation ⏳ 50% Complete
+#### Week 5-6: Design & Foundation ✅ 100% Complete
 **Tasks:**
 1. **Design check types:** ✅
    - Value range assertions (arithmetic overflow, sign mismatches)
@@ -120,17 +120,22 @@
    - **Tests:** 7/7 passing
    - **Location:** `runtime/`
 
-3. **Basic LLVM pass skeleton:** ⏳ Next
+3. **Basic LLVM pass skeleton:** ✅
    ```cpp
    class Trace2PassInstrumentorPass : public PassInfoMixin<...> {
      PreservedAnalyses run(Function &F, FunctionAnalysisManager &FAM);
    };
    ```
+   - **Status:** Complete with arithmetic overflow instrumentation
+   - **Tests:** 4/4 test cases, 1 overflow successfully detected
+   - **Location:** `instrumentor/`
 
 **Deliverables:**
 - [x] Runtime library with reporting functions
-- [ ] Pass skeleton compiling and loading
+- [x] Pass skeleton compiling and loading
 - [x] Design document: `docs/phase2-instrumentation-design.md`
+- [x] Arithmetic overflow detection (multiply operations)
+- [x] End-to-end test with real overflow detection
 
 ---
 
@@ -683,12 +688,12 @@
 ## Current Status & Immediate Next Steps
 
 ### Where We Are:
-- **Week:** 5 of 24
+- **Week:** 6 of 24
 - **Phase 1:** 100% complete ✅
-- **Phase 2:** 30% complete (Week 5-6 foundation done)
-- **Overall Progress:** ~28% (Phase 1 complete + Phase 2 foundation)
+- **Phase 2:** 50% complete (Week 5-6 foundation + LLVM pass done)
+- **Overall Progress:** ~33% (Phase 1 + Week 5-6 of Phase 2)
 
-### Week 5 Accomplishments (2024-12-10):
+### Week 5 Accomplishments (2024-12-10 AM):
 
 **Day 1-2: Polish Phase 1** ✅
 - [x] Search for recent papers (2023-2024) - Added D³ (ISSTA 2023) and Hash-Based Bisect (2024)
@@ -706,13 +711,27 @@
 - [x] Implement basic reporting functions (stubs) - Full implementation with deduplication
 - [x] Write test harness for runtime library - 7 tests passing
 
-### Immediate Next Steps (Week 6):
+### Week 6 Accomplishments (2024-12-10 PM):
+
+**LLVM Instrumentor Pass Implementation** ✅
+- [x] Create basic LLVM instrumentor pass skeleton - New PM, pipeline registration
+- [x] Implement arithmetic overflow instrumentation - Integer multiply with smul.with.overflow
+- [x] Write unit test for arithmetic checks - 4 test functions
+- [x] Test with simple C program - **Successfully detected overflow!**
+
+**Test Results:**
+- Test 1: Safe multiply (10 × 20) - ✅ No false positive
+- Test 2: Overflow (1000000 × 1000000) - ✅ **DETECTED** (reported via runtime)
+- Test 3: Negative overflow (INT_MIN × 2) - ⚠️ Optimized away
+- Test 4: 64-bit safe (i64) - ✅ No false positive
+
+### Immediate Next Steps (Week 7):
 
 **Next Session:**
-- [ ] Create basic LLVM instrumentor pass skeleton
-- [ ] Implement arithmetic overflow instrumentation (first check type)
-- [ ] Write unit test for arithmetic checks
-- [ ] Test with simple C program
+- [ ] Extend overflow checks to add/sub operations
+- [ ] Implement shift overflow detection
+- [ ] Add more test cases for edge conditions
+- [ ] Measure overhead on small benchmark
 
 ---
 
