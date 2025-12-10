@@ -8,17 +8,19 @@ This LLVM pass injects lightweight runtime checks into binaries to detect arithm
 
 ## Current Status
 
-**Week 6 Implementation:**
+**Week 6-7 Implementation:**
 - ✅ Basic pass skeleton with New Pass Manager registration
-- ✅ Arithmetic overflow instrumentation (integer multiply)
+- ✅ Arithmetic overflow instrumentation for mul, add, sub operations
 - ✅ Integration with runtime library
-- ✅ Test suite with 4 test cases
+- ✅ Comprehensive test suite (12+ test cases)
 
 **Coverage:**
-- Arithmetic checks: Integer multiply overflow (smul.with.overflow intrinsic)
-- TODO: Add, subtract, shift operations
-- TODO: Control flow integrity checks
-- TODO: Memory bounds checks
+- ✅ Arithmetic checks: Multiply (smul.with.overflow)
+- ✅ Arithmetic checks: Add (sadd.with.overflow)
+- ✅ Arithmetic checks: Subtract (ssub.with.overflow)
+- ⏳ TODO: Shift operations (shl)
+- ⏳ TODO: Control flow integrity checks
+- ⏳ TODO: Memory bounds checks
 
 ## Building
 
@@ -158,15 +160,22 @@ Environment variables (passed to runtime):
 - [ ] Selective instrumentation (only transformed code)
 - [ ] Benchmark on SPEC CPU 2017 or alternatives
 
-## Known Issues
+## Known Issues & Limitations
 
-- **Issue 1:** Negative overflow (INT_MIN * 2) not always detected
-  - **Cause:** Optimizer may constant-fold before instrumentation
-  - **Fix:** Insert pass earlier in pipeline (before SimplifyCFG)
+- **Issue 1:** Constant expressions optimized away
+  - **Cause:** Optimizer constant-folds expressions like `INT_MAX + 200` before instrumentation
+  - **Impact:** Can't detect overflows in compile-time-known expressions
+  - **Not a bug:** This is expected! Our tool targets **runtime** overflows with unknown values
+  - **Example:** `compute_sum(user_input_x, user_input_y)` ✅ Will detect
+  - **Example:** `result = 1000000 * 1000000` ❌ Constant-folded
 
-- **Issue 2:** Expression tracking shows generic "x * y"
+- **Issue 2:** Inlining may bypass checks
+  - **Cause:** Functions like `compute_mul()` may be inlined, then constant-folded
+  - **Fix:** Instrumentation pass should run after inlining (current behavior is correct)
+
+- **Issue 3:** Expression tracking shows generic "x mul y"
   - **Cause:** Need to track original variable names
-  - **Fix:** Use debug info or metadata for source mapping
+  - **Fix:** Use debug info or metadata for source mapping (future enhancement)
 
 ## Related Components
 

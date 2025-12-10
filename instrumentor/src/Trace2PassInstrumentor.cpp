@@ -67,14 +67,19 @@ bool Trace2PassInstrumentorPass::instrumentArithmeticOperations(Function &F) {
 
   for (BasicBlock &BB : F) {
     for (Instruction &I : BB) {
-      // Look for multiply instructions
-      if (I.getOpcode() == Instruction::Mul) {
-        // Only instrument integer multiplications
-        if (I.getType()->isIntegerTy()) {
-          ToInstrument.push_back(&I);
+      // Look for arithmetic instructions that can overflow
+      if (I.getType()->isIntegerTy()) {
+        switch (I.getOpcode()) {
+          case Instruction::Mul:
+          case Instruction::Add:
+          case Instruction::Sub:
+            ToInstrument.push_back(&I);
+            break;
+          // TODO: Add shift operations (shl)
+          default:
+            break;
         }
       }
-      // TODO: Add other arithmetic operations (add, sub, shl, etc.)
     }
   }
 
@@ -103,9 +108,30 @@ void Trace2PassInstrumentorPass::insertOverflowCheck(IRBuilder<> &Builder,
   LLVMContext &Ctx = M.getContext();
   Type *IntTy = I->getType();
 
-  // Use LLVM's overflow intrinsic: llvm.smul.with.overflow
+  // Select the appropriate overflow intrinsic based on operation
+  Intrinsic::ID IntrinsicID;
+  const char *OpName;
+
+  switch (I->getOpcode()) {
+    case Instruction::Mul:
+      IntrinsicID = Intrinsic::smul_with_overflow;
+      OpName = "mul";
+      break;
+    case Instruction::Add:
+      IntrinsicID = Intrinsic::sadd_with_overflow;
+      OpName = "add";
+      break;
+    case Instruction::Sub:
+      IntrinsicID = Intrinsic::ssub_with_overflow;
+      OpName = "sub";
+      break;
+    default:
+      return; // Shouldn't reach here
+  }
+
+  // Use LLVM's overflow intrinsic
   Function *OverflowIntrinsic = Intrinsic::getOrInsertDeclaration(
-      &M, Intrinsic::smul_with_overflow, {IntTy});
+      &M, IntrinsicID, {IntTy});
 
   // Call the intrinsic
   CallInst *OverflowCall = Builder.CreateCall(OverflowIntrinsic, {LHS, RHS});
@@ -141,8 +167,8 @@ void Trace2PassInstrumentorPass::insertOverflowCheck(IRBuilder<> &Builder,
   Value *PC = Builder.CreateCall(ReturnAddrIntrinsic,
                                   {Builder.getInt32(0)});
 
-  // Create expression string
-  std::string ExprStr = "x * y";  // TODO: Better expression tracking
+  // Create expression string based on operation
+  std::string ExprStr = std::string("x ") + OpName + " y";
   Value *ExprGlobal = Builder.CreateGlobalString(ExprStr);
 
   // Convert operands to i64 for reporting
