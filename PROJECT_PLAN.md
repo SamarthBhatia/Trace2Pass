@@ -3,8 +3,8 @@
 **THIS IS THE OFFICIAL PLAN. FOLLOW IT EXACTLY.**
 
 **Last Updated:** 2024-12-10
-**Status:** Phase 1: 100% ✅ | Phase 2: 50% | Phase 3: 0% | Phase 4: 0%
-**Current Week:** 6 of 24
+**Status:** Phase 1: 100% ✅ | Phase 2: 58% | Phase 3: 0% | Phase 4: 0%
+**Current Week:** 7 of 24
 
 ---
 
@@ -95,7 +95,7 @@
 
 ---
 
-### **PHASE 2: Instrumentor - Runtime Check Injection (Weeks 5-10) - 50% COMPLETE**
+### **PHASE 2: Instrumentor - Runtime Check Injection (Weeks 5-10) - 58% COMPLETE**
 
 **Goal:** Build LLVM pass that injects lightweight runtime checks into binaries
 
@@ -141,13 +141,14 @@
 
 #### Week 7-8: Check Implementation
 **Tasks:**
-1. **Arithmetic checks:**
+1. **Arithmetic checks:** ✅ Complete (Week 7)
    ```cpp
    // Before:  x * y
    // After:   if (willOverflow(x, y)) report(); x * y;
    ```
-   - Detect signed overflow on multiply, add, shift
-   - Use compiler builtins: `__builtin_mul_overflow`
+   - ✅ Detect signed overflow on multiply, add, subtract (using LLVM intrinsics)
+   - ✅ Detect shift overflow (shl with shift_amount >= bit_width)
+   - **Tests:** 15+ test cases, runtime value tests to prevent constant folding
 
 2. **Control flow checks:**
    ```cpp
@@ -167,9 +168,11 @@
    - Track allocation sizes (malloc/alloca metadata)
 
 **Deliverables:**
-- [ ] All 3 check types implemented
-- [ ] Unit tests for each check type
-- [ ] Test programs triggering each check
+- [x] Arithmetic checks implemented (mul, add, sub, shl)
+- [x] Unit tests for arithmetic checks (15+ test cases)
+- [x] Test programs triggering overflow detection
+- [ ] Control flow integrity checks (Week 8)
+- [ ] Memory bounds checks (Week 8)
 
 ---
 
@@ -688,10 +691,10 @@
 ## Current Status & Immediate Next Steps
 
 ### Where We Are:
-- **Week:** 6 of 24
+- **Week:** 7 of 24
 - **Phase 1:** 100% complete ✅
-- **Phase 2:** 50% complete (Week 5-6 foundation + LLVM pass done)
-- **Overall Progress:** ~33% (Phase 1 + Week 5-6 of Phase 2)
+- **Phase 2:** 58% complete (Week 5-7: foundation + arithmetic checks done)
+- **Overall Progress:** ~45% (Phase 1 complete + Week 5-7 of Phase 2)
 
 ### Week 5 Accomplishments (2024-12-10 AM):
 
@@ -725,13 +728,28 @@
 - Test 3: Negative overflow (INT_MIN × 2) - ⚠️ Optimized away
 - Test 4: 64-bit safe (i64) - ✅ No false positive
 
-### Immediate Next Steps (Week 7):
+### Week 7 Accomplishments (2024-12-10):
+
+**Arithmetic Overflow Detection Extension** ✅
+- [x] Extended overflow checks to add/sub operations (using LLVM intrinsics)
+- [x] Implemented shift overflow detection (shl with shift_amount >= bit_width)
+- [x] Created comprehensive test suite (test_arithmetic.c, test_shift.c)
+- [x] Added runtime value tests to prevent constant folding (test_runtime_shift.c)
+- [x] Successfully detected overflows in all operation types (mul, add, sub, shl)
+- [x] Updated instrumentor README with Week 7 status
+
+**Test Results:**
+- 15+ test cases covering safe operations, overflows, edge cases
+- Deduplication working correctly (reports once per PC)
+- All overflow types successfully detected with runtime values
+
+### Immediate Next Steps (Week 8):
 
 **Next Session:**
-- [ ] Extend overflow checks to add/sub operations
-- [ ] Implement shift overflow detection
-- [ ] Add more test cases for edge conditions
-- [ ] Measure overhead on small benchmark
+- [ ] Implement control flow integrity checks
+- [ ] Add memory bounds checks (GEP instruction instrumentation)
+- [ ] Measure overhead on benchmark program
+- [ ] Begin optimization planning
 
 ---
 
@@ -745,7 +763,7 @@ Week 15-18:[░░░░░░░░░░░░░░░░░░░░] Phase 
 Week 19-21:[░░░░░░░░░░░░░░░░░░░░] Phase 4 Reporter + Evaluation
 Week 22-24:[░░░░░░░░░░░░░░░░░░░░] Phase 5 Thesis Writing
 
-Current: Week 5 ───────────────────▲
+Current: Week 7 ───────────────────▲
                                    You are here
 ```
 
