@@ -3,8 +3,8 @@
 **THIS IS THE OFFICIAL PLAN. FOLLOW IT EXACTLY.**
 
 **Last Updated:** 2024-12-11
-**Status:** Phase 1: 100% ✅ | Phase 2: 72% | Phase 3: 0% | Phase 4: 0%
-**Current Week:** 8 of 24
+**Status:** Phase 1: 100% ✅ | Phase 2: 78% | Phase 3: 0% | Phase 4: 0%
+**Current Week:** 9 of 24
 
 ---
 
@@ -836,15 +836,45 @@
 - **Status**: All instrumentation types working end-to-end
 - **Note**: Historical bugs fixed in LLVM 21 (good sign - compiler has improved)
 
-### Immediate Next Steps (Week 8-9):
+### Week 9 Accomplishments (2024-12-11):
 
-**Validation Complete** ✅ - Ready for optimization phase
+**Sampling Rate Experiments Complete** ✅
+- [x] Tested 7 sampling rates: 0%, 0.5%, 1%, 2%, 5%, 10%, 100%
+- [x] Ran 105 benchmark iterations (7 rates × 5 workloads × 3 runs)
+- [x] Analyzed overhead vs baseline
+- **Key Finding:** Sampling does NOT significantly reduce overhead on micro-benchmarks
+  - 0% sampling: 93.4% average overhead
+  - 1% sampling: 63.5% average overhead
+  - 10% sampling: 60.3% average overhead
+  - **Range:** Only ~30% variation (not the 100x expected)
+- **Root Cause:** Overhead is structural (code presence), not runtime (check execution)
+- **Documentation:** `instrumentor/test/WEEK9_SAMPLING_EXPERIMENTS.md`
 
-**Week 9-10 Options:**
-- [ ] Option A: Test sampling at different rates (0.5%, 1%, 2%, 5%, 10%)
-- [ ] Option B: Benchmark on real applications (Redis, SQLite, nginx)
-- [ ] Option C: Implement selective instrumentation (only transformed code)
-- [ ] Option D: Move to Phase 3 (Collector + Diagnoser)
+**Real Application Setup** ✅
+- [x] Downloaded Redis 7.2.4 source code
+- [x] Compiled baseline Redis (no instrumentation)
+- [x] Compiled instrumented Redis with Trace2Pass
+  - Successfully instrumented hundreds of Redis functions
+  - Example: `redisContextConnectUnix` - 181 GEP instructions instrumented!
+- [x] Both versions ready for benchmarking
+
+**Key Insights:**
+1. **Micro-benchmarks show worst-case:** 60-93% overhead
+2. **Sampling helps minimally:** Only ~30% reduction (not enough for <5% target)
+3. **Need real apps:** Redis/SQLite expected to show 5-15% overhead (I/O bound)
+4. **Alternative needed:** Selective instrumentation or profile-guided optimization
+
+### Immediate Next Steps (Week 9 Continuation):
+
+**Current Focus:** Real application benchmarking
+
+**Week 9-10 Remaining Tasks:**
+- [ ] Benchmark Redis baseline (GET/SET throughput)
+- [ ] Benchmark Redis instrumented (measure overhead)
+- [ ] Test Redis at different sampling rates
+- [ ] Benchmark SQLite (INSERT/SELECT operations)
+- [ ] Document real application overhead results
+- [ ] If <5% not achieved: Implement selective instrumentation
 
 ---
 
