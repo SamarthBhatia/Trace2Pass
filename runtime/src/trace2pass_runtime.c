@@ -287,3 +287,80 @@ void trace2pass_report_division_by_zero(void* pc, const char* op_name,
     fflush(out);
     pthread_mutex_unlock(&output_mutex);
 }
+
+// Pure function consistency checking with hash table cache
+#define PURE_CACHE_SIZE 1024
+
+typedef struct {
+    uint64_t func_hash;  // Hash of function name
+    int64_t arg0;
+    int64_t arg1;
+    int64_t result;
+    int valid;
+} pure_cache_entry_t;
+
+static __thread pure_cache_entry_t pure_cache[PURE_CACHE_SIZE] = {0};
+
+// Simple string hash
+static uint64_t hash_string(const char* str) {
+    uint64_t h = 5381;
+    int c;
+    while ((c = *str++)) {
+        h = ((h << 5) + h) + c; // h * 33 + c
+    }
+    return h;
+}
+
+void trace2pass_check_pure_consistency(void* pc, const char* func_name,
+                                        int64_t arg0, int64_t arg1,
+                                        int64_t result) {
+    uint64_t func_hash = hash_string(func_name);
+
+    // Compute cache index
+    uint64_t combined_hash = func_hash ^ ((uint64_t)arg0) ^ ((uint64_t)arg1 << 16);
+    size_t idx = combined_hash % PURE_CACHE_SIZE;
+
+    pure_cache_entry_t* entry = &pure_cache[idx];
+
+    // Check if we have a cached result for this function+args
+    if (entry->valid &&
+        entry->func_hash == func_hash &&
+        entry->arg0 == arg0 &&
+        entry->arg1 == arg1) {
+
+        // We've seen this call before - check consistency
+        if (entry->result != result) {
+            // Inconsistency detected!
+            uint64_t report_hash = hash_report(pc, "pure_inconsistency");
+            if (bloom_contains(seen_reports, report_hash)) return;
+            bloom_insert(seen_reports, report_hash);
+
+            char timestamp[32];
+            get_timestamp(timestamp, sizeof(timestamp));
+
+            pthread_mutex_lock(&output_mutex);
+            FILE* out = get_output_file();
+            fprintf(out, "\n=== Trace2Pass Report ===\n");
+            fprintf(out, "Timestamp: %s\n", timestamp);
+            fprintf(out, "Type: pure_function_inconsistency\n");
+            fprintf(out, "PC: %p\n", pc);
+            fprintf(out, "Function: %s\n", func_name);
+            fprintf(out, "Arg0: %lld\n", (long long)arg0);
+            fprintf(out, "Arg1: %lld\n", (long long)arg1);
+            fprintf(out, "Previous Result: %lld\n", (long long)entry->result);
+            fprintf(out, "Current Result: %lld\n", (long long)result);
+            fprintf(out, "Note: Pure function returned different results for same inputs\n");
+            fprintf(out, "      This may indicate a compiler optimization bug\n");
+            fprintf(out, "========================\n\n");
+            fflush(out);
+            pthread_mutex_unlock(&output_mutex);
+        }
+    } else {
+        // First time seeing this function+args combination - cache it
+        entry->func_hash = func_hash;
+        entry->arg0 = arg0;
+        entry->arg1 = arg1;
+        entry->result = result;
+        entry->valid = 1;
+    }
+}

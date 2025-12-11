@@ -23,6 +23,10 @@ void trace2pass_report_sign_conversion(void* pc, int64_t original_value,
 void trace2pass_report_division_by_zero(void* pc, const char* op_name,
                                           int64_t dividend, int64_t divisor);
 
+void trace2pass_check_pure_consistency(void* pc, const char* func_name,
+                                         int64_t arg0, int64_t arg1,
+                                         int64_t result);
+
 // Control Flow Integrity Checks
 
 void trace2pass_report_cfi_violation(void* pc, const char* reason);

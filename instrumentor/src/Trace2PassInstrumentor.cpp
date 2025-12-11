@@ -25,6 +25,7 @@ private:
   bool instrumentMemoryAccess(Function &F);
   bool instrumentSignConversions(Function &F);
   bool instrumentDivisionByZero(Function &F);
+  bool instrumentPureFunctionCalls(Function &F);
   void insertOverflowCheck(IRBuilder<> &Builder, Instruction *I,
                            Value *LHS, Value *RHS);
   void insertShiftCheck(IRBuilder<> &Builder, Instruction *I,
@@ -37,6 +38,7 @@ private:
   FunctionCallee getBoundsViolationReportFunc(Module &M);
   FunctionCallee getSignConversionReportFunc(Module &M);
   FunctionCallee getDivisionByZeroReportFunc(Module &M);
+  FunctionCallee getPureConsistencyReportFunc(Module &M);
 
   // Statistics
   unsigned NumInstrumented = 0;
@@ -44,6 +46,7 @@ private:
   unsigned NumGEPInstrumented = 0;
   unsigned NumSignConversionInstrumented = 0;
   unsigned NumDivisionByZeroInstrumented = 0;
+  unsigned NumPureCallsInstrumented = 0;
 };
 
 PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
@@ -75,6 +78,9 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
   // Instrument division by zero
   Modified |= instrumentDivisionByZero(F);
 
+  // Instrument pure function calls for consistency checking
+  Modified |= instrumentPureFunctionCalls(F);
+
   if (Modified) {
     errs() << "Trace2Pass: Instrumented " << NumInstrumented
            << " arithmetic operations";
@@ -89,6 +95,9 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
     }
     if (NumDivisionByZeroInstrumented > 0) {
       errs() << ", " << NumDivisionByZeroInstrumented << " division checks";
+    }
+    if (NumPureCallsInstrumented > 0) {
+      errs() << ", " << NumPureCallsInstrumented << " pure function calls";
     }
     errs() << " in " << F.getName() << "\n";
 
@@ -669,6 +678,92 @@ bool Trace2PassInstrumentorPass::instrumentDivisionByZero(Function &F) {
   return Modified;
 }
 
+// Instrument calls to pure functions for consistency checking
+bool Trace2PassInstrumentorPass::instrumentPureFunctionCalls(Function &F) {
+  Module &M = *F.getParent();
+  std::vector<CallInst*> PureCalls;
+
+  // Scan for calls to functions marked as readonly or readnone (pure/const)
+  for (BasicBlock &BB : F) {
+    for (Instruction &I : BB) {
+      if (auto *Call = dyn_cast<CallInst>(&I)) {
+        Function *Callee = Call->getCalledFunction();
+        if (!Callee) continue;  // Indirect call, skip
+
+        // Skip runtime functions
+        if (Callee->getName().starts_with("trace2pass_")) continue;
+
+        // Skip intrinsics and builtins
+        if (Callee->isIntrinsic()) continue;
+
+        // Check if function is marked as pure (readonly/readnone)
+        // readonly = may read memory but doesn't write (pure)
+        // readnone = doesn't access memory at all (const)
+        if (Callee->doesNotAccessMemory() || Callee->onlyReadsMemory()) {
+          // Additional filter: only instrument simple cases (integer args/return)
+          Type *RetTy = Call->getType();
+          if (RetTy->isIntegerTy() && Call->arg_size() <= 2) {
+            // Check all args are integers
+            bool allInts = true;
+            for (Value *Arg : Call->args()) {
+              if (!Arg->getType()->isIntegerTy()) {
+                allInts = false;
+                break;
+              }
+            }
+            if (allInts) {
+              PureCalls.push_back(Call);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (PureCalls.empty())
+    return false;
+
+  FunctionCallee ReportFunc = getPureConsistencyReportFunc(M);
+  bool Modified = false;
+
+  for (CallInst *Call : PureCalls) {
+    Function *Callee = Call->getCalledFunction();
+    Instruction *InsertPt = Call->getNextNonDebugInstruction();
+    if (!InsertPt) continue;
+
+    IRBuilder<> Builder(InsertPt);
+
+    // Get PC (return address)
+    Function *ReturnAddrFn = Intrinsic::getOrInsertDeclaration(&M, Intrinsic::returnaddress);
+    Value *PC = Builder.CreateCall(ReturnAddrFn, {Builder.getInt32(0)});
+
+    // Get function name
+    Value *FuncName = Builder.CreateGlobalString(Callee->getName(), "pure_func_name");
+
+    // Get arguments (extend to i64)
+    Value *Arg0 = Builder.getInt64(0);
+    Value *Arg1 = Builder.getInt64(0);
+
+    if (Call->arg_size() >= 1) {
+      Arg0 = Builder.CreateSExtOrBitCast(Call->getArgOperand(0), Builder.getInt64Ty());
+    }
+    if (Call->arg_size() >= 2) {
+      Arg1 = Builder.CreateSExtOrBitCast(Call->getArgOperand(1), Builder.getInt64Ty());
+    }
+
+    // Get result (extend to i64)
+    Value *Result = Builder.CreateSExtOrBitCast(Call, Builder.getInt64Ty());
+
+    // Call: trace2pass_check_pure_consistency(PC, func_name, arg0, arg1, result)
+    Builder.CreateCall(ReportFunc, {PC, FuncName, Arg0, Arg1, Result});
+
+    Modified = true;
+    NumPureCallsInstrumented++;
+  }
+
+  return Modified;
+}
+
 FunctionCallee Trace2PassInstrumentorPass::getSignConversionReportFunc(Module &M) {
   LLVMContext &Ctx = M.getContext();
 
@@ -718,6 +813,23 @@ FunctionCallee Trace2PassInstrumentorPass::getDivisionByZeroReportFunc(Module &M
       false);
 
   return M.getOrInsertFunction("trace2pass_report_division_by_zero", FT);
+}
+
+FunctionCallee Trace2PassInstrumentorPass::getPureConsistencyReportFunc(Module &M) {
+  LLVMContext &Ctx = M.getContext();
+
+  // void trace2pass_check_pure_consistency(void* pc, const char* func_name, int64_t arg0, int64_t arg1, int64_t result)
+  Type *VoidTy = Type::getVoidTy(Ctx);
+  Type *VoidPtrTy = PointerType::getUnqual(Ctx);
+  Type *CharPtrTy = PointerType::getUnqual(Ctx);  // const char*
+  Type *Int64Ty = Type::getInt64Ty(Ctx);
+
+  FunctionType *FT = FunctionType::get(
+      VoidTy,
+      {VoidPtrTy, CharPtrTy, Int64Ty, Int64Ty, Int64Ty},
+      false);
+
+  return M.getOrInsertFunction("trace2pass_check_pure_consistency", FT);
 }
 
 } // anonymous namespace
