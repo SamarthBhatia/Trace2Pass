@@ -2,9 +2,9 @@
 
 **THIS IS THE OFFICIAL PLAN. FOLLOW IT EXACTLY.**
 
-**Last Updated:** 2024-12-10
-**Status:** Phase 1: 100% ✅ | Phase 2: 58% | Phase 3: 0% | Phase 4: 0%
-**Current Week:** 7 of 24
+**Last Updated:** 2024-12-11
+**Status:** Phase 1: 100% ✅ | Phase 2: 72% | Phase 3: 0% | Phase 4: 0%
+**Current Week:** 8 of 24
 
 ---
 
@@ -825,13 +825,26 @@
   - **Conclusion**: Micro-benchmark overhead high, but sampling helps significantly
   - Real applications expected: 5-15% overhead (I/O bound, not pure computation)
 
+**Validation Testing Complete** ✅
+- [x] Tested all 3 historical bugs from dataset (49667, 64598, 97330)
+- [x] Created synthetic validation test (`test_validation_synthetic.c`)
+- [x] **Detections Verified**:
+  - Arithmetic overflow: 1000000 * 1000000 overflow detected ✅
+  - Bounds violation: ptr[-10] negative index detected (offset = 0xFFFFFFFFFFFFFFFF) ✅
+  - CFI unreachable: 2 unreachable blocks instrumented correctly ✅
+- [x] Documentation: `instrumentor/test/VALIDATION_RESULTS.md`
+- **Status**: All instrumentation types working end-to-end
+- **Note**: Historical bugs fixed in LLVM 21 (good sign - compiler has improved)
+
 ### Immediate Next Steps (Week 8-9):
 
-**Next Session:**
-- [ ] Commit overhead benchmark results
-- [ ] Begin Week 9-10: Optimization planning
-- [ ] Test on real application (Redis/SQLite) for realistic overhead
-- [ ] Consider allocation size tracking for upper bound checks (stretch goal)
+**Validation Complete** ✅ - Ready for optimization phase
+
+**Week 9-10 Options:**
+- [ ] Option A: Test sampling at different rates (0.5%, 1%, 2%, 5%, 10%)
+- [ ] Option B: Benchmark on real applications (Redis, SQLite, nginx)
+- [ ] Option C: Implement selective instrumentation (only transformed code)
+- [ ] Option D: Move to Phase 3 (Collector + Diagnoser)
 
 ---
 
