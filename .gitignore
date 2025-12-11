@@ -1,6 +1,7 @@
-# AI Assistant Context
+# AI Assistant Context (local only, not versioned)
 CLAUDE.md
 status.md
+PROJECT_PLAN.md
 
 # LLVM Source (clone locally, don't push)
 llvm-project/
