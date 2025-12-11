@@ -21,18 +21,22 @@ private:
   // Instrumentation helper functions
   bool instrumentArithmeticOperations(Function &F);
   bool instrumentUnreachableCode(Function &F);
+  bool instrumentMemoryAccess(Function &F);
   void insertOverflowCheck(IRBuilder<> &Builder, Instruction *I,
                            Value *LHS, Value *RHS);
   void insertShiftCheck(IRBuilder<> &Builder, Instruction *I,
                         Value *ShiftValue, Value *ShiftAmount);
+  void insertBoundsCheck(IRBuilder<> &Builder, GetElementPtrInst *GEP);
 
   // Runtime function declarations
   FunctionCallee getOverflowReportFunc(Module &M);
   FunctionCallee getUnreachableReportFunc(Module &M);
+  FunctionCallee getBoundsViolationReportFunc(Module &M);
 
   // Statistics
   unsigned NumInstrumented = 0;
   unsigned NumUnreachableInstrumented = 0;
+  unsigned NumGEPInstrumented = 0;
 };
 
 PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
@@ -55,11 +59,17 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
   // Instrument unreachable code
   Modified |= instrumentUnreachableCode(F);
 
+  // Instrument memory accesses (GEP bounds checks)
+  Modified |= instrumentMemoryAccess(F);
+
   if (Modified) {
     errs() << "Trace2Pass: Instrumented " << NumInstrumented
            << " arithmetic operations";
     if (NumUnreachableInstrumented > 0) {
-      errs() << " and " << NumUnreachableInstrumented << " unreachable blocks";
+      errs() << ", " << NumUnreachableInstrumented << " unreachable blocks";
+    }
+    if (NumGEPInstrumented > 0) {
+      errs() << ", " << NumGEPInstrumented << " GEP instructions";
     }
     errs() << " in " << F.getName() << "\n";
 
@@ -347,6 +357,138 @@ FunctionCallee Trace2PassInstrumentorPass::getUnreachableReportFunc(Module &M) {
       false);
 
   return M.getOrInsertFunction("trace2pass_report_unreachable", FT);
+}
+
+bool Trace2PassInstrumentorPass::instrumentMemoryAccess(Function &F) {
+  bool Modified = false;
+  Module &M = *F.getParent();
+
+  // Collect GEP instructions to instrument (to avoid iterator invalidation)
+  SmallVector<GetElementPtrInst *, 16> ToInstrument;
+
+  for (BasicBlock &BB : F) {
+    for (Instruction &I : BB) {
+      // Look for GetElementPtr instructions (array/pointer indexing)
+      if (auto *GEP = dyn_cast<GetElementPtrInst>(&I)) {
+        // Only instrument GEPs that access arrays (not struct fields)
+        // We check if there are more than one indices (first is base pointer)
+        if (GEP->getNumIndices() > 1) {
+          ToInstrument.push_back(GEP);
+        }
+      }
+    }
+  }
+
+  // Instrument collected GEP instructions
+  for (GetElementPtrInst *GEP : ToInstrument) {
+    IRBuilder<> Builder(GEP);
+    insertBoundsCheck(Builder, GEP);
+    Modified = true;
+    NumGEPInstrumented++;
+  }
+
+  return Modified;
+}
+
+void Trace2PassInstrumentorPass::insertBoundsCheck(IRBuilder<> &Builder,
+                                                     GetElementPtrInst *GEP) {
+  Module &M = *GEP->getModule();
+  LLVMContext &Ctx = M.getContext();
+
+  // For now, we'll implement a conservative check:
+  // We'll instrument all GEP instructions and check indices at runtime
+  // More sophisticated analysis could determine actual array bounds
+
+  // Get the pointer operand (base array/pointer)
+  Value *BasePtr = GEP->getPointerOperand();
+
+  // Get all indices
+  SmallVector<Value *, 4> Indices;
+  for (auto Idx = GEP->idx_begin(); Idx != GEP->idx_end(); ++Idx) {
+    Indices.push_back(*Idx);
+  }
+
+  // For multi-dimensional arrays or complex GEPs, we focus on the last index
+  // (the most common source of out-of-bounds access)
+  if (Indices.empty())
+    return;
+
+  Value *LastIndex = Indices.back();
+
+  // Check if index is negative (for signed indices)
+  if (LastIndex->getType()->isIntegerTy()) {
+    // Create basic blocks for the check
+    BasicBlock *CheckBB = BasicBlock::Create(Ctx, "bounds_check",
+                                              GEP->getFunction());
+    BasicBlock *ViolationBB = BasicBlock::Create(Ctx, "bounds_violation",
+                                                  GEP->getFunction());
+    BasicBlock *ContinueBB = BasicBlock::Create(Ctx, "bounds_ok",
+                                                 GEP->getFunction());
+
+    BasicBlock *CurrentBB = GEP->getParent();
+
+    // Insert unconditional branch to check block
+    Builder.CreateBr(CheckBB);
+
+    // Build the check: index < 0 (for signed indices)
+    Builder.SetInsertPoint(CheckBB);
+
+    // Convert index to i64 for checking
+    Value *Index_i64 = Builder.CreateSExtOrTrunc(LastIndex, Builder.getInt64Ty());
+
+    // Check if index is negative
+    Value *IsNegative = Builder.CreateICmpSLT(Index_i64, Builder.getInt64(0));
+
+    Builder.CreateCondBr(IsNegative, ViolationBB, ContinueBB);
+
+    // Fill in the violation handler
+    Builder.SetInsertPoint(ViolationBB);
+
+    // Get the runtime report function
+    FunctionCallee ReportFunc = getBoundsViolationReportFunc(M);
+
+    // Get PC (return address)
+    Function *ReturnAddrIntrinsic = Intrinsic::getOrInsertDeclaration(
+        &M, Intrinsic::returnaddress);
+    Value *PC = Builder.CreateCall(ReturnAddrIntrinsic,
+                                    {Builder.getInt32(0)});
+
+    // Cast base pointer to void*
+    Value *BasePtr_void = Builder.CreatePointerCast(BasePtr,
+                                                     PointerType::getUnqual(Ctx));
+
+    // For now, we report with index as offset and 0 as size (unknown)
+    // A more sophisticated implementation would track actual array sizes
+    Value *Offset_u64 = Builder.CreateSExtOrTrunc(Index_i64, Builder.getInt64Ty());
+    Value *Size_u64 = Builder.getInt64(0); // Unknown size
+
+    // Call the report function
+    // void trace2pass_report_bounds_violation(void* pc, void* ptr, size_t offset, size_t size)
+    Builder.CreateCall(ReportFunc, {PC, BasePtr_void, Offset_u64, Size_u64});
+
+    // Continue execution (non-fatal for now)
+    Builder.CreateBr(ContinueBB);
+
+    // Move the GEP and subsequent instructions to the continue block
+    ContinueBB->splice(ContinueBB->begin(), CurrentBB,
+                       GEP->getIterator(), CurrentBB->end());
+  }
+}
+
+FunctionCallee Trace2PassInstrumentorPass::getBoundsViolationReportFunc(Module &M) {
+  LLVMContext &Ctx = M.getContext();
+
+  // void trace2pass_report_bounds_violation(void* pc, void* ptr, size_t offset, size_t size)
+  Type *VoidTy = Type::getVoidTy(Ctx);
+  Type *VoidPtrTy = PointerType::getUnqual(Ctx);
+  Type *SizeTy = Type::getInt64Ty(Ctx); // size_t is i64 on 64-bit systems
+
+  FunctionType *FT = FunctionType::get(
+      VoidTy,
+      {VoidPtrTy, VoidPtrTy, SizeTy, SizeTy},
+      false);
+
+  return M.getOrInsertFunction("trace2pass_report_bounds_violation", FT);
 }
 
 } // anonymous namespace

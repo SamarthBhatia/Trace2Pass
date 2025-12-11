@@ -163,13 +163,17 @@
    - ⏳ TODO: Value consistency checks (pure function outputs)
    - ⏳ TODO: Branch invariant checks
 
-3. **Memory bounds checks:**
+3. **Memory bounds checks:** ✅ Implemented (Week 8)
    ```cpp
    // Before:  arr[i]
-   // After:   bounds_check(arr, i, size); arr[i];
+   // After:   if (i < 0) { report_bounds_violation(); } arr[i];
    ```
-   - Instrument GEP instructions
-   - Track allocation sizes (malloc/alloca metadata)
+   - ✅ Instrument GEP (GetElementPtr) instructions
+   - ✅ Detect negative array indices
+   - **Tests:** 3 test files, 25+ GEP instructions instrumented
+   - **Coverage:** Targets SROA, vectorization, alias analysis bugs
+   - ⏳ TODO: Track allocation sizes (malloc/alloca metadata) for upper bounds
+   - ⏳ TODO: Multi-dimensional array size tracking
 
 **Deliverables:**
 - [x] Arithmetic checks implemented (mul, add, sub, shl)
@@ -177,7 +181,9 @@
 - [x] Test programs triggering overflow detection
 - [x] Control flow integrity - unreachable code detection (Week 8)
 - [x] Unit tests for CFI (2 test files, 5 unreachable blocks)
-- [ ] Memory bounds checks (Week 8-9)
+- [x] Memory bounds checks - GEP instrumentation (Week 8)
+- [x] GEP tests (3 test files: basic, advanced, historical bug)
+- [ ] Extended memory bounds - allocation size tracking (Week 9)
 - [ ] Additional CFI checks (value consistency, branch invariants)
 
 ---
@@ -699,8 +705,8 @@
 ### Where We Are:
 - **Week:** 8 of 24
 - **Phase 1:** 100% complete ✅
-- **Phase 2:** 65% complete (Week 5-8: foundation + arithmetic + CFI unreachable)
-- **Overall Progress:** ~48% (Phase 1 complete + Week 5-8 of Phase 2)
+- **Phase 2:** 72% complete (Week 5-8: foundation + arithmetic + CFI unreachable + GEP bounds)
+- **Overall Progress:** ~51% (Phase 1 complete + Week 5-8 of Phase 2)
 
 ### Week 5 Accomplishments (2024-12-10 AM):
 
@@ -782,12 +788,37 @@
 - [x] Documentation: `instrumentor/test/REAL_BUGS_VALIDATION.md`
 - **Coverage:** 2/54 bugs from Phase 1 dataset validated (3.7%)
 
+**Memory Bounds Checks - GEP Instrumentation** ✅
+- [x] Implemented `instrumentMemoryAccess()` method (scans for GEP instructions)
+- [x] Implemented `insertBoundsCheck()` method (negative index detection)
+- [x] Added `trace2pass_report_bounds_violation()` runtime function
+- [x] Created 3 comprehensive test files:
+  - `test_bounds.c` - Basic array access patterns
+  - `test_bounds_advanced.c` - Realistic bug patterns (5 scenarios)
+  - `test_bug_49667.c` - Historical SLP vectorization bug (x86_64 only)
+- [x] Successfully instrumented 25+ GEP instructions across test suite
+- [x] Detected negative array index violations (-1, -2, -6)
+- [x] Documentation: `instrumentor/test/GEP_BOUNDS_TESTS.md`
+- **Implementation:** Lines 362-492 in Trace2PassInstrumentor.cpp
+
+**Technical Implementation:**
+- Scans for `GetElementPtrInst` with multiple indices (array access)
+- Inserts runtime check: `if (index < 0) { report_bounds_violation(...); }`
+- Reports: PC, pointer, offset (signed index as unsigned), size (0 for now)
+- Targets: SROA, vectorization, alias analysis bugs (~15% of dataset)
+
+**Test Results:**
+- 25+ GEP instructions instrumented across 3 test files
+- Successfully detected bounds violations (offset = 0xFFFFFFFFFFFFFFFF for -1)
+- Pointer arithmetic patterns tested (ptr[-6], buffer[100], str[-2])
+- SROA-related struct array patterns tested
+
 ### Immediate Next Steps (Week 8-9):
 
 **Next Session:**
-- [ ] Add memory bounds checks (GEP instruction instrumentation)
 - [ ] Measure overhead on simple benchmark program
 - [ ] Begin optimization planning for Week 9-10
+- [ ] Consider allocation size tracking for upper bound checks (stretch goal)
 
 ---
 
