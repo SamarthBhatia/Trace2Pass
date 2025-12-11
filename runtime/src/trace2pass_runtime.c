@@ -239,3 +239,51 @@ void trace2pass_report_bounds_violation(void* pc, void* ptr,
     fflush(out);
     pthread_mutex_unlock(&output_mutex);
 }
+void trace2pass_report_sign_conversion(void* pc, int64_t original_value,
+                                        uint64_t cast_value, uint32_t src_bits,
+                                        uint32_t dest_bits) {
+    uint64_t hash = hash_report(pc, "sign_conversion");
+    if (bloom_contains(seen_reports, hash)) return;
+    bloom_insert(seen_reports, hash);
+
+    char timestamp[32];
+    get_timestamp(timestamp, sizeof(timestamp));
+
+    pthread_mutex_lock(&output_mutex);
+    FILE* out = get_output_file();
+    fprintf(out, "\n=== Trace2Pass Report ===\n");
+    fprintf(out, "Timestamp: %s\n", timestamp);
+    fprintf(out, "Type: sign_conversion\n");
+    fprintf(out, "PC: %p\n", pc);
+    fprintf(out, "Original Value (signed i%u): %lld\n", src_bits, (long long)original_value);
+    fprintf(out, "Cast Value (unsigned i%u): %llu (0x%llx)\n", dest_bits,
+            (unsigned long long)cast_value, (unsigned long long)cast_value);
+    fprintf(out, "Note: Negative signed value converted to unsigned\n");
+    fprintf(out, "========================\n\n");
+    fflush(out);
+    pthread_mutex_unlock(&output_mutex);
+}
+
+void trace2pass_report_division_by_zero(void* pc, const char* op_name,
+                                         int64_t dividend, int64_t divisor) {
+    uint64_t hash = hash_report(pc, "division_by_zero");
+    if (bloom_contains(seen_reports, hash)) return;
+    bloom_insert(seen_reports, hash);
+
+    char timestamp[32];
+    get_timestamp(timestamp, sizeof(timestamp));
+
+    pthread_mutex_lock(&output_mutex);
+    FILE* out = get_output_file();
+    fprintf(out, "\n=== Trace2Pass Report ===\n");
+    fprintf(out, "Timestamp: %s\n", timestamp);
+    fprintf(out, "Type: division_by_zero\n");
+    fprintf(out, "PC: %p\n", pc);
+    fprintf(out, "Operation: %s\n", op_name);
+    fprintf(out, "Dividend: %lld\n", (long long)dividend);
+    fprintf(out, "Divisor: %lld\n", (long long)divisor);
+    fprintf(out, "Note: Division or modulo by zero detected\n");
+    fprintf(out, "========================\n\n");
+    fflush(out);
+    pthread_mutex_unlock(&output_mutex);
+}

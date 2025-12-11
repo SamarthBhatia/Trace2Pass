@@ -8,6 +8,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 using namespace llvm;
 
@@ -22,6 +23,8 @@ private:
   bool instrumentArithmeticOperations(Function &F);
   bool instrumentUnreachableCode(Function &F);
   bool instrumentMemoryAccess(Function &F);
+  bool instrumentSignConversions(Function &F);
+  bool instrumentDivisionByZero(Function &F);
   void insertOverflowCheck(IRBuilder<> &Builder, Instruction *I,
                            Value *LHS, Value *RHS);
   void insertShiftCheck(IRBuilder<> &Builder, Instruction *I,
@@ -32,11 +35,15 @@ private:
   FunctionCallee getOverflowReportFunc(Module &M);
   FunctionCallee getUnreachableReportFunc(Module &M);
   FunctionCallee getBoundsViolationReportFunc(Module &M);
+  FunctionCallee getSignConversionReportFunc(Module &M);
+  FunctionCallee getDivisionByZeroReportFunc(Module &M);
 
   // Statistics
   unsigned NumInstrumented = 0;
   unsigned NumUnreachableInstrumented = 0;
   unsigned NumGEPInstrumented = 0;
+  unsigned NumSignConversionInstrumented = 0;
+  unsigned NumDivisionByZeroInstrumented = 0;
 };
 
 PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
@@ -62,6 +69,12 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
   // Instrument memory accesses (GEP bounds checks)
   Modified |= instrumentMemoryAccess(F);
 
+  // Instrument sign-changing casts
+  Modified |= instrumentSignConversions(F);
+
+  // Instrument division by zero
+  Modified |= instrumentDivisionByZero(F);
+
   if (Modified) {
     errs() << "Trace2Pass: Instrumented " << NumInstrumented
            << " arithmetic operations";
@@ -70,6 +83,12 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
     }
     if (NumGEPInstrumented > 0) {
       errs() << ", " << NumGEPInstrumented << " GEP instructions";
+    }
+    if (NumSignConversionInstrumented > 0) {
+      errs() << ", " << NumSignConversionInstrumented << " sign conversions";
+    }
+    if (NumDivisionByZeroInstrumented > 0) {
+      errs() << ", " << NumDivisionByZeroInstrumented << " division checks";
     }
     errs() << " in " << F.getName() << "\n";
 
@@ -475,6 +494,199 @@ void Trace2PassInstrumentorPass::insertBoundsCheck(IRBuilder<> &Builder,
   }
 }
 
+bool Trace2PassInstrumentorPass::instrumentSignConversions(Function &F) {
+  bool Modified = false;
+  Module &M = *F.getParent();
+
+  // Collect sign-changing cast instructions to instrument
+  SmallVector<CastInst *, 16> SignChangingCasts;
+
+  for (BasicBlock &BB : F) {
+    for (Instruction &I : BB) {
+      // Look for cast instructions
+      if (CastInst *Cast = dyn_cast<CastInst>(&I)) {
+        Type *SrcTy = Cast->getSrcTy();
+        Type *DestTy = Cast->getDestTy();
+
+        // Only interested in integer to integer casts
+        if (!SrcTy->isIntegerTy() || !DestTy->isIntegerTy())
+          continue;
+
+        // Check if this is a sign-changing cast
+        // We care about: signed → unsigned conversions where value might be negative
+        bool IsSrcSigned = true;  // In LLVM IR, we assume signed unless proven otherwise
+        bool IsDestUnsigned = true; // Same assumption
+
+        // For sign-changing cast: we want to detect when a negative signed value
+        // is converted to unsigned (losing the sign bit)
+        // In LLVM IR, we detect this by looking at ZExt (zero extension) which
+        // treats the source as unsigned, potentially losing sign information
+
+        unsigned SrcBitWidth = SrcTy->getIntegerBitWidth();
+        unsigned DestBitWidth = DestTy->getIntegerBitWidth();
+
+        // We instrument casts where:
+        // 1. Bitcast from same-width integers (i32 -> i32 but semantically signed->unsigned)
+        // 2. ZExt which might lose sign if source was negative
+        // 3. Trunc which might change interpretation
+
+        if (Cast->getOpcode() == Instruction::BitCast ||
+            Cast->getOpcode() == Instruction::ZExt ||
+            (Cast->getOpcode() == Instruction::Trunc && SrcBitWidth > DestBitWidth)) {
+          SignChangingCasts.push_back(Cast);
+        }
+      }
+    }
+  }
+
+  // Instrument collected cast instructions
+  for (CastInst *Cast : SignChangingCasts) {
+    // We need to insert checks AFTER the cast completes
+    // Use the safe insertion point
+    Instruction *InsertPt = Cast->getNextNonDebugInstruction();
+    if (!InsertPt) continue; // Skip if at end of block
+
+    IRBuilder<> Builder(InsertPt);
+
+    Value *OriginalValue = Cast->getOperand(0);
+    Value *CastValue = Cast;
+
+    Type *SrcTy = OriginalValue->getType();
+    Type *DestTy = Cast->getType();
+
+    // Check if source value was negative (< 0)
+    Value *Zero = ConstantInt::get(SrcTy, 0);
+    Value *IsNegative = Builder.CreateICmpSLT(OriginalValue, Zero, "is_negative");
+
+    // Use LLVM's utility to safely split the block and insert conditional
+    // This is what AddressSanitizer uses - it handles all the CFG complexity
+    Instruction *ThenTerm = SplitBlockAndInsertIfThen(IsNegative, InsertPt, false);
+
+    // Now insert the report call in the "then" block
+    Builder.SetInsertPoint(ThenTerm);
+
+    // Get PC
+    Function *ReturnAddrFn = Intrinsic::getOrInsertDeclaration(
+        &M, Intrinsic::returnaddress);
+    Value *PC = Builder.CreateCall(ReturnAddrFn, {Builder.getInt32(0)});
+
+    // Convert values to i64
+    Value *OrigValue_i64 = Builder.CreateSExtOrTrunc(OriginalValue, Builder.getInt64Ty());
+    Value *CastValue_i64 = Builder.CreateZExtOrTrunc(CastValue, Builder.getInt64Ty());
+
+    Value *SrcBits = Builder.getInt32(SrcTy->getIntegerBitWidth());
+    Value *DestBits = Builder.getInt32(DestTy->getIntegerBitWidth());
+
+    // Call runtime function
+    FunctionCallee ReportFunc = getSignConversionReportFunc(M);
+    Builder.CreateCall(ReportFunc, {PC, OrigValue_i64, CastValue_i64, SrcBits, DestBits});
+
+    Modified = true;
+    NumSignConversionInstrumented++;
+  }
+
+  return Modified;
+}
+
+// Instrument division and modulo operations with zero checks
+bool Trace2PassInstrumentorPass::instrumentDivisionByZero(Function &F) {
+  Module &M = *F.getParent();
+  std::vector<BinaryOperator*> DivOps;
+
+  // Scan for division and modulo operations
+  for (BasicBlock &BB : F) {
+    for (Instruction &I : BB) {
+      if (auto *BinOp = dyn_cast<BinaryOperator>(&I)) {
+        unsigned Opcode = BinOp->getOpcode();
+        // Check for integer division and modulo (signed and unsigned)
+        if (Opcode == Instruction::SDiv || Opcode == Instruction::UDiv ||
+            Opcode == Instruction::SRem || Opcode == Instruction::URem) {
+          DivOps.push_back(BinOp);
+        }
+      }
+    }
+  }
+
+  if (DivOps.empty())
+    return false;
+
+  FunctionCallee ReportFunc = getDivisionByZeroReportFunc(M);
+  bool Modified = false;
+
+  for (BinaryOperator *DivOp : DivOps) {
+    Value *Divisor = DivOp->getOperand(1);
+
+    // Build the check BEFORE the division instruction
+    IRBuilder<> Builder(DivOp);
+
+    // Create zero constant of same type as divisor
+    Value *Zero = Constant::getNullValue(Divisor->getType());
+
+    // Check if divisor == 0
+    Value *IsZero = Builder.CreateICmpEQ(Divisor, Zero, "is_div_zero");
+
+    // Split the block at the division instruction and insert our check
+    // This creates: if (divisor == 0) { report(); } then continue with division
+    Instruction *ThenTerm = SplitBlockAndInsertIfThen(IsZero, DivOp, false);
+
+    Builder.SetInsertPoint(ThenTerm);
+
+    // Get PC (return address)
+    Function *ReturnAddrFn = Intrinsic::getOrInsertDeclaration(&M, Intrinsic::returnaddress);
+    Value *PC = Builder.CreateCall(ReturnAddrFn, {Builder.getInt32(0)});
+
+    // Determine operation type
+    const char *OpName;
+    switch (DivOp->getOpcode()) {
+      case Instruction::SDiv: OpName = "sdiv"; break;
+      case Instruction::UDiv: OpName = "udiv"; break;
+      case Instruction::SRem: OpName = "srem"; break;
+      case Instruction::URem: OpName = "urem"; break;
+      default: OpName = "unknown"; break;
+    }
+
+    Value *OpStr = Builder.CreateGlobalString(OpName, "div_op_name");
+
+    // Sign-extend or zero-extend divisor to i64 for reporting
+    Value *Dividend64, *Divisor64;
+    if (DivOp->getOpcode() == Instruction::SDiv || DivOp->getOpcode() == Instruction::SRem) {
+      // Signed operations: sign-extend
+      Dividend64 = Builder.CreateSExtOrBitCast(DivOp->getOperand(0), Builder.getInt64Ty());
+      Divisor64 = Builder.CreateSExtOrBitCast(Divisor, Builder.getInt64Ty());
+    } else {
+      // Unsigned operations: zero-extend
+      Dividend64 = Builder.CreateZExtOrBitCast(DivOp->getOperand(0), Builder.getInt64Ty());
+      Divisor64 = Builder.CreateZExtOrBitCast(Divisor, Builder.getInt64Ty());
+    }
+
+    // Call: trace2pass_report_division_by_zero(PC, op_name, dividend, divisor)
+    Builder.CreateCall(ReportFunc, {PC, OpStr, Dividend64, Divisor64});
+
+    Modified = true;
+    NumDivisionByZeroInstrumented++;
+  }
+
+  return Modified;
+}
+
+FunctionCallee Trace2PassInstrumentorPass::getSignConversionReportFunc(Module &M) {
+  LLVMContext &Ctx = M.getContext();
+
+  // void trace2pass_report_sign_conversion(void* pc, int64_t original_value, uint64_t cast_value, uint32_t src_bits, uint32_t dest_bits)
+  Type *VoidTy = Type::getVoidTy(Ctx);
+  Type *VoidPtrTy = PointerType::getUnqual(Ctx);
+  Type *Int64Ty = Type::getInt64Ty(Ctx);
+  Type *Uint64Ty = Type::getInt64Ty(Ctx); // Same as Int64 in LLVM IR
+  Type *Uint32Ty = Type::getInt32Ty(Ctx);
+
+  FunctionType *FT = FunctionType::get(
+      VoidTy,
+      {VoidPtrTy, Int64Ty, Uint64Ty, Uint32Ty, Uint32Ty},
+      false);
+
+  return M.getOrInsertFunction("trace2pass_report_sign_conversion", FT);
+}
+
 FunctionCallee Trace2PassInstrumentorPass::getBoundsViolationReportFunc(Module &M) {
   LLVMContext &Ctx = M.getContext();
 
@@ -489,6 +701,23 @@ FunctionCallee Trace2PassInstrumentorPass::getBoundsViolationReportFunc(Module &
       false);
 
   return M.getOrInsertFunction("trace2pass_report_bounds_violation", FT);
+}
+
+FunctionCallee Trace2PassInstrumentorPass::getDivisionByZeroReportFunc(Module &M) {
+  LLVMContext &Ctx = M.getContext();
+
+  // void trace2pass_report_division_by_zero(void* pc, const char* op_name, int64_t dividend, int64_t divisor)
+  Type *VoidTy = Type::getVoidTy(Ctx);
+  Type *VoidPtrTy = PointerType::getUnqual(Ctx);
+  Type *CharPtrTy = PointerType::getUnqual(Ctx);  // const char*
+  Type *Int64Ty = Type::getInt64Ty(Ctx);
+
+  FunctionType *FT = FunctionType::get(
+      VoidTy,
+      {VoidPtrTy, CharPtrTy, Int64Ty, Int64Ty},
+      false);
+
+  return M.getOrInsertFunction("trace2pass_report_division_by_zero", FT);
 }
 
 } // anonymous namespace

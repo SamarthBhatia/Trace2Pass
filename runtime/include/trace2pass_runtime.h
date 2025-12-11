@@ -16,6 +16,13 @@ void trace2pass_report_overflow(void* pc, const char* expr,
 void trace2pass_report_sign_mismatch(void* pc, long long signed_val,
                                       unsigned long long unsigned_val);
 
+void trace2pass_report_sign_conversion(void* pc, int64_t original_value,
+                                        uint64_t cast_value, uint32_t src_bits,
+                                        uint32_t dest_bits);
+
+void trace2pass_report_division_by_zero(void* pc, const char* op_name,
+                                          int64_t dividend, int64_t divisor);
+
 // Control Flow Integrity Checks
 
 void trace2pass_report_cfi_violation(void* pc, const char* reason);
