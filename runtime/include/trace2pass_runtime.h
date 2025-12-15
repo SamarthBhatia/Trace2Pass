@@ -27,6 +27,12 @@ void trace2pass_check_pure_consistency(void* pc, const char* func_name,
                                          int64_t arg0, int64_t arg1,
                                          int64_t result);
 
+// Loop Bounds Checks
+
+void trace2pass_report_loop_bound_exceeded(void* pc, const char* loop_name,
+                                            uint64_t iteration_count,
+                                            uint64_t threshold);
+
 // Control Flow Integrity Checks
 
 void trace2pass_report_cfi_violation(void* pc, const char* reason);
