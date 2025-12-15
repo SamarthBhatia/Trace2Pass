@@ -26,6 +26,7 @@ private:
   bool instrumentSignConversions(Function &F);
   bool instrumentDivisionByZero(Function &F);
   bool instrumentPureFunctionCalls(Function &F);
+  bool instrumentLoopBounds(Function &F);
   void insertOverflowCheck(IRBuilder<> &Builder, Instruction *I,
                            Value *LHS, Value *RHS);
   void insertShiftCheck(IRBuilder<> &Builder, Instruction *I,
@@ -39,6 +40,7 @@ private:
   FunctionCallee getSignConversionReportFunc(Module &M);
   FunctionCallee getDivisionByZeroReportFunc(Module &M);
   FunctionCallee getPureConsistencyReportFunc(Module &M);
+  FunctionCallee getLoopBoundReportFunc(Module &M);
 
   // Statistics
   unsigned NumInstrumented = 0;
@@ -47,6 +49,7 @@ private:
   unsigned NumSignConversionInstrumented = 0;
   unsigned NumDivisionByZeroInstrumented = 0;
   unsigned NumPureCallsInstrumented = 0;
+  unsigned NumLoopsInstrumented = 0;
 };
 
 PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
@@ -81,6 +84,9 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
   // Instrument pure function calls for consistency checking
   Modified |= instrumentPureFunctionCalls(F);
 
+  // Instrument loop bounds checking
+  Modified |= instrumentLoopBounds(F);
+
   if (Modified) {
     errs() << "Trace2Pass: Instrumented " << NumInstrumented
            << " arithmetic operations";
@@ -98,6 +104,9 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
     }
     if (NumPureCallsInstrumented > 0) {
       errs() << ", " << NumPureCallsInstrumented << " pure function calls";
+    }
+    if (NumLoopsInstrumented > 0) {
+      errs() << ", " << NumLoopsInstrumented << " loops";
     }
     errs() << " in " << F.getName() << "\n";
 
@@ -830,6 +839,150 @@ FunctionCallee Trace2PassInstrumentorPass::getPureConsistencyReportFunc(Module &
       false);
 
   return M.getOrInsertFunction("trace2pass_check_pure_consistency", FT);
+}
+
+FunctionCallee Trace2PassInstrumentorPass::getLoopBoundReportFunc(Module &M) {
+  LLVMContext &Ctx = M.getContext();
+
+  // void trace2pass_report_loop_bound_exceeded(void* pc, const char* loop_name, uint64_t iteration_count, uint64_t threshold)
+  Type *VoidTy = Type::getVoidTy(Ctx);
+  Type *VoidPtrTy = PointerType::getUnqual(Ctx);
+  Type *CharPtrTy = PointerType::getUnqual(Ctx);
+  Type *Uint64Ty = Type::getInt64Ty(Ctx);
+
+  FunctionType *FT = FunctionType::get(
+      VoidTy,
+      {VoidPtrTy, CharPtrTy, Uint64Ty, Uint64Ty},
+      false);
+
+  return M.getOrInsertFunction("trace2pass_report_loop_bound_exceeded", FT);
+}
+
+// Instrument loop iteration bounds
+// Detects when loops iterate an unexpectedly high number of times
+bool Trace2PassInstrumentorPass::instrumentLoopBounds(Function &F) {
+  Module &M = *F.getParent();
+  LLVMContext &Ctx = M.getContext();
+
+  // Default threshold: 10 million iterations
+  // This can be made configurable later
+  const uint64_t LOOP_ITERATION_THRESHOLD = 10000000;
+
+  // Identify loop headers using a simple heuristic:
+  // A basic block is a loop header if it has a predecessor that comes after it in the CFG
+  // (i.e., there's a back edge to this block)
+  std::vector<BasicBlock*> LoopHeaders;
+
+  for (BasicBlock &BB : F) {
+    // Check if any successor branches back to this block (self-loop or back edge)
+    for (BasicBlock *Pred : predecessors(&BB)) {
+      // Simple heuristic: if a predecessor is the block itself or comes later in iteration,
+      // this might be a loop header
+      // For now, we'll just check for blocks that have back edges
+      // A more sophisticated approach would use actual loop analysis
+
+      // Check if this block dominates its predecessor (back edge characteristic)
+      // For simplicity, we'll just check if the predecessor comes after us
+      bool isBackEdge = false;
+
+      // Simple check: if BB has a predecessor that is BB itself, it's a trivial loop
+      if (Pred == &BB) {
+        isBackEdge = true;
+      } else {
+        // Check if there's a path from BB to Pred (indicating a back edge)
+        // For now, we'll use a simple heuristic: if Pred has a branch to BB
+        // and BB comes before Pred in the function, it's likely a back edge
+        for (auto it = F.begin(); it != F.end(); ++it) {
+          if (&*it == &BB) {
+            // BB comes first, check if Pred comes after
+            for (auto it2 = it; it2 != F.end(); ++it2) {
+              if (&*it2 == Pred) {
+                isBackEdge = true;
+                break;
+              }
+            }
+            break;
+          }
+        }
+      }
+
+      if (isBackEdge) {
+        LoopHeaders.push_back(&BB);
+        break; // Only add this block once
+      }
+    }
+  }
+
+  if (LoopHeaders.empty())
+    return false;
+
+  FunctionCallee ReportFunc = getLoopBoundReportFunc(M);
+  bool Modified = false;
+
+  for (BasicBlock *LoopHeader : LoopHeaders) {
+    // Create a global variable to track iteration count for this loop
+    // Format: __trace2pass_loop_counter_<function>_<block>
+    std::string CounterName = "__trace2pass_loop_counter_" +
+                               F.getName().str() + "_" +
+                               LoopHeader->getName().str();
+
+    // Create or get the global counter variable
+    GlobalVariable *Counter = M.getGlobalVariable(CounterName);
+    if (!Counter) {
+      Counter = new GlobalVariable(
+          M,
+          Type::getInt64Ty(Ctx),
+          false, // not constant
+          GlobalValue::InternalLinkage,
+          ConstantInt::get(Type::getInt64Ty(Ctx), 0), // initial value = 0
+          CounterName);
+    }
+
+    // Insert instrumentation at the beginning of the loop header
+    IRBuilder<> Builder(&*LoopHeader->getFirstInsertionPt());
+
+    // Load current counter value
+    Value *CurrentCount = Builder.CreateLoad(Type::getInt64Ty(Ctx), Counter, "loop_count");
+
+    // Increment counter
+    Value *NewCount = Builder.CreateAdd(CurrentCount, Builder.getInt64(1), "loop_count_inc");
+
+    // Store incremented value
+    Builder.CreateStore(NewCount, Counter);
+
+    // Check if threshold exceeded
+    Value *ThresholdVal = Builder.getInt64(LOOP_ITERATION_THRESHOLD);
+    Value *ExceededThreshold = Builder.CreateICmpUGT(NewCount, ThresholdVal, "exceeds_threshold");
+
+    // Only report once when threshold is first exceeded
+    // Check if count == threshold + 1
+    Value *ThresholdPlusOne = Builder.getInt64(LOOP_ITERATION_THRESHOLD + 1);
+    Value *IsFirstExceedance = Builder.CreateICmpEQ(NewCount, ThresholdPlusOne, "first_exceed");
+
+    Value *ShouldReport = Builder.CreateAnd(ExceededThreshold, IsFirstExceedance);
+
+    // Split block and insert conditional report
+    Instruction *InsertPt = &*Builder.GetInsertPoint();
+    Instruction *ThenTerm = SplitBlockAndInsertIfThen(ShouldReport, InsertPt, false);
+
+    Builder.SetInsertPoint(ThenTerm);
+
+    // Get PC (return address)
+    Function *ReturnAddrFn = Intrinsic::getOrInsertDeclaration(&M, Intrinsic::returnaddress);
+    Value *PC = Builder.CreateCall(ReturnAddrFn, {Builder.getInt32(0)});
+
+    // Create loop identifier string
+    std::string LoopId = F.getName().str() + ":" + LoopHeader->getName().str();
+    Value *LoopName = Builder.CreateGlobalString(LoopId, "loop_id");
+
+    // Call: trace2pass_report_loop_bound_exceeded(PC, loop_name, iteration_count, threshold)
+    Builder.CreateCall(ReportFunc, {PC, LoopName, NewCount, ThresholdVal});
+
+    Modified = true;
+    NumLoopsInstrumented++;
+  }
+
+  return Modified;
 }
 
 } // anonymous namespace

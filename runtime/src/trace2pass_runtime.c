@@ -364,3 +364,32 @@ void trace2pass_check_pure_consistency(void* pc, const char* func_name,
         entry->valid = 1;
     }
 }
+
+void trace2pass_report_loop_bound_exceeded(void* pc, const char* loop_name,
+                                            uint64_t iteration_count,
+                                            uint64_t threshold) {
+    uint64_t hash = hash_report(pc, "loop_bound_exceeded");
+    if (bloom_contains(seen_reports, hash)) return;
+    bloom_insert(seen_reports, hash);
+
+    char timestamp[32];
+    get_timestamp(timestamp, sizeof(timestamp));
+
+    pthread_mutex_lock(&output_mutex);
+    FILE* out = get_output_file();
+    fprintf(out, "\n=== Trace2Pass Report ===\n");
+    fprintf(out, "Timestamp: %s\n", timestamp);
+    fprintf(out, "Type: loop_bound_exceeded\n");
+    fprintf(out, "PC: %p\n", pc);
+    fprintf(out, "Loop: %s\n", loop_name);
+    fprintf(out, "Iteration Count: %llu\n", (unsigned long long)iteration_count);
+    fprintf(out, "Threshold: %llu\n", (unsigned long long)threshold);
+    fprintf(out, "Note: Loop iterated more than expected maximum\n");
+    fprintf(out, "      This may indicate:\n");
+    fprintf(out, "      - Incorrect loop bound analysis by optimizer\n");
+    fprintf(out, "      - Infinite loop that should have terminated\n");
+    fprintf(out, "      - Off-by-one error introduced by optimization\n");
+    fprintf(out, "========================\n\n");
+    fflush(out);
+    pthread_mutex_unlock(&output_mutex);
+}
