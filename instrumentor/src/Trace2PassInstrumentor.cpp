@@ -64,6 +64,15 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
 
   errs() << "Trace2Pass: Instrumenting function: " << F.getName() << "\n";
 
+  // Reset counters for this function to avoid accumulation across functions
+  NumInstrumented = 0;
+  NumUnreachableInstrumented = 0;
+  NumGEPInstrumented = 0;
+  NumSignConversionInstrumented = 0;
+  NumDivisionByZeroInstrumented = 0;
+  NumPureCallsInstrumented = 0;
+  NumLoopsInstrumented = 0;
+
   bool Modified = false;
 
   // Instrument arithmetic operations
@@ -173,22 +182,34 @@ void Trace2PassInstrumentorPass::insertOverflowCheck(IRBuilder<> &Builder,
     return;
   }
 
-  // Select the appropriate overflow intrinsic based on operation
+  // Determine if we should check signed or unsigned overflow
+  // Use nsw/nuw flags if present, otherwise default to signed
+  bool checkSigned = true;
+  bool checkUnsigned = false;
+
+  if (auto *BinOp = dyn_cast<BinaryOperator>(I)) {
+    // If instruction has nsw (no signed wrap) flag, check signed overflow
+    // If instruction has nuw (no unsigned wrap) flag, check unsigned overflow
+    checkSigned = BinOp->hasNoSignedWrap() || (!BinOp->hasNoSignedWrap() && !BinOp->hasNoUnsignedWrap());
+    checkUnsigned = BinOp->hasNoUnsignedWrap();
+  }
+
+  // Select the appropriate overflow intrinsic based on operation and signedness
   Intrinsic::ID IntrinsicID;
   const char *OpName;
 
   switch (I->getOpcode()) {
     case Instruction::Mul:
-      IntrinsicID = Intrinsic::smul_with_overflow;
-      OpName = "mul";
+      IntrinsicID = checkUnsigned ? Intrinsic::umul_with_overflow : Intrinsic::smul_with_overflow;
+      OpName = checkUnsigned ? "umul" : "smul";
       break;
     case Instruction::Add:
-      IntrinsicID = Intrinsic::sadd_with_overflow;
-      OpName = "add";
+      IntrinsicID = checkUnsigned ? Intrinsic::uadd_with_overflow : Intrinsic::sadd_with_overflow;
+      OpName = checkUnsigned ? "uadd" : "sadd";
       break;
     case Instruction::Sub:
-      IntrinsicID = Intrinsic::ssub_with_overflow;
-      OpName = "sub";
+      IntrinsicID = checkUnsigned ? Intrinsic::usub_with_overflow : Intrinsic::ssub_with_overflow;
+      OpName = checkUnsigned ? "usub" : "ssub";
       break;
     default:
       return; // Shouldn't reach here
