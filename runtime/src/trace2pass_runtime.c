@@ -102,22 +102,32 @@ static uint32_t portable_random_uniform(uint32_t upper_bound) {
     // BSD/macOS: use arc4random_uniform (thread-safe, high-quality)
     return arc4random_uniform(upper_bound);
 #else
-    // Linux fallback: use thread-local state with random()
-    // Initialize thread-local seed on first call
+    // Linux fallback: use random_r with thread-local state buffer
+    // CRITICAL FIX: Previous version used random() which has process-global state,
+    // causing data races in multi-threaded programs. random_r() uses thread-local state.
     static __thread int initialized = 0;
+    static __thread struct random_data rand_state;
+    static __thread char rand_statebuf[256];
+
     if (!initialized) {
-        // Use a combination of time, thread ID, and address for seed
+        // Initialize thread-local random state
+        memset(&rand_state, 0, sizeof(rand_state));
+
+        // Use a combination of time, thread ID, and stack address for seed
         unsigned int seed = (unsigned int)time(NULL) ^
                            (unsigned int)pthread_self() ^
                            (unsigned int)(uintptr_t)&seed;
-        srandom(seed);
+
+        initstate_r(seed, rand_statebuf, sizeof(rand_statebuf), &rand_state);
         initialized = 1;
     }
 
     // Generate random value in range [0, upper_bound)
-    // Note: random() returns [0, RAND_MAX], we need [0, upper_bound)
     if (upper_bound == 0) return 0;
-    return (uint32_t)random() % upper_bound;
+
+    int32_t result;
+    random_r(&rand_state, &result);
+    return (uint32_t)result % upper_bound;
 #endif
 }
 
