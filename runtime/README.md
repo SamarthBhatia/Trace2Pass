@@ -4,11 +4,13 @@ Production runtime library for detecting compiler-induced anomalies in instrumen
 
 ## Overview
 
-This library provides lightweight runtime checks that are injected into binaries by the Trace2Pass LLVM instrumentor pass. It implements three categories of checks:
+This library provides lightweight runtime checks that are injected into binaries by the Trace2Pass LLVM instrumentor pass. It implements the following detection categories:
 
-1. **Arithmetic Integrity:** Overflow, sign mismatches
-2. **Control Flow Integrity:** Unexpected branches, value inconsistencies
-3. **Memory Bounds:** Array overflows, invalid pointer arithmetic
+1. **Arithmetic Integrity:** Integer overflow (add/mul/sub), sign conversions, division by zero
+2. **Control Flow Integrity:** Unreachable code execution, pure function inconsistencies, loop bound violations
+3. **Memory Bounds:** Negative array indices (lower-bound violations)
+
+**Note:** Upper-bound checking (array[i] where i >= size) is not yet implemented, as it requires allocation size tracking.
 
 ## Building
 

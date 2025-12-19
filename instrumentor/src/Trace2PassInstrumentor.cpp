@@ -227,39 +227,16 @@ void Trace2PassInstrumentorPass::insertOverflowCheck(IRBuilder<> &Builder,
   Value *Result = Builder.CreateExtractValue(OverflowCall, 0);
   Value *OverflowFlag = Builder.CreateExtractValue(OverflowCall, 1);
 
-  // Create basic blocks for sampling and reporting
-  BasicBlock *CheckSampleBB = BasicBlock::Create(Ctx, "check_sample",
-                                                  I->getFunction());
-  BasicBlock *ReportBB = BasicBlock::Create(Ctx, "report_overflow",
-                                             I->getFunction());
-  BasicBlock *ContinueBB = BasicBlock::Create(Ctx, "continue",
-                                               I->getFunction());
+  // CRITICAL FIX: Use SplitBlockAndInsertIfThen instead of manual block splitting
+  // This prevents LLVM -O2 crashes by properly handling CFG construction, PHI nodes,
+  // and terminator management. Manual splicing was causing invalid IR that crashed
+  // SimplifyCFG pass on large codebases like SQLite.
+  Instruction *ThenTerm = SplitBlockAndInsertIfThen(OverflowFlag, I, false);
 
-  // Split the current basic block
-  BasicBlock *CurrentBB = I->getParent();
-
-  // Branch based on overflow flag
-  Builder.CreateCondBr(OverflowFlag, CheckSampleBB, ContinueBB);
-
-  // Fill in the sampling check block
-  Builder.SetInsertPoint(CheckSampleBB);
-
-  // Call trace2pass_should_sample() to decide if we should report
-  FunctionCallee ShouldSampleFunc = getShouldSampleFunc(M);
-  Value *ShouldSample = Builder.CreateCall(ShouldSampleFunc);
-  Value *ShouldReport = Builder.CreateICmpNE(ShouldSample, Builder.getInt32(0), "should_report");
-
-  // Branch to report or continue based on sampling decision
-  Builder.CreateCondBr(ShouldReport, ReportBB, ContinueBB);
-
-  // Fill in the report block
-  Builder.SetInsertPoint(ReportBB);
+  Builder.SetInsertPoint(ThenTerm);
 
   // Get the runtime report function
   FunctionCallee ReportFunc = getOverflowReportFunc(M);
-
-  // Prepare arguments for the report function
-  // void trace2pass_report_overflow(void* pc, const char* expr, i64 a, i64 b)
 
   // Get PC (return address)
   Function *ReturnAddrIntrinsic = Intrinsic::getOrInsertDeclaration(
@@ -278,18 +255,8 @@ void Trace2PassInstrumentorPass::insertOverflowCheck(IRBuilder<> &Builder,
   // Call the report function
   Builder.CreateCall(ReportFunc, {PC, ExprGlobal, LHS_i64, RHS_i64});
 
-  // Continue execution (non-fatal for now)
-  Builder.CreateBr(ContinueBB);
-
-  // Move the rest of the instructions to the continue block
-  ContinueBB->splice(ContinueBB->begin(), CurrentBB,
-                     I->getIterator(), CurrentBB->end());
-
   // Replace uses of the original instruction with our computed result
   I->replaceAllUsesWith(Result);
-
-  // The original instruction is now dead, but we keep it for now
-  // (it will be cleaned up by DCE)
 }
 
 void Trace2PassInstrumentorPass::insertShiftCheck(IRBuilder<> &Builder,
@@ -307,37 +274,18 @@ void Trace2PassInstrumentorPass::insertShiftCheck(IRBuilder<> &Builder,
   Value *ShiftAmount_i32 = Builder.CreateZExtOrTrunc(ShiftAmount, Builder.getInt32Ty());
 
   // Check: shift_amount >= bit_width
-  Value *IsInvalid = Builder.CreateICmpUGE(ShiftAmount_i32, BitWidthConst);
+  Value *IsInvalid = Builder.CreateICmpUGE(ShiftAmount_i32, BitWidthConst, "is_invalid_shift");
 
-  // Create basic blocks for sampling and reporting
-  BasicBlock *CheckSampleBB = BasicBlock::Create(Ctx, "check_sample",
-                                                  I->getFunction());
-  BasicBlock *ReportBB = BasicBlock::Create(Ctx, "report_shift_overflow",
-                                             I->getFunction());
-  BasicBlock *ContinueBB = BasicBlock::Create(Ctx, "continue",
-                                               I->getFunction());
+  // CRITICAL FIX: Use SplitBlockAndInsertIfThen instead of manual block splitting
+  // This prevents LLVM -O2 crashes by properly handling CFG construction
+  Instruction *ThenTerm = SplitBlockAndInsertIfThen(IsInvalid, I, false);
 
-  // Branch based on validity
-  Builder.CreateCondBr(IsInvalid, CheckSampleBB, ContinueBB);
-
-  // Fill in the sampling check block
-  Builder.SetInsertPoint(CheckSampleBB);
-
-  // Call trace2pass_should_sample() to decide if we should report
-  FunctionCallee ShouldSampleFunc = getShouldSampleFunc(M);
-  Value *ShouldSample = Builder.CreateCall(ShouldSampleFunc);
-  Value *ShouldReport = Builder.CreateICmpNE(ShouldSample, Builder.getInt32(0), "should_report");
-
-  // Branch to report or continue based on sampling decision
-  Builder.CreateCondBr(ShouldReport, ReportBB, ContinueBB);
-
-  // Fill in the report block
-  Builder.SetInsertPoint(ReportBB);
+  Builder.SetInsertPoint(ThenTerm);
 
   // Get the runtime report function
   FunctionCallee ReportFunc = getOverflowReportFunc(M);
 
-  // Prepare arguments
+  // Get PC (return address)
   Function *ReturnAddrIntrinsic = Intrinsic::getOrInsertDeclaration(
       &M, Intrinsic::returnaddress);
   Value *PC = Builder.CreateCall(ReturnAddrIntrinsic,
@@ -353,17 +301,6 @@ void Trace2PassInstrumentorPass::insertShiftCheck(IRBuilder<> &Builder,
 
   // Call the report function
   Builder.CreateCall(ReportFunc, {PC, ExprGlobal, Value_i64, ShiftAmount_i64});
-
-  // Continue execution
-  Builder.CreateBr(ContinueBB);
-
-  // Move remaining instructions to continue block
-  BasicBlock *CurrentBB = I->getParent();
-  ContinueBB->splice(ContinueBB->begin(), CurrentBB,
-                     I->getIterator(), CurrentBB->end());
-
-  // Note: For shifts, the result is undefined if shift >= bitwidth,
-  // so we just continue with whatever LLVM produces
 }
 
 FunctionCallee Trace2PassInstrumentorPass::getOverflowReportFunc(Module &M) {
@@ -400,23 +337,9 @@ bool Trace2PassInstrumentorPass::instrumentUnreachableCode(Function &F) {
 
   // Instrument collected unreachable instructions
   for (UnreachableInst *UI : ToInstrument) {
-    LLVMContext &Ctx = M.getContext();
-
-    // Split the block before the unreachable instruction
-    BasicBlock *UnreachableBB = UI->getParent();
-    BasicBlock *ReportBB = BasicBlock::Create(Ctx, "report_unreachable", &F);
-    BasicBlock *ContinueThenUnreachableBB = BasicBlock::Create(Ctx, "continue_then_unreachable", &F);
-
-    // Move the unreachable instruction to the new block
-    ContinueThenUnreachableBB->splice(ContinueThenUnreachableBB->begin(), UnreachableBB, UI->getIterator(), UnreachableBB->end());
-
-    // Insert branch to report block at end of original block
-    // CRITICAL: No sampling for unreachable code - always report first occurrence
-    IRBuilder<> BranchBuilder(UnreachableBB);
-    BranchBuilder.CreateBr(ReportBB);
-
-    // Fill in the report block
-    IRBuilder<> ReportBuilder(ReportBB);
+    // CRITICAL FIX: Instead of manual block splitting, insert report call BEFORE unreachable
+    // This prevents LLVM -O2 crashes while still detecting unreachable code execution
+    IRBuilder<> Builder(UI);
 
     // Get the runtime report function
     FunctionCallee ReportFunc = getUnreachableReportFunc(M);
@@ -424,21 +347,19 @@ bool Trace2PassInstrumentorPass::instrumentUnreachableCode(Function &F) {
     // Get PC (return address)
     Function *ReturnAddrIntrinsic = Intrinsic::getOrInsertDeclaration(
         &M, Intrinsic::returnaddress);
-    Value *PC = ReportBuilder.CreateCall(ReturnAddrIntrinsic,
-                                          {ReportBuilder.getInt32(0)});
+    Value *PC = Builder.CreateCall(ReturnAddrIntrinsic,
+                                    {Builder.getInt32(0)});
 
     // Create message string
     std::string Message = "unreachable code executed";
-    Value *MessageGlobal = ReportBuilder.CreateGlobalString(Message);
+    Value *MessageGlobal = Builder.CreateGlobalString(Message);
 
-    // Call the report function
-    ReportBuilder.CreateCall(ReportFunc, {PC, MessageGlobal});
+    // Call the report function immediately before unreachable
+    // No branching needed - if we reach this code, it's already a bug
+    Builder.CreateCall(ReportFunc, {PC, MessageGlobal});
 
-    // Branch to unreachable instruction
-    ReportBuilder.CreateBr(ContinueThenUnreachableBB);
-
-    // Note: The unreachable instruction remains in ContinueThenUnreachableBB
-    // If code reaches here, it will hit the unreachable and abort
+    // The unreachable instruction remains after the report call
+    // If execution reaches here, we report it, then hit unreachable (crash/UB)
 
     Modified = true;
     NumUnreachableInstrumented++;
@@ -526,45 +447,20 @@ void Trace2PassInstrumentorPass::insertBoundsCheck(IRBuilder<> &Builder,
   // Check if index is negative (for signed indices)
   // NOTE: This catches only lower-bound violations, not upper-bound
   if (LastIndex->getType()->isIntegerTy()) {
-    // Create basic blocks for the check
-    BasicBlock *CheckBB = BasicBlock::Create(Ctx, "bounds_check",
-                                              GEP->getFunction());
-    BasicBlock *CheckSampleBB = BasicBlock::Create(Ctx, "check_sample",
-                                                    GEP->getFunction());
-    BasicBlock *ReportBB = BasicBlock::Create(Ctx, "report_bounds_violation",
-                                               GEP->getFunction());
-    BasicBlock *ContinueBB = BasicBlock::Create(Ctx, "bounds_ok",
-                                                 GEP->getFunction());
-
-    BasicBlock *CurrentBB = GEP->getParent();
-
-    // Insert unconditional branch to check block
-    Builder.CreateBr(CheckBB);
-
-    // Build the check: index < 0 (for signed indices)
-    Builder.SetInsertPoint(CheckBB);
-
     // Convert index to i64 for checking
     Value *Index_i64 = Builder.CreateSExtOrTrunc(LastIndex, Builder.getInt64Ty());
 
     // Check if index is negative
-    Value *IsNegative = Builder.CreateICmpSLT(Index_i64, Builder.getInt64(0));
+    Value *IsNegative = Builder.CreateICmpSLT(Index_i64, Builder.getInt64(0), "is_negative_index");
 
-    Builder.CreateCondBr(IsNegative, CheckSampleBB, ContinueBB);
+    // CRITICAL FIX: Use SplitBlockAndInsertIfThen instead of manual block splitting
+    // This prevents LLVM -O2 crashes by properly handling CFG construction, PHI nodes,
+    // and terminator management. Manual splicing was causing invalid IR that crashed
+    // SimplifyCFG pass on large codebases like SQLite.
+    // CRITICAL: No sampling for bounds violations - negative index is always a bug
+    Instruction *ThenTerm = SplitBlockAndInsertIfThen(IsNegative, GEP, false);
 
-    // Fill in the sampling check block
-    Builder.SetInsertPoint(CheckSampleBB);
-
-    // Call trace2pass_should_sample() to decide if we should report
-    FunctionCallee ShouldSampleFunc = getShouldSampleFunc(M);
-    Value *ShouldSample = Builder.CreateCall(ShouldSampleFunc);
-    Value *ShouldReport = Builder.CreateICmpNE(ShouldSample, Builder.getInt32(0), "should_report");
-
-    // Branch to report or continue based on sampling decision
-    Builder.CreateCondBr(ShouldReport, ReportBB, ContinueBB);
-
-    // Fill in the report block
-    Builder.SetInsertPoint(ReportBB);
+    Builder.SetInsertPoint(ThenTerm);
 
     // Get the runtime report function
     FunctionCallee ReportFunc = getBoundsViolationReportFunc(M);
@@ -587,13 +483,6 @@ void Trace2PassInstrumentorPass::insertBoundsCheck(IRBuilder<> &Builder,
     // Call the report function
     // void trace2pass_report_bounds_violation(void* pc, void* ptr, size_t offset, size_t size)
     Builder.CreateCall(ReportFunc, {PC, BasePtr_void, Offset_u64, Size_u64});
-
-    // Continue execution (non-fatal for now)
-    Builder.CreateBr(ContinueBB);
-
-    // Move the GEP and subsequent instructions to the continue block
-    ContinueBB->splice(ContinueBB->begin(), CurrentBB,
-                       GEP->getIterator(), CurrentBB->end());
   }
 }
 

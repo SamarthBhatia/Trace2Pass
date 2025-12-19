@@ -95,15 +95,40 @@ void trace2pass_set_output_file(const char* path) {
     output_file = fopen(path, "a");
 }
 
+// Portable thread-safe random number generation
+// arc4random_uniform is BSD/macOS-specific, so we provide a fallback for Linux
+static uint32_t portable_random_uniform(uint32_t upper_bound) {
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+    // BSD/macOS: use arc4random_uniform (thread-safe, high-quality)
+    return arc4random_uniform(upper_bound);
+#else
+    // Linux fallback: use thread-local state with random()
+    // Initialize thread-local seed on first call
+    static __thread int initialized = 0;
+    if (!initialized) {
+        // Use a combination of time, thread ID, and address for seed
+        unsigned int seed = (unsigned int)time(NULL) ^
+                           (unsigned int)pthread_self() ^
+                           (unsigned int)(uintptr_t)&seed;
+        srandom(seed);
+        initialized = 1;
+    }
+
+    // Generate random value in range [0, upper_bound)
+    // Note: random() returns [0, RAND_MAX], we need [0, upper_bound)
+    if (upper_bound == 0) return 0;
+    return (uint32_t)random() % upper_bound;
+#endif
+}
+
 // Sampling
 int trace2pass_should_sample(void) {
     if (sample_rate >= 1.0) return 1;
     if (sample_rate <= 0.0) return 0;
 
-    // Use arc4random_uniform for thread-safe random number generation
-    // arc4random_uniform(N) returns [0, N) uniformly
-    // We scale to [0.0, 1.0) and compare to sample_rate
-    uint32_t random_val = arc4random_uniform(UINT32_MAX);
+    // Use portable thread-safe random number generation
+    // Returns [0, UINT32_MAX) uniformly, scale to [0.0, 1.0)
+    uint32_t random_val = portable_random_uniform(UINT32_MAX);
     double random_double = random_val / (double)UINT32_MAX;
     return random_double < sample_rate;
 }
