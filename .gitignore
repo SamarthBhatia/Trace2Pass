@@ -37,3 +37,16 @@ Makefile
 # Compiler outputs
 *.out
 a.out
+
+# Test binaries (no extension)
+instrumentor/test/test_*_instrumented
+instrumentor/test/test_*_baseline
+instrumentor/test/test_sampling
+
+# Benchmark binaries and artifacts
+benchmarks/*/sqlite_benchmark_*
+benchmarks/*/redis_benchmark_*
+benchmarks/*/*.tar.gz
+benchmarks/*/redis-*/
+benchmarks/*/sqlite-*/
+*.tmp
