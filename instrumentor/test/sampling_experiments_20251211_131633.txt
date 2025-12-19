@@ -1,0 +1,76 @@
+=======================================================
+  Trace2Pass Sampling Rate Experiments
+  Date: Thu Dec 11 13:16:33 IST 2025
+  Runs per rate: 3
+=======================================================
+
+-----------------------------------
+Sampling Rate: 0% (checks disabled) (rate=0.0)
+
+Average times (ms) over 3 runs:
+  1. Arithmetic:    2.22 ms
+  2. Array Access:  1.45 ms
+  3. Matrix Ops:    3.67 ms
+  4. Control Flow:  1.56 ms
+  5. Combined:      0.34 ms
+
+-----------------------------------
+Sampling Rate: 0.5% (rate=0.005)
+
+Average times (ms) over 3 runs:
+  1. Arithmetic:    1.75 ms
+  2. Array Access:  1.17 ms
+  3. Matrix Ops:    3.08 ms
+  4. Control Flow:  1.38 ms
+  5. Combined:      0.31 ms
+
+-----------------------------------
+Sampling Rate: 1% (rate=0.01)
+
+Average times (ms) over 3 runs:
+  1. Arithmetic:    1.81 ms
+  2. Array Access:  1.20 ms
+  3. Matrix Ops:    3.03 ms
+  4. Control Flow:  1.36 ms
+  5. Combined:      0.33 ms
+
+-----------------------------------
+Sampling Rate: 2% (rate=0.02)
+
+Average times (ms) over 3 runs:
+  1. Arithmetic:    1.81 ms
+  2. Array Access:  1.23 ms
+  3. Matrix Ops:    3.15 ms
+  4. Control Flow:  1.30 ms
+  5. Combined:      0.29 ms
+
+-----------------------------------
+Sampling Rate: 5% (rate=0.05)
+
+Average times (ms) over 3 runs:
+  1. Arithmetic:    1.79 ms
+  2. Array Access:  1.23 ms
+  3. Matrix Ops:    3.10 ms
+  4. Control Flow:  1.35 ms
+  5. Combined:      0.31 ms
+
+-----------------------------------
+Sampling Rate: 10% (rate=0.10)
+
+Average times (ms) over 3 runs:
+  1. Arithmetic:    1.75 ms
+  2. Array Access:  1.17 ms
+  3. Matrix Ops:    3.05 ms
+  4. Control Flow:  1.35 ms
+  5. Combined:      0.31 ms
+
+-----------------------------------
+Sampling Rate: 100% (all checks) (rate=1.0)
+
+Average times (ms) over 3 runs:
+  1. Arithmetic:    1.82 ms
+  2. Array Access:  1.24 ms
+  3. Matrix Ops:    3.45 ms
+  4. Control Flow:  1.57 ms
+  5. Combined:      0.50 ms
+
