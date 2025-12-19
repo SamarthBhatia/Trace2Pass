@@ -41,6 +41,7 @@ private:
   FunctionCallee getDivisionByZeroReportFunc(Module &M);
   FunctionCallee getPureConsistencyReportFunc(Module &M);
   FunctionCallee getLoopBoundReportFunc(Module &M);
+  FunctionCallee getShouldSampleFunc(Module &M);
 
   // Statistics
   unsigned NumInstrumented = 0;
@@ -226,9 +227,11 @@ void Trace2PassInstrumentorPass::insertOverflowCheck(IRBuilder<> &Builder,
   Value *Result = Builder.CreateExtractValue(OverflowCall, 0);
   Value *OverflowFlag = Builder.CreateExtractValue(OverflowCall, 1);
 
-  // Create a new basic block for the overflow handler
-  BasicBlock *OverflowBB = BasicBlock::Create(Ctx, "overflow_detected",
-                                               I->getFunction());
+  // Create basic blocks for sampling and reporting
+  BasicBlock *CheckSampleBB = BasicBlock::Create(Ctx, "check_sample",
+                                                  I->getFunction());
+  BasicBlock *ReportBB = BasicBlock::Create(Ctx, "report_overflow",
+                                             I->getFunction());
   BasicBlock *ContinueBB = BasicBlock::Create(Ctx, "continue",
                                                I->getFunction());
 
@@ -236,10 +239,21 @@ void Trace2PassInstrumentorPass::insertOverflowCheck(IRBuilder<> &Builder,
   BasicBlock *CurrentBB = I->getParent();
 
   // Branch based on overflow flag
-  Builder.CreateCondBr(OverflowFlag, OverflowBB, ContinueBB);
+  Builder.CreateCondBr(OverflowFlag, CheckSampleBB, ContinueBB);
 
-  // Fill in the overflow handler block
-  Builder.SetInsertPoint(OverflowBB);
+  // Fill in the sampling check block
+  Builder.SetInsertPoint(CheckSampleBB);
+
+  // Call trace2pass_should_sample() to decide if we should report
+  FunctionCallee ShouldSampleFunc = getShouldSampleFunc(M);
+  Value *ShouldSample = Builder.CreateCall(ShouldSampleFunc);
+  Value *ShouldReport = Builder.CreateICmpNE(ShouldSample, Builder.getInt32(0), "should_report");
+
+  // Branch to report or continue based on sampling decision
+  Builder.CreateCondBr(ShouldReport, ReportBB, ContinueBB);
+
+  // Fill in the report block
+  Builder.SetInsertPoint(ReportBB);
 
   // Get the runtime report function
   FunctionCallee ReportFunc = getOverflowReportFunc(M);
@@ -295,17 +309,30 @@ void Trace2PassInstrumentorPass::insertShiftCheck(IRBuilder<> &Builder,
   // Check: shift_amount >= bit_width
   Value *IsInvalid = Builder.CreateICmpUGE(ShiftAmount_i32, BitWidthConst);
 
-  // Create basic blocks
-  BasicBlock *InvalidShiftBB = BasicBlock::Create(Ctx, "invalid_shift",
-                                                   I->getFunction());
+  // Create basic blocks for sampling and reporting
+  BasicBlock *CheckSampleBB = BasicBlock::Create(Ctx, "check_sample",
+                                                  I->getFunction());
+  BasicBlock *ReportBB = BasicBlock::Create(Ctx, "report_shift_overflow",
+                                             I->getFunction());
   BasicBlock *ContinueBB = BasicBlock::Create(Ctx, "continue",
                                                I->getFunction());
 
   // Branch based on validity
-  Builder.CreateCondBr(IsInvalid, InvalidShiftBB, ContinueBB);
+  Builder.CreateCondBr(IsInvalid, CheckSampleBB, ContinueBB);
 
-  // Fill in the invalid shift handler
-  Builder.SetInsertPoint(InvalidShiftBB);
+  // Fill in the sampling check block
+  Builder.SetInsertPoint(CheckSampleBB);
+
+  // Call trace2pass_should_sample() to decide if we should report
+  FunctionCallee ShouldSampleFunc = getShouldSampleFunc(M);
+  Value *ShouldSample = Builder.CreateCall(ShouldSampleFunc);
+  Value *ShouldReport = Builder.CreateICmpNE(ShouldSample, Builder.getInt32(0), "should_report");
+
+  // Branch to report or continue based on sampling decision
+  Builder.CreateCondBr(ShouldReport, ReportBB, ContinueBB);
+
+  // Fill in the report block
+  Builder.SetInsertPoint(ReportBB);
 
   // Get the runtime report function
   FunctionCallee ReportFunc = getOverflowReportFunc(M);
@@ -373,7 +400,30 @@ bool Trace2PassInstrumentorPass::instrumentUnreachableCode(Function &F) {
 
   // Instrument collected unreachable instructions
   for (UnreachableInst *UI : ToInstrument) {
-    IRBuilder<> Builder(UI);
+    LLVMContext &Ctx = M.getContext();
+
+    // Split the block before the unreachable instruction
+    BasicBlock *UnreachableBB = UI->getParent();
+    BasicBlock *CheckSampleBB = BasicBlock::Create(Ctx, "check_sample", &F);
+    BasicBlock *ReportBB = BasicBlock::Create(Ctx, "report_unreachable", &F);
+    BasicBlock *ContinueThenUnreachableBB = BasicBlock::Create(Ctx, "continue_then_unreachable", &F);
+
+    // Move the unreachable instruction to the new block
+    ContinueThenUnreachableBB->splice(ContinueThenUnreachableBB->begin(), UnreachableBB, UI->getIterator(), UnreachableBB->end());
+
+    // Insert branch to check_sample at end of original block
+    IRBuilder<> BranchBuilder(UnreachableBB);
+    BranchBuilder.CreateBr(CheckSampleBB);
+
+    // Fill in the sampling check block
+    IRBuilder<> SampleBuilder(CheckSampleBB);
+    FunctionCallee ShouldSampleFunc = getShouldSampleFunc(M);
+    Value *ShouldSample = SampleBuilder.CreateCall(ShouldSampleFunc);
+    Value *ShouldReport = SampleBuilder.CreateICmpNE(ShouldSample, SampleBuilder.getInt32(0), "should_report");
+    SampleBuilder.CreateCondBr(ShouldReport, ReportBB, ContinueThenUnreachableBB);
+
+    // Fill in the report block
+    IRBuilder<> ReportBuilder(ReportBB);
 
     // Get the runtime report function
     FunctionCallee ReportFunc = getUnreachableReportFunc(M);
@@ -381,18 +431,21 @@ bool Trace2PassInstrumentorPass::instrumentUnreachableCode(Function &F) {
     // Get PC (return address)
     Function *ReturnAddrIntrinsic = Intrinsic::getOrInsertDeclaration(
         &M, Intrinsic::returnaddress);
-    Value *PC = Builder.CreateCall(ReturnAddrIntrinsic,
-                                    {Builder.getInt32(0)});
+    Value *PC = ReportBuilder.CreateCall(ReturnAddrIntrinsic,
+                                          {ReportBuilder.getInt32(0)});
 
     // Create message string
     std::string Message = "unreachable code executed";
-    Value *MessageGlobal = Builder.CreateGlobalString(Message);
+    Value *MessageGlobal = ReportBuilder.CreateGlobalString(Message);
 
-    // Call the report function before the unreachable instruction
-    Builder.CreateCall(ReportFunc, {PC, MessageGlobal});
+    // Call the report function
+    ReportBuilder.CreateCall(ReportFunc, {PC, MessageGlobal});
 
-    // Note: We don't remove the unreachable instruction itself
-    // If code reaches here, report will be called, then unreachable will abort
+    // Branch to unreachable instruction
+    ReportBuilder.CreateBr(ContinueThenUnreachableBB);
+
+    // Note: The unreachable instruction remains in ContinueThenUnreachableBB
+    // If code reaches here, it will hit the unreachable and abort
 
     Modified = true;
     NumUnreachableInstrumented++;
@@ -478,8 +531,10 @@ void Trace2PassInstrumentorPass::insertBoundsCheck(IRBuilder<> &Builder,
     // Create basic blocks for the check
     BasicBlock *CheckBB = BasicBlock::Create(Ctx, "bounds_check",
                                               GEP->getFunction());
-    BasicBlock *ViolationBB = BasicBlock::Create(Ctx, "bounds_violation",
-                                                  GEP->getFunction());
+    BasicBlock *CheckSampleBB = BasicBlock::Create(Ctx, "check_sample",
+                                                    GEP->getFunction());
+    BasicBlock *ReportBB = BasicBlock::Create(Ctx, "report_bounds_violation",
+                                               GEP->getFunction());
     BasicBlock *ContinueBB = BasicBlock::Create(Ctx, "bounds_ok",
                                                  GEP->getFunction());
 
@@ -497,10 +552,21 @@ void Trace2PassInstrumentorPass::insertBoundsCheck(IRBuilder<> &Builder,
     // Check if index is negative
     Value *IsNegative = Builder.CreateICmpSLT(Index_i64, Builder.getInt64(0));
 
-    Builder.CreateCondBr(IsNegative, ViolationBB, ContinueBB);
+    Builder.CreateCondBr(IsNegative, CheckSampleBB, ContinueBB);
 
-    // Fill in the violation handler
-    Builder.SetInsertPoint(ViolationBB);
+    // Fill in the sampling check block
+    Builder.SetInsertPoint(CheckSampleBB);
+
+    // Call trace2pass_should_sample() to decide if we should report
+    FunctionCallee ShouldSampleFunc = getShouldSampleFunc(M);
+    Value *ShouldSample = Builder.CreateCall(ShouldSampleFunc);
+    Value *ShouldReport = Builder.CreateICmpNE(ShouldSample, Builder.getInt32(0), "should_report");
+
+    // Branch to report or continue based on sampling decision
+    Builder.CreateCondBr(ShouldReport, ReportBB, ContinueBB);
+
+    // Fill in the report block
+    Builder.SetInsertPoint(ReportBB);
 
     // Get the runtime report function
     FunctionCallee ReportFunc = getBoundsViolationReportFunc(M);
@@ -601,8 +667,19 @@ bool Trace2PassInstrumentorPass::instrumentSignConversions(Function &F) {
     // This is what AddressSanitizer uses - it handles all the CFG complexity
     Instruction *ThenTerm = SplitBlockAndInsertIfThen(IsNegative, InsertPt, false);
 
-    // Now insert the report call in the "then" block
+    // Now check sampling in the "then" block
     Builder.SetInsertPoint(ThenTerm);
+
+    // Call trace2pass_should_sample() to decide if we should report
+    FunctionCallee ShouldSampleFunc = getShouldSampleFunc(M);
+    Value *ShouldSample = Builder.CreateCall(ShouldSampleFunc);
+    Value *ShouldReport = Builder.CreateICmpNE(ShouldSample, Builder.getInt32(0), "should_report");
+
+    // Create another split for the actual report
+    Instruction *ReportTerm = SplitBlockAndInsertIfThen(ShouldReport, ThenTerm, false);
+
+    // Now insert the report call in the inner "then" block
+    Builder.SetInsertPoint(ReportTerm);
 
     // Get PC
     Function *ReturnAddrFn = Intrinsic::getOrInsertDeclaration(
@@ -665,10 +742,20 @@ bool Trace2PassInstrumentorPass::instrumentDivisionByZero(Function &F) {
     Value *IsZero = Builder.CreateICmpEQ(Divisor, Zero, "is_div_zero");
 
     // Split the block at the division instruction and insert our check
-    // This creates: if (divisor == 0) { report(); } then continue with division
+    // This creates: if (divisor == 0) { check_sample(); if (should_sample) report(); } then continue with division
     Instruction *ThenTerm = SplitBlockAndInsertIfThen(IsZero, DivOp, false);
 
     Builder.SetInsertPoint(ThenTerm);
+
+    // Call trace2pass_should_sample() to decide if we should report
+    FunctionCallee ShouldSampleFunc = getShouldSampleFunc(M);
+    Value *ShouldSample = Builder.CreateCall(ShouldSampleFunc);
+    Value *ShouldReport = Builder.CreateICmpNE(ShouldSample, Builder.getInt32(0), "should_report");
+
+    // Create another split for the actual report
+    Instruction *ReportTerm = SplitBlockAndInsertIfThen(ShouldReport, ThenTerm, false);
+
+    Builder.SetInsertPoint(ReportTerm);
 
     // Get PC (return address)
     Function *ReturnAddrFn = Intrinsic::getOrInsertDeclaration(&M, Intrinsic::returnaddress);
@@ -762,6 +849,16 @@ bool Trace2PassInstrumentorPass::instrumentPureFunctionCalls(Function &F) {
     if (!InsertPt) continue;
 
     IRBuilder<> Builder(InsertPt);
+
+    // Call trace2pass_should_sample() to decide if we should report
+    FunctionCallee ShouldSampleFunc = getShouldSampleFunc(M);
+    Value *ShouldSample = Builder.CreateCall(ShouldSampleFunc);
+    Value *ShouldReport = Builder.CreateICmpNE(ShouldSample, Builder.getInt32(0), "should_report");
+
+    // Split block and conditionally execute report
+    Instruction *ThenTerm = SplitBlockAndInsertIfThen(ShouldReport, InsertPt, false);
+
+    Builder.SetInsertPoint(ThenTerm);
 
     // Get PC (return address)
     Function *ReturnAddrFn = Intrinsic::getOrInsertDeclaration(&M, Intrinsic::returnaddress);
@@ -879,6 +976,20 @@ FunctionCallee Trace2PassInstrumentorPass::getLoopBoundReportFunc(Module &M) {
   return M.getOrInsertFunction("trace2pass_report_loop_bound_exceeded", FT);
 }
 
+FunctionCallee Trace2PassInstrumentorPass::getShouldSampleFunc(Module &M) {
+  LLVMContext &Ctx = M.getContext();
+
+  // int trace2pass_should_sample(void)
+  Type *Int32Ty = Type::getInt32Ty(Ctx);
+
+  FunctionType *FT = FunctionType::get(
+      Int32Ty,
+      {},  // No arguments
+      false);
+
+  return M.getOrInsertFunction("trace2pass_should_sample", FT);
+}
+
 // Instrument loop iteration bounds
 // Detects when loops iterate an unexpectedly high number of times
 bool Trace2PassInstrumentorPass::instrumentLoopBounds(Function &F) {
@@ -980,13 +1091,23 @@ bool Trace2PassInstrumentorPass::instrumentLoopBounds(Function &F) {
     Value *ThresholdPlusOne = Builder.getInt64(LOOP_ITERATION_THRESHOLD + 1);
     Value *IsFirstExceedance = Builder.CreateICmpEQ(NewCount, ThresholdPlusOne, "first_exceed");
 
-    Value *ShouldReport = Builder.CreateAnd(ExceededThreshold, IsFirstExceedance);
+    Value *ShouldCheckReport = Builder.CreateAnd(ExceededThreshold, IsFirstExceedance, "should_check_report");
 
     // Split block and insert conditional report
     Instruction *InsertPt = &*Builder.GetInsertPoint();
-    Instruction *ThenTerm = SplitBlockAndInsertIfThen(ShouldReport, InsertPt, false);
+    Instruction *ThenTerm = SplitBlockAndInsertIfThen(ShouldCheckReport, InsertPt, false);
 
     Builder.SetInsertPoint(ThenTerm);
+
+    // Call trace2pass_should_sample() to decide if we should report
+    FunctionCallee ShouldSampleFunc = getShouldSampleFunc(M);
+    Value *ShouldSample = Builder.CreateCall(ShouldSampleFunc);
+    Value *ShouldReport = Builder.CreateICmpNE(ShouldSample, Builder.getInt32(0), "should_report");
+
+    // Create another split for the actual report
+    Instruction *ReportTerm = SplitBlockAndInsertIfThen(ShouldReport, ThenTerm, false);
+
+    Builder.SetInsertPoint(ReportTerm);
 
     // Get PC (return address)
     Function *ReturnAddrFn = Intrinsic::getOrInsertDeclaration(&M, Intrinsic::returnaddress);
