@@ -968,14 +968,20 @@ bool Trace2PassInstrumentorPass::instrumentLoopBounds(Function &F) {
     // Insert instrumentation at the beginning of the loop header
     IRBuilder<> Builder(&*LoopHeader->getFirstInsertionPt());
 
-    // Load current counter value
-    Value *CurrentCount = Builder.CreateLoad(Type::getInt64Ty(Ctx), Counter, "loop_count");
+    // CRITICAL FIX: Use atomic fetch-and-add to prevent race conditions in multi-threaded programs
+    // Previous implementation used non-atomic load/store on global counter, causing undefined behavior
+    // when multiple threads execute the same loop concurrently
+    Value *One = Builder.getInt64(1);
+    Value *OldCount = Builder.CreateAtomicRMW(
+        AtomicRMWInst::Add,
+        Counter,
+        One,
+        MaybeAlign(),
+        AtomicOrdering::SequentiallyConsistent
+    );
 
-    // Increment counter
-    Value *NewCount = Builder.CreateAdd(CurrentCount, Builder.getInt64(1), "loop_count_inc");
-
-    // Store incremented value
-    Builder.CreateStore(NewCount, Counter);
+    // NewCount is oldValue + 1
+    Value *NewCount = Builder.CreateAdd(OldCount, One, "loop_count_after");
 
     // Check if threshold exceeded
     Value *ThresholdVal = Builder.getInt64(LOOP_ITERATION_THRESHOLD);
@@ -1011,14 +1017,17 @@ bool Trace2PassInstrumentorPass::instrumentLoopBounds(Function &F) {
   }
 
   // FIX: Reset all loop counters at function entry to prevent false positives
-  // from monotonic increase across invocations or threads
+  // from monotonic increase across invocations
+  // CRITICAL: Use atomic store to match atomic operations in loop body
   if (!LoopCounters.empty() && Modified) {
     BasicBlock &EntryBB = F.getEntryBlock();
     IRBuilder<> ResetBuilder(&*EntryBB.getFirstInsertionPt());
 
     Value *Zero = ResetBuilder.getInt64(0);
     for (GlobalVariable *Counter : LoopCounters) {
-      ResetBuilder.CreateStore(Zero, Counter);
+      StoreInst *SI = ResetBuilder.CreateStore(Zero, Counter);
+      SI->setAtomic(AtomicOrdering::Release);
+      SI->setAlignment(Align(8)); // 8-byte alignment for i64
     }
   }
 
