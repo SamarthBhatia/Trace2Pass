@@ -126,49 +126,7 @@ void trace2pass_report_overflow(void* pc, const char* expr,
     pthread_mutex_unlock(&output_mutex);
 }
 
-void trace2pass_report_sign_mismatch(void* pc, long long signed_val,
-                                      unsigned long long unsigned_val) {
-    uint64_t hash = hash_report(pc, "sign_mismatch");
-    if (bloom_contains(seen_reports, hash)) return;
-    bloom_insert(seen_reports, hash);
-
-    char timestamp[32];
-    get_timestamp(timestamp, sizeof(timestamp));
-
-    pthread_mutex_lock(&output_mutex);
-    FILE* out = get_output_file();
-    fprintf(out, "\n=== Trace2Pass Report ===\n");
-    fprintf(out, "Timestamp: %s\n", timestamp);
-    fprintf(out, "Type: sign_mismatch\n");
-    fprintf(out, "PC: %p\n", pc);
-    fprintf(out, "Signed value: %lld\n", signed_val);
-    fprintf(out, "Unsigned value: %llu\n", unsigned_val);
-    fprintf(out, "========================\n\n");
-    fflush(out);
-    pthread_mutex_unlock(&output_mutex);
-}
-
 // Control Flow Checks
-
-void trace2pass_report_cfi_violation(void* pc, const char* reason) {
-    uint64_t hash = hash_report(pc, "cfi_violation");
-    if (bloom_contains(seen_reports, hash)) return;
-    bloom_insert(seen_reports, hash);
-
-    char timestamp[32];
-    get_timestamp(timestamp, sizeof(timestamp));
-
-    pthread_mutex_lock(&output_mutex);
-    FILE* out = get_output_file();
-    fprintf(out, "\n=== Trace2Pass Report ===\n");
-    fprintf(out, "Timestamp: %s\n", timestamp);
-    fprintf(out, "Type: cfi_violation\n");
-    fprintf(out, "PC: %p\n", pc);
-    fprintf(out, "Reason: %s\n", reason);
-    fprintf(out, "========================\n\n");
-    fflush(out);
-    pthread_mutex_unlock(&output_mutex);
-}
 
 void trace2pass_report_unreachable(void* pc, const char* message) {
     uint64_t hash = hash_report(pc, "unreachable");
@@ -185,31 +143,6 @@ void trace2pass_report_unreachable(void* pc, const char* message) {
     fprintf(out, "Type: unreachable_code_executed\n");
     fprintf(out, "PC: %p\n", pc);
     fprintf(out, "Message: %s\n", message);
-    fprintf(out, "========================\n\n");
-    fflush(out);
-    pthread_mutex_unlock(&output_mutex);
-}
-
-void trace2pass_report_inconsistency(void* pc, const char* function_name,
-                                      long long arg, long long result1,
-                                      long long result2) {
-    uint64_t hash = hash_report(pc, "inconsistency");
-    if (bloom_contains(seen_reports, hash)) return;
-    bloom_insert(seen_reports, hash);
-
-    char timestamp[32];
-    get_timestamp(timestamp, sizeof(timestamp));
-
-    pthread_mutex_lock(&output_mutex);
-    FILE* out = get_output_file();
-    fprintf(out, "\n=== Trace2Pass Report ===\n");
-    fprintf(out, "Timestamp: %s\n", timestamp);
-    fprintf(out, "Type: value_inconsistency\n");
-    fprintf(out, "PC: %p\n", pc);
-    fprintf(out, "Function: %s\n", function_name);
-    fprintf(out, "Argument: %lld\n", arg);
-    fprintf(out, "Result 1: %lld\n", result1);
-    fprintf(out, "Result 2: %lld\n", result2);
     fprintf(out, "========================\n\n");
     fflush(out);
     pthread_mutex_unlock(&output_mutex);
