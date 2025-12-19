@@ -14,8 +14,30 @@ NC='\033[0m' # No Color
 # Test configuration
 PASS_PLUGIN="../build/Trace2PassInstrumentor.so"
 RUNTIME_LIB="../../runtime/build/libTrace2PassRuntime.a"
-CLANG="clang"
 OPT_LEVEL="-O1"
+
+# Auto-detect appropriate Clang compiler
+# On macOS, Apple Clang cannot load LLVM 21 plugins, so use Homebrew Clang
+if [ "$(uname)" = "Darwin" ] && [ -x "/opt/homebrew/opt/llvm/bin/clang" ]; then
+    CLANG="/opt/homebrew/opt/llvm/bin/clang"
+    echo "Detected macOS: Using Homebrew Clang"
+elif [ "$(uname)" = "Darwin" ] && [ -x "/usr/local/opt/llvm/bin/clang" ]; then
+    CLANG="/usr/local/opt/llvm/bin/clang"
+    echo "Detected macOS: Using Homebrew Clang (Intel)"
+elif command -v clang-21 &> /dev/null; then
+    CLANG="clang-21"
+    echo "Using clang-21 from PATH"
+elif command -v clang &> /dev/null; then
+    CLANG="clang"
+    # Warn if on macOS with Apple Clang
+    if [ "$(uname)" = "Darwin" ] && [ "$("$CLANG" --version | grep -c "Apple")" -gt 0 ]; then
+        echo -e "${YELLOW}WARNING: Using Apple Clang, which may not load LLVM 21 plugins${NC}"
+        echo -e "${YELLOW}Install Homebrew LLVM: brew install llvm${NC}"
+    fi
+else
+    echo -e "${RED}ERROR: No Clang compiler found${NC}"
+    exit 1
+fi
 
 # Counters
 TOTAL=0
