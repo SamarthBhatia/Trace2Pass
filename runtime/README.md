@@ -53,17 +53,12 @@ TRACE2PASS_SAMPLE_RATE=0.1 TRACE2PASS_OUTPUT=anomalies.log ./my_program
 ```c
 void trace2pass_report_overflow(void* pc, const char* expr,
                                  long long a, long long b);
-void trace2pass_report_sign_mismatch(void* pc, long long signed_val,
-                                      unsigned long long unsigned_val);
 ```
 
 ### Control Flow Checks
 
 ```c
-void trace2pass_report_cfi_violation(void* pc, const char* reason);
-void trace2pass_report_inconsistency(void* pc, const char* function_name,
-                                      long long arg, long long result1,
-                                      long long result2);
+void trace2pass_report_unreachable(void* pc, const char* message);
 ```
 
 ### Memory Checks
@@ -85,7 +80,7 @@ int trace2pass_should_sample(void);  // Returns 1 with probability SAMPLE_RATE
 ./test_runtime
 ```
 
-Expected output: 7 unique anomaly reports demonstrating each check type.
+Expected output: 4 unique anomaly reports demonstrating each check type.
 
 ## Design Features
 
