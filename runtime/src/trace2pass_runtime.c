@@ -99,7 +99,13 @@ void trace2pass_set_output_file(const char* path) {
 int trace2pass_should_sample(void) {
     if (sample_rate >= 1.0) return 1;
     if (sample_rate <= 0.0) return 0;
-    return (rand() / (double)RAND_MAX) < sample_rate;
+
+    // Use arc4random_uniform for thread-safe random number generation
+    // arc4random_uniform(N) returns [0, N) uniformly
+    // We scale to [0.0, 1.0) and compare to sample_rate
+    uint32_t random_val = arc4random_uniform(UINT32_MAX);
+    double random_double = random_val / (double)UINT32_MAX;
+    return random_double < sample_rate;
 }
 
 // Arithmetic Checks

@@ -404,23 +404,16 @@ bool Trace2PassInstrumentorPass::instrumentUnreachableCode(Function &F) {
 
     // Split the block before the unreachable instruction
     BasicBlock *UnreachableBB = UI->getParent();
-    BasicBlock *CheckSampleBB = BasicBlock::Create(Ctx, "check_sample", &F);
     BasicBlock *ReportBB = BasicBlock::Create(Ctx, "report_unreachable", &F);
     BasicBlock *ContinueThenUnreachableBB = BasicBlock::Create(Ctx, "continue_then_unreachable", &F);
 
     // Move the unreachable instruction to the new block
     ContinueThenUnreachableBB->splice(ContinueThenUnreachableBB->begin(), UnreachableBB, UI->getIterator(), UnreachableBB->end());
 
-    // Insert branch to check_sample at end of original block
+    // Insert branch to report block at end of original block
+    // CRITICAL: No sampling for unreachable code - always report first occurrence
     IRBuilder<> BranchBuilder(UnreachableBB);
-    BranchBuilder.CreateBr(CheckSampleBB);
-
-    // Fill in the sampling check block
-    IRBuilder<> SampleBuilder(CheckSampleBB);
-    FunctionCallee ShouldSampleFunc = getShouldSampleFunc(M);
-    Value *ShouldSample = SampleBuilder.CreateCall(ShouldSampleFunc);
-    Value *ShouldReport = SampleBuilder.CreateICmpNE(ShouldSample, SampleBuilder.getInt32(0), "should_report");
-    SampleBuilder.CreateCondBr(ShouldReport, ReportBB, ContinueThenUnreachableBB);
+    BranchBuilder.CreateBr(ReportBB);
 
     // Fill in the report block
     IRBuilder<> ReportBuilder(ReportBB);
@@ -481,11 +474,9 @@ bool Trace2PassInstrumentorPass::instrumentMemoryAccess(Function &F) {
     for (Instruction &I : BB) {
       // Look for GetElementPtr instructions (array/pointer indexing)
       if (auto *GEP = dyn_cast<GetElementPtrInst>(&I)) {
-        // Only instrument GEPs that access arrays (not struct fields)
-        // We check if there are more than one indices (first is base pointer)
-        if (GEP->getNumIndices() > 1) {
-          ToInstrument.push_back(GEP);
-        }
+        // FIX: Instrument ALL GEPs, including single-index (ptr[i])
+        // Previously skipped single-index GEPs, which are the most common form
+        ToInstrument.push_back(GEP);
       }
     }
   }
@@ -506,9 +497,15 @@ void Trace2PassInstrumentorPass::insertBoundsCheck(IRBuilder<> &Builder,
   Module &M = *GEP->getModule();
   LLVMContext &Ctx = M.getContext();
 
-  // For now, we'll implement a conservative check:
-  // We'll instrument all GEP instructions and check indices at runtime
-  // More sophisticated analysis could determine actual array bounds
+  // LIMITATION: Currently only checking for negative indices
+  // Upper-bound checking requires allocation size tracking (malloc/alloca metadata)
+  // which is complex and would require interprocedural analysis.
+  //
+  // Current implementation:
+  // - Checks: index < 0 (catches negative out-of-bounds)
+  // - Missing: index >= array_size (requires size metadata)
+  //
+  // Future work: Track allocation sizes and check upper bounds
 
   // Get the pointer operand (base array/pointer)
   Value *BasePtr = GEP->getPointerOperand();
@@ -527,6 +524,7 @@ void Trace2PassInstrumentorPass::insertBoundsCheck(IRBuilder<> &Builder,
   Value *LastIndex = Indices.back();
 
   // Check if index is negative (for signed indices)
+  // NOTE: This catches only lower-bound violations, not upper-bound
   if (LastIndex->getType()->isIntegerTy()) {
     // Create basic blocks for the check
     BasicBlock *CheckBB = BasicBlock::Create(Ctx, "bounds_check",
@@ -630,18 +628,25 @@ bool Trace2PassInstrumentorPass::instrumentSignConversions(Function &F) {
         unsigned SrcBitWidth = SrcTy->getIntegerBitWidth();
         unsigned DestBitWidth = DestTy->getIntegerBitWidth();
 
-        // Be conservative: Only instrument ZExt from narrow types to wide types
-        // This catches the most common bug: sign-extending then treating as unsigned
-        // Skip BitCast (same width, no information loss) and Trunc (too many false positives)
+        // We instrument casts that could lose sign information:
+        // 1. ZExt (zero extension): treats source as unsigned
+        //    - If source is negative, ZExt loses sign information
+        //    - Instrument all ZExt (not just narrow→wide)
+        // 2. Trunc (truncation): may lose high-order bits including sign bit
+        //    - Instrument truncations that go to smaller widths
         //
-        // We instrument ZExt when:
-        // 1. Source is narrow (i8, i16) being extended to wide (i32, i64)
-        // 2. This pattern is suspicious if source value is negative (should have used SExt)
+        // Note: BitCast in LLVM IR is for pointer/type reinterpretation,
+        // not int→uint (both are i32). Same-width signed→unsigned conversions
+        // don't exist as explicit IR instructions.
 
         if (Cast->getOpcode() == Instruction::ZExt) {
-          // Only instrument if extending from narrow to wide type
-          // i8/i16 → i32/i64 are suspicious if source is negative
-          if (SrcBitWidth <= 16 && DestBitWidth >= 32) {
+          // ZExt: instrument when source might be negative
+          // Expanded from just narrow→wide to all ZExt operations
+          SignChangingCasts.push_back(Cast);
+        } else if (Cast->getOpcode() == Instruction::Trunc) {
+          // Trunc: instrument when truncating might lose sign information
+          // Only check if source could be negative (any signed interpretation)
+          if (SrcBitWidth > DestBitWidth) {
             SignChangingCasts.push_back(Cast);
           }
         }
@@ -747,20 +752,10 @@ bool Trace2PassInstrumentorPass::instrumentDivisionByZero(Function &F) {
     Value *IsZero = Builder.CreateICmpEQ(Divisor, Zero, "is_div_zero");
 
     // Split the block at the division instruction and insert our check
-    // This creates: if (divisor == 0) { check_sample(); if (should_sample) report(); } then continue with division
+    // CRITICAL: No sampling for division by zero - always report if it happens
     Instruction *ThenTerm = SplitBlockAndInsertIfThen(IsZero, DivOp, false);
 
     Builder.SetInsertPoint(ThenTerm);
-
-    // Call trace2pass_should_sample() to decide if we should report
-    FunctionCallee ShouldSampleFunc = getShouldSampleFunc(M);
-    Value *ShouldSample = Builder.CreateCall(ShouldSampleFunc);
-    Value *ShouldReport = Builder.CreateICmpNE(ShouldSample, Builder.getInt32(0), "should_report");
-
-    // Create another split for the actual report
-    Instruction *ReportTerm = SplitBlockAndInsertIfThen(ShouldReport, ThenTerm, false);
-
-    Builder.SetInsertPoint(ReportTerm);
 
     // Get PC (return address)
     Function *ReturnAddrFn = Intrinsic::getOrInsertDeclaration(&M, Intrinsic::returnaddress);
@@ -1056,6 +1051,9 @@ bool Trace2PassInstrumentorPass::instrumentLoopBounds(Function &F) {
   FunctionCallee ReportFunc = getLoopBoundReportFunc(M);
   bool Modified = false;
 
+  // Collect all loop counters for this function so we can reset them at function entry
+  SmallVector<GlobalVariable *, 8> LoopCounters;
+
   for (BasicBlock *LoopHeader : LoopHeaders) {
     // Create a global variable to track iteration count for this loop
     // Format: __trace2pass_loop_counter_<function>_<block>
@@ -1074,6 +1072,9 @@ bool Trace2PassInstrumentorPass::instrumentLoopBounds(Function &F) {
           ConstantInt::get(Type::getInt64Ty(Ctx), 0), // initial value = 0
           CounterName);
     }
+
+    // Add to list of counters to reset at function entry
+    LoopCounters.push_back(Counter);
 
     // Insert instrumentation at the beginning of the loop header
     IRBuilder<> Builder(&*LoopHeader->getFirstInsertionPt());
@@ -1099,20 +1100,11 @@ bool Trace2PassInstrumentorPass::instrumentLoopBounds(Function &F) {
     Value *ShouldCheckReport = Builder.CreateAnd(ExceededThreshold, IsFirstExceedance, "should_check_report");
 
     // Split block and insert conditional report
+    // CRITICAL: No sampling for loop bound exceedance - always report first occurrence
     Instruction *InsertPt = &*Builder.GetInsertPoint();
     Instruction *ThenTerm = SplitBlockAndInsertIfThen(ShouldCheckReport, InsertPt, false);
 
     Builder.SetInsertPoint(ThenTerm);
-
-    // Call trace2pass_should_sample() to decide if we should report
-    FunctionCallee ShouldSampleFunc = getShouldSampleFunc(M);
-    Value *ShouldSample = Builder.CreateCall(ShouldSampleFunc);
-    Value *ShouldReport = Builder.CreateICmpNE(ShouldSample, Builder.getInt32(0), "should_report");
-
-    // Create another split for the actual report
-    Instruction *ReportTerm = SplitBlockAndInsertIfThen(ShouldReport, ThenTerm, false);
-
-    Builder.SetInsertPoint(ReportTerm);
 
     // Get PC (return address)
     Function *ReturnAddrFn = Intrinsic::getOrInsertDeclaration(&M, Intrinsic::returnaddress);
@@ -1127,6 +1119,18 @@ bool Trace2PassInstrumentorPass::instrumentLoopBounds(Function &F) {
 
     Modified = true;
     NumLoopsInstrumented++;
+  }
+
+  // FIX: Reset all loop counters at function entry to prevent false positives
+  // from monotonic increase across invocations or threads
+  if (!LoopCounters.empty() && Modified) {
+    BasicBlock &EntryBB = F.getEntryBlock();
+    IRBuilder<> ResetBuilder(&*EntryBB.getFirstInsertionPt());
+
+    Value *Zero = ResetBuilder.getInt64(0);
+    for (GlobalVariable *Counter : LoopCounters) {
+      ResetBuilder.CreateStore(Zero, Counter);
+    }
   }
 
   return Modified;
