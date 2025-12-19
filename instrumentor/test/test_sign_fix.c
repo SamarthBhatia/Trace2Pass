@@ -1,5 +1,5 @@
 #include <stdio.h>
-<stdint.h>
+#include <stdint.h>
 
 // Test 1: i32 -> i32 bitcast (should NOT be instrumented)
 int test_bitcast(int x) {
