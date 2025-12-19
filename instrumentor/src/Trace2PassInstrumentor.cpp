@@ -630,15 +630,20 @@ bool Trace2PassInstrumentorPass::instrumentSignConversions(Function &F) {
         unsigned SrcBitWidth = SrcTy->getIntegerBitWidth();
         unsigned DestBitWidth = DestTy->getIntegerBitWidth();
 
-        // We instrument casts where:
-        // 1. Bitcast from same-width integers (i32 -> i32 but semantically signed->unsigned)
-        // 2. ZExt which might lose sign if source was negative
-        // 3. Trunc which might change interpretation
+        // Be conservative: Only instrument ZExt from narrow types to wide types
+        // This catches the most common bug: sign-extending then treating as unsigned
+        // Skip BitCast (same width, no information loss) and Trunc (too many false positives)
+        //
+        // We instrument ZExt when:
+        // 1. Source is narrow (i8, i16) being extended to wide (i32, i64)
+        // 2. This pattern is suspicious if source value is negative (should have used SExt)
 
-        if (Cast->getOpcode() == Instruction::BitCast ||
-            Cast->getOpcode() == Instruction::ZExt ||
-            (Cast->getOpcode() == Instruction::Trunc && SrcBitWidth > DestBitWidth)) {
-          SignChangingCasts.push_back(Cast);
+        if (Cast->getOpcode() == Instruction::ZExt) {
+          // Only instrument if extending from narrow to wide type
+          // i8/i16 → i32/i64 are suspicious if source is negative
+          if (SrcBitWidth <= 16 && DestBitWidth >= 32) {
+            SignChangingCasts.push_back(Cast);
+          }
         }
       }
     }
