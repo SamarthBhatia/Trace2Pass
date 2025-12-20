@@ -1,3 +1,9 @@
+// Define feature test macros BEFORE including system headers
+// _GNU_SOURCE: Needed for random_r(), initstate_r() on Linux
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include "trace2pass_runtime.h"
 #include <stdio.h>
 #include <stdlib.h>
