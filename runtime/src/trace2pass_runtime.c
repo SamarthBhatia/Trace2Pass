@@ -136,10 +136,32 @@ int trace2pass_should_sample(void) {
     if (sample_rate >= 1.0) return 1;
     if (sample_rate <= 0.0) return 0;
 
-    // Use portable thread-safe random number generation
-    // Returns [0, UINT32_MAX) uniformly, scale to [0.0, 1.0)
-    uint32_t random_val = portable_random_uniform(UINT32_MAX);
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+    // BSD/macOS: arc4random_uniform returns [0, upper_bound)
+    // For full range, use UINT32_MAX to get [0, UINT32_MAX - 1]
+    uint32_t random_val = arc4random_uniform(UINT32_MAX);
     double random_double = random_val / (double)UINT32_MAX;
+#else
+    // Linux: random_r returns [0, RAND_MAX] where RAND_MAX is typically 2^31-1
+    // CRITICAL: Must scale by RAND_MAX, not UINT32_MAX, to get uniform [0, 1)
+    static __thread int initialized = 0;
+    static __thread struct random_data rand_state;
+    static __thread char rand_statebuf[256];
+
+    if (!initialized) {
+        memset(&rand_state, 0, sizeof(rand_state));
+        unsigned int seed = (unsigned int)time(NULL) ^
+                           (unsigned int)pthread_self() ^
+                           (unsigned int)(uintptr_t)&seed;
+        initstate_r(seed, rand_statebuf, sizeof(rand_statebuf), &rand_state);
+        initialized = 1;
+    }
+
+    int32_t result;
+    random_r(&rand_state, &result);
+    double random_double = result / (double)RAND_MAX;  // Scale by RAND_MAX, not UINT32_MAX!
+#endif
+
     return random_double < sample_rate;
 }
 

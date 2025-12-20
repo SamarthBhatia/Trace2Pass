@@ -123,15 +123,19 @@ run_test "test_division_by_zero.c"     # Division by zero ✅ ENABLED
 run_test "test_pure_consistency.c"     # Pure function consistency ✅ ENABLED
 
 echo ""
-echo "=== Disabled Feature Tests (Correctness Only) ==="
+echo "=== Disabled Feature Tests (Correctness Validation) ==="
+echo ""
+echo "Enabling ALL checks for these tests (TRACE2PASS_ENABLE_ALL_CHECKS=1)..."
 echo ""
 
 # These features are DISABLED by default due to overhead
-# Tests verify code correctness, not production usage
+# Enable them temporarily for correctness testing
+export TRACE2PASS_ENABLE_ALL_CHECKS=1
 run_test "test_bounds.c"               # GEP bounds ❌ DISABLED (18% overhead)
 run_test "test_bounds_advanced.c"      # GEP bounds ❌ DISABLED (18% overhead)
 run_test "test_sign_conversion.c"      # Sign conversion ❌ DISABLED (280% overhead)
 run_test "test_loop_bounds.c"          # Loop bounds ❌ DISABLED (12.7% overhead)
+unset TRACE2PASS_ENABLE_ALL_CHECKS
 
 echo ""
 echo "=== Comprehensive Tests ==="
