@@ -5,8 +5,8 @@
 Trace2Pass is a compiler bug detection system that injects lightweight runtime checks into binaries to detect arithmetic overflows, control flow violations, and memory bounds errors caused by compiler bugs. It automatically bisects bugs to find the responsible compiler pass and generates minimal bug reports.
 
 [![Status](https://img.shields.io/badge/status-active%20development-blue)]()
-[![Phase](https://img.shields.io/badge/phase-2%20instrumentor-orange)]()
-[![Progress](https://img.shields.io/badge/progress-45%25-green)]()
+[![Phase](https://img.shields.io/badge/phase-3%20collector+diagnoser-orange)]()
+[![Progress](https://img.shields.io/badge/progress-68%25-green)]()
 
 ---
 
@@ -21,6 +21,7 @@ Trace2Pass is a compiler bug detection system that injects lightweight runtime c
 - [Testing](#testing)
 - [Project Structure](#project-structure)
 - [Current Status](#current-status)
+- [Known Limitations](#known-limitations)
 - [Troubleshooting](#troubleshooting)
 - [Documentation](#documentation)
 
@@ -28,16 +29,44 @@ Trace2Pass is a compiler bug detection system that injects lightweight runtime c
 
 ## Features
 
-**Currently Implemented (Week 7):**
-- ✅ **Arithmetic Overflow Detection**
-  - Multiply overflow (using `llvm.smul.with.overflow`)
-  - Add overflow (using `llvm.sadd.with.overflow`)
-  - Subtract overflow (using `llvm.ssub.with.overflow`)
-  - Shift overflow (custom check: shift_amount >= bit_width)
+**Currently Implemented (Week 18-19):**
+
+**Phase 2: Runtime Instrumentation (100% Complete)** ✅
+- ✅ **Arithmetic Overflow Detection** (5 types)
+  - Multiply, Add, Subtract, Shift overflow
+  - Uses LLVM intrinsics (`llvm.s*.with.overflow`)
+- ✅ **Unreachable Code Detection**
+  - Detects execution of `llvm.unreachable`
+- ✅ **Division by Zero Detection**
+  - Pre-checks div/mod operations
+- ✅ **Pure Function Consistency**
+  - Verifies deterministic functions return same output
+- ✅ **Sign Conversion Detection** (disabled by default, 280% overhead)
+- ✅ **Memory Bounds Checking** (disabled by default, 18% overhead)
+- ✅ **Loop Bounds Checking** (disabled by default, 12.7% overhead)
 - ✅ **Thread-Safe Runtime Library**
   - Bloom filter deduplication
   - Configurable sampling rate (default: 1%)
-  - Timestamped structured reports
+  - Production overhead: 3-4% with 5/8 checks enabled
+
+**Phase 3: Collector + Diagnoser (65% Complete)** ⚠️
+- ✅ **Collector API** (Flask REST API, standalone)
+  - 7 REST endpoints for report aggregation
+  - SQLite database with deduplication
+  - Prioritization algorithm
+  - 9/9 tests passing
+- ✅ **UB Detection** (standalone)
+  - Multi-signal approach (UBSan + optimization sensitivity + multi-compiler)
+  - Confidence scoring (0.0 = user UB, 1.0 = compiler bug)
+  - 15/15 tests passing
+- ✅ **Version Bisection** (standalone)
+  - Binary search over LLVM 14.0.0 → 21.1.0
+  - O(log n) efficiency (87% reduction in tests)
+  - 18/18 tests passing
+- ✅ **Pass Bisection** (standalone)
+  - Binary search over LLVM -O2 pipeline (~29 passes)
+  - Identifies specific culprit optimization pass
+  - 15/15 tests passing
 - ✅ **Non-Fatal Detection**
   - Program continues executing after overflow
   - Allows catching multiple bugs in one run
@@ -440,29 +469,55 @@ Trace2Pass/
 
 ---
 
+## Known Limitations
+
+**⚠️ Integration Layer Incomplete:**
+1. **Runtime→Collector integration missing:**
+   - Runtime library currently prints to stderr/file only
+   - No JSON serialization of reports
+   - No HTTP client to send reports to Collector
+   - Cannot send reports to Collector API in production
+
+2. **Collector bugs:**
+   - Deduplication hash missing function name (causes false collisions)
+   - Prioritization algorithm missing recency factor
+   - Does not implement full scoring from design spec
+
+3. **Diagnoser integration missing:**
+   - `analyze_report()` not implemented (throws NotImplementedError)
+   - Cannot automatically replay Collector reports
+   - No end-to-end Collector→Diagnoser flow
+
+4. **Version bisection:**
+   - Assumes all LLVM versions are pre-installed locally
+   - No automatic toolchain fetch/build infrastructure
+
+**Current capability:** Components work standalone with manual testing, but cannot run end-to-end from production binary → diagnosis report.
+
+---
+
 ## Current Status
 
-**Week 7 of 24** (December 2024)
+**Week 18-19 of 24** (December 2025)
 
 ### Completed Milestones
 - ✅ **Phase 1** (Weeks 1-4): Literature review + Historical bug dataset (54 bugs)
-- ✅ **Week 5-6**: Runtime library + LLVM pass skeleton
-- ✅ **Week 7**: Complete arithmetic overflow detection (mul, add, sub, shl)
+- ✅ **Phase 2** (Weeks 5-10): Runtime instrumentation (<5% overhead achieved)
+- ⚠️ **Phase 3** (Weeks 11-18): Collector + Diagnoser components (standalone, integration incomplete)
 
 ### Current Progress
 - **Phase 1**: 100% complete
-- **Phase 2**: 58% complete (instrumentation)
-- **Overall Project**: 45% complete
+- **Phase 2**: 100% complete (instrumentation)
+- **Phase 3**: 65% complete (components built, integration missing)
+- **Overall Project**: 68% complete
 
 ### What Works Now
-- Multiply overflow detection (`x * y`)
-- Add overflow detection (`x + y`)
-- Subtract overflow detection (`x - y`)
-- Shift overflow detection (`x << y`)
-- Thread-safe runtime reporting
-- Deduplication (Bloom filter)
-- Configurable sampling
-- Non-fatal detection
+- 8 types of anomaly detection (5 enabled by default)
+- 3-4% production overhead with 5/8 checks
+- Collector API (9/9 tests passing)
+- UB Detection (15/15 tests passing)
+- Version Bisection (18/18 tests passing)
+- Pass Bisection (15/15 tests passing)
 - 15+ test cases passing
 
 ### Next Steps (Week 8)

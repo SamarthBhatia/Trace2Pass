@@ -147,12 +147,16 @@ class Database:
         Compute deduplication hash for a report.
 
         Two reports are duplicates if they share:
-        - Same source location (file:line)
+        - Same source location (file:line:function)
         - Same compiler version
         - Same optimization flags
         - Same check type
+
+        Fixed: Now includes function name to avoid false collisions
+        (different functions on same header line should not collide)
         """
-        location = f"{report['location']['file']}:{report['location']['line']}"
+        # Include function name to avoid false positives
+        location = f"{report['location']['file']}:{report['location']['line']}:{report['location'].get('function', 'unknown')}"
         compiler_version = report['compiler']['version']
         check_type = report['check_type']
         flags = ','.join(sorted(report['build_info'].get('flags', [])))
@@ -164,16 +168,18 @@ class Database:
         """
         Get prioritized list of reports for triage.
 
+        Priority Score = (frequency × severity) × recency_factor
+
         Sorting criteria:
         1. Frequency (higher = more important)
-        2. Recency (more recent = more important)
+        2. Recency (more recent = higher factor: 1.0 for <24h, decays to 0.5 for >7d)
         3. Severity (check type weights)
 
         Args:
             limit: Maximum number of reports to return
 
         Returns:
-            List of report dictionaries
+            List of report dictionaries sorted by priority_score DESC
         """
         severity_weights = {
             'arithmetic_overflow': 1.0,
@@ -185,18 +191,22 @@ class Database:
             'loop_bound_exceeded': 0.6
         }
 
-        # Simple query - we'll compute recency factor in Python
+        # Fetch more than limit since we'll re-sort after computing priority
         rows = self.conn.execute(
             """
             SELECT * FROM reports
             WHERE status = 'new'
-            ORDER BY frequency DESC, timestamp DESC
             LIMIT ?
             """,
-            (limit,)
+            (limit * 2,)  # Over-fetch to ensure good coverage after re-sorting
         ).fetchall()
 
+        import time
+        from datetime import datetime
+
         results = []
+        current_time = time.time()
+
         for row in rows:
             report_dict = dict(row)
 
@@ -206,16 +216,33 @@ class Database:
             report_dict['check_details'] = json.loads(report_dict['check_details']) if report_dict['check_details'] else {}
             report_dict['system_info'] = json.loads(report_dict['system_info']) if report_dict['system_info'] else {}
 
-            # Compute priority score
+            # Compute recency factor (1.0 for <24h, decays to 0.5 for >7 days)
+            try:
+                report_time = datetime.fromisoformat(report_dict['timestamp'].replace('Z', '+00:00')).timestamp()
+                age_hours = (current_time - report_time) / 3600
+
+                if age_hours < 24:
+                    recency = 1.0  # Very recent
+                elif age_hours < 72:  # <3 days
+                    recency = 0.9
+                elif age_hours < 168:  # <7 days
+                    recency = 0.7
+                else:  # >7 days
+                    recency = 0.5
+            except (ValueError, AttributeError):
+                recency = 0.5  # Default for invalid timestamps
+
+            # Compute priority score: (frequency × severity) × recency
             severity = severity_weights.get(report_dict['check_type'], 0.5)
-            report_dict['priority_score'] = report_dict['frequency'] * severity
+            report_dict['priority_score'] = report_dict['frequency'] * severity * recency
 
             results.append(report_dict)
 
-        # Sort by priority score
+        # Sort by priority score (highest first)
         results.sort(key=lambda r: r['priority_score'], reverse=True)
 
-        return results
+        # Return top N after sorting
+        return results[:limit]
 
     def get_report_by_id(self, report_id: str) -> Optional[Dict[str, Any]]:
         """Get a specific report by report_id."""

@@ -3,9 +3,9 @@
 **THIS IS THE OFFICIAL PLAN. FOLLOW IT EXACTLY.**
 
 **Last Updated:** 2025-12-20
-**Status:** Phase 1: 100% ✅ | Phase 2: 100% ✅ | Phase 3: 100% ✅ | Phase 4: 0%
+**Status:** Phase 1: 100% ✅ | Phase 2: 100% ✅ | Phase 3: 65% ⚠️ | Phase 4: 0%
 **Current Week:** 18-19 of 24
-**🎉 MILESTONE:** Phase 3 COMPLETE - Collector + Diagnoser with 57/57 tests passing
+**⚠️ STATUS:** Phase 3 components built (57/57 tests), integration layer incomplete
 
 ---
 
@@ -235,13 +235,25 @@
 
 ---
 
-### **PHASE 3: Collector + Diagnoser (Weeks 11-18) - 100% COMPLETE ✅**
+### **PHASE 3: Collector + Diagnoser (Weeks 11-18) - 65% COMPLETE ⚠️**
 
-**Status: COMPLETE ✅**
+**Status: PARTIAL - Components built, integration incomplete**
 
 **Goal:** Build production report aggregation + automated diagnosis engine
 
 **Duration:** 8 weeks
+
+**What's Complete:**
+- ✅ Collector API (standalone): 100%
+- ✅ UB Detection (standalone): 100%
+- ✅ Version Bisection (standalone): 100%
+- ✅ Pass Bisection (standalone): 100%
+
+**What's Missing:**
+- ❌ Runtime→Collector integration (JSON serialization, HTTP client)
+- ❌ Collector→Diagnoser integration (report replay)
+- ❌ Collector bugs (deduplication missing function, prioritization missing recency)
+- ❌ End-to-end flow testing
 
 #### Week 11-12: Collector Implementation ✅
 **What's Complete:**
