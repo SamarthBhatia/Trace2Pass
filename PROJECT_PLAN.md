@@ -1479,3 +1479,146 @@ Skipped: 0
 **Next Phase:** Ready to proceed to Phase 3 (Collector + UB Detection) with production-ready instrumentor.
 
 ---
+
+## Session 26: Critical Bug Fixes (2025-12-20)
+
+### User-Reported Critical Issues
+
+User performed thorough code review and identified 3 critical bugs:
+
+#### Bug #1: Documentation Mismatch (Documentation Accuracy)
+
+**Problem:** README files claimed all 8 checks were production-ready, but only 5/8 are actually enabled.
+
+**Impact:** Misleading users and reviewers about system capabilities.
+
+**Fix:** Complete rewrite of instrumentor/README.md and runtime/README.md
+- Clearly states 5/8 enabled, 3/8 disabled
+- Documents exact overhead for each disabled check (sign: 280%, GEP: 18%, loops: 12.7%)
+- Explains trade-off: Coverage (62.5%) vs. Performance (4%)
+
+**Commit:** `917f088` - fix: correct documentation to reflect 5/8 checks enabled
+
+#### Bug #2: Linux Sampling Bias (CRITICAL CORRECTNESS BUG)
+
+**Problem:** Linux `random_r()` returns [0, RAND_MAX] where RAND_MAX = 2^31-1, but code was scaling by UINT32_MAX (2^32-1).
+
+**Impact:**
+- `random_double` topped out at ~0.5, not 1.0
+- Any `TRACE2PASS_SAMPLE_RATE > 0.5` would ALWAYS sample (broken)
+- Rates below 0.5 were effectively ~half the configured rate
+- Example: 0.1 configured → ~0.05 actual sampling rate
+
+**Root Cause:**
+```c
+// WRONG: random_r returns [0, 2^31-1] but we scale by 2^32-1
+uint32_t random_val = portable_random_uniform(UINT32_MAX);
+double random_double = random_val / (double)UINT32_MAX;  // ← BUG!
+```
+
+**Fix:**
+```c
+// CORRECT: Scale by RAND_MAX to get uniform [0, 1)
+int32_t result;
+random_r(&rand_state, &result);
+double random_double = result / (double)RAND_MAX;  // ← Fixed!
+```
+
+**Commit:** `8cfa1b3` - fix: critical bugs - sampling bias on Linux
+
+#### Bug #3: Zero Test Coverage for Disabled Features (CRITICAL TESTING BUG)
+
+**Problem:** Tests for GEP bounds, sign conversions, and loop bounds were running, but the instrumentation for those features was commented out in the pass. Tests compiled and ran WITHOUT any instrumentation, giving "PASSED" status while providing zero actual coverage.
+
+**Impact:**
+- Regression bugs in 3/8 check types would go undetected
+- Tests gave false confidence ("23/23 passing" but only testing 5/8 features)
+
+**Fix:** Added `TRACE2PASS_ENABLE_ALL_CHECKS` environment variable
+
+**Implementation:**
+```cpp
+// instrumentor/src/Trace2PassInstrumentor.cpp
+const char* enable_all = getenv("TRACE2PASS_ENABLE_ALL_CHECKS");
+bool test_mode = (enable_all && strcmp(enable_all, "1") == 0);
+
+if (test_mode) {
+  // TEST MODE: Enable ALL 8 checks for correctness validation
+  Modified |= instrumentMemoryAccess(F);       // GEP bounds
+  Modified |= instrumentSignConversions(F);    // Sign conversions
+  Modified |= instrumentLoopBounds(F);         // Loop bounds
+} else {
+  // PRODUCTION MODE: 5/8 checks (4% overhead)
+}
+```
+
+**Test runner update:**
+```bash
+# instrumentor/test/run_all_tests.sh
+export TRACE2PASS_ENABLE_ALL_CHECKS=1
+run_test "test_bounds.c"               # NOW ACTUALLY INSTRUMENTED
+run_test "test_sign_conversion.c"      # NOW ACTUALLY INSTRUMENTED
+run_test "test_loop_bounds.c"          # NOW ACTUALLY INSTRUMENTED
+unset TRACE2PASS_ENABLE_ALL_CHECKS
+```
+
+**Verification:**
+- Production mode: `Instrumented 3 arithmetic operations` (no GEP, no loops)
+- Test mode: `Instrumented 3 arithmetic operations, 2 GEP instructions, 1 loops` ✅
+
+**Commit:** `8cfa1b3` - fix: critical bugs - zero test coverage for disabled checks
+
+#### Bug #4: Missing _GNU_SOURCE (Linux Build Failure)
+
+**Problem:** Linux code uses `random_r()` and `initstate_r()` which are GNU extensions. Without `_GNU_SOURCE` defined before includes, these functions are hidden and code either:
+- Fails to compile: "implicit declaration of function 'random_r'"
+- Compiles with wrong prototype → undefined behavior
+
+**Fix:** Define `_GNU_SOURCE` before any includes
+
+```c
+// runtime/src/trace2pass_runtime.c
+// Define feature test macros BEFORE including system headers
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
+#include "trace2pass_runtime.h"
+#include <stdio.h>
+#include <stdlib.h>
+...
+```
+
+**Commit:** `bd1ad13` - fix: define _GNU_SOURCE before includes to expose random_r/initstate_r on Linux
+
+### Session Summary
+
+**Duration:** ~1 hour
+**Date:** 2025-12-20
+
+**Critical Fixes:**
+1. ✅ Documentation accuracy (5/8 not 8/8)
+2. ✅ Linux sampling bias (RAND_MAX scaling)
+3. ✅ Test coverage (TRACE2PASS_ENABLE_ALL_CHECKS)
+4. ✅ Linux build (_GNU_SOURCE)
+
+**Commits:**
+- `917f088` - fix: correct documentation to reflect 5/8 checks enabled
+- `8cfa1b3` - fix: critical bugs (sampling bias + test coverage)
+- `bd1ad13` - fix: define _GNU_SOURCE before includes
+
+**Impact:**
+- Production systems now sample correctly on Linux
+- Tests now provide actual coverage for all 8 features
+- Documentation accurately represents system capabilities
+- Linux builds work correctly
+
+**Verification:**
+- All 23 tests passing
+- Sampling produces uniform [0, 1) distribution on Linux
+- Test mode enables disabled features for correctness validation
+- Production mode uses 5/8 checks as documented
+
+**Status:** Production-ready with honest, accurate documentation and correct sampling ✅
+
+---
