@@ -9,6 +9,8 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include <cstdlib>  // for getenv
+#include <cstring>  // for strcmp
 
 using namespace llvm;
 
@@ -76,32 +78,49 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
 
   bool Modified = false;
 
-  // FINAL OPTIMIZED: 5/8 checks achieving 4.0% overhead on SQLite at -O2
-  // Tested all disabled checks - none can be added while staying under 10% target:
-  //   - Sign conversions (refined): 280% overhead
-  //   - GEP bounds (with sampling): 18% overhead
-  //   - Loop bounds (non-atomic): 12.7% overhead
+  // Configuration: Production (5/8 checks, 4% overhead) vs. Test (8/8 checks, all features)
+  // Set TRACE2PASS_ENABLE_ALL_CHECKS=1 to enable all checks for testing
+  const char* enable_all = getenv("TRACE2PASS_ENABLE_ALL_CHECKS");
+  bool test_mode = (enable_all && strcmp(enable_all, "1") == 0);
 
-  // Instrument arithmetic operations (overflow detection)
-  Modified |= instrumentArithmeticOperations(F);
+  if (test_mode) {
+    // TEST MODE: Enable ALL 8 checks for correctness validation
+    // WARNING: 300%+ overhead - only for testing, not production!
+    Modified |= instrumentArithmeticOperations(F);
+    Modified |= instrumentUnreachableCode(F);
+    Modified |= instrumentMemoryAccess(F);           // GEP bounds (18% overhead)
+    Modified |= instrumentSignConversions(F);        // Sign conversions (280% overhead)
+    Modified |= instrumentDivisionByZero(F);
+    Modified |= instrumentPureFunctionCalls(F);
+    Modified |= instrumentLoopBounds(F);             // Loop bounds (12.7% overhead)
+  } else {
+    // PRODUCTION MODE: 5/8 checks achieving 4.0% overhead on SQLite at -O2
+    // Tested all disabled checks - none can be added while staying under 10% target:
+    //   - Sign conversions (refined): 280% overhead
+    //   - GEP bounds (with sampling): 18% overhead
+    //   - Loop bounds (non-atomic): 12.7% overhead
 
-  // Instrument unreachable code (CFI violation)
-  Modified |= instrumentUnreachableCode(F);
+    // Instrument arithmetic operations (overflow detection)
+    Modified |= instrumentArithmeticOperations(F);
 
-  // DISABLED: GEP bounds - 18% overhead even with sampling
-  // Modified |= instrumentMemoryAccess(F);
+    // Instrument unreachable code (CFI violation)
+    Modified |= instrumentUnreachableCode(F);
 
-  // DISABLED: Sign conversions - even refined version has 280% overhead
-  // Modified |= instrumentSignConversions(F);
+    // DISABLED: GEP bounds - 18% overhead even with sampling
+    // Modified |= instrumentMemoryAccess(F);
 
-  // Instrument division by zero (critical bug detection)
-  Modified |= instrumentDivisionByZero(F);
+    // DISABLED: Sign conversions - even refined version has 280% overhead
+    // Modified |= instrumentSignConversions(F);
 
-  // Instrument pure function consistency
-  Modified |= instrumentPureFunctionCalls(F);
+    // Instrument division by zero (critical bug detection)
+    Modified |= instrumentDivisionByZero(F);
 
-  // DISABLED: Loop bounds - adds 12.9% overhead (close to 10% target)
-  // Modified |= instrumentLoopBounds(F);
+    // Instrument pure function consistency
+    Modified |= instrumentPureFunctionCalls(F);
+
+    // DISABLED: Loop bounds - adds 12.9% overhead (close to 10% target)
+    // Modified |= instrumentLoopBounds(F);
+  }
 
   if (Modified) {
     errs() << "Trace2Pass: Instrumented " << NumInstrumented
