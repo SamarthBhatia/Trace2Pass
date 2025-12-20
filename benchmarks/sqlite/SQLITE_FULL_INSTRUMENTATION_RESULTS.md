@@ -324,3 +324,66 @@ Skipped: 0
 **Overhead:** 4.0% @ -O2 ✅
 **Thread-Safe:** Yes ✅
 **Tests:** 23/23 Passing ✅
+
+---
+
+## Session 26: Critical Bug Fixes (2025-12-20)
+
+### User-Identified Critical Issues
+
+After reviewing the codebase, user identified 4 critical bugs that were immediately fixed:
+
+#### 1. Linux Sampling Bias (CRITICAL)
+
+**Problem:** `random_r()` returns [0, RAND_MAX] (~2^31) but code scaled by UINT32_MAX (2^32), causing:
+- Sample rates > 0.5 to always sample
+- Effective rate = ~half of configured rate
+- Non-uniform distribution
+
+**Fix:** Scale by `RAND_MAX` instead of `UINT32_MAX`
+
+**Impact:** Linux deployments now sample correctly at configured rates.
+
+**Commit:** `8cfa1b3`
+
+#### 2. Zero Test Coverage for Disabled Features (CRITICAL)
+
+**Problem:** Tests for GEP bounds, sign conversions, and loop bounds compiled WITHOUT instrumentation (features disabled), providing zero actual coverage.
+
+**Fix:** Added `TRACE2PASS_ENABLE_ALL_CHECKS=1` environment variable to enable all checks during testing.
+
+**Impact:** Tests now validate all 8 features, even disabled ones.
+
+**Commit:** `8cfa1b3`
+
+#### 3. Documentation Mismatch
+
+**Problem:** README claimed 8/8 checks production-ready, but only 5/8 enabled.
+
+**Fix:** Completely rewrote README files to accurately reflect 5/8 enabled configuration.
+
+**Commit:** `917f088`
+
+#### 4. Missing _GNU_SOURCE
+
+**Problem:** Linux builds would fail or invoke undefined behavior without proper feature macros.
+
+**Fix:** Define `_GNU_SOURCE` before includes.
+
+**Commit:** `bd1ad13`
+
+### Production Status After Fixes
+
+**Configuration:** 5/8 checks, 4% overhead
+**Sampling:** Correct uniform distribution on all platforms
+**Tests:** All 23 passing with actual coverage for all features
+**Documentation:** Accurate and honest about capabilities and limitations
+
+**Final Status:** Production-ready ✅
+
+---
+
+**Last Updated:** 2025-12-20
+**All Critical Bugs Fixed:** ✅
+**Tests:** 23/23 passing ✅
+**Documentation:** Accurate ✅
