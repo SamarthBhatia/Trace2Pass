@@ -76,8 +76,7 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
 
   bool Modified = false;
 
-  // AGGRESSIVE OPTIMIZATION: Disable expensive checks to achieve <10% overhead
-  // Keep only the most critical detections
+  // FINAL OPTIMIZED: 5/8 checks for <10% overhead with good coverage
 
   // Instrument arithmetic operations (overflow detection)
   Modified |= instrumentArithmeticOperations(F);
@@ -88,16 +87,16 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
   // DISABLED: GEP bounds - too many checks in hot paths
   // Modified |= instrumentMemoryAccess(F);
 
-  // DISABLED: Sign conversions - happens constantly, too expensive
+  // DISABLED: Sign conversions - happens too frequently
   // Modified |= instrumentSignConversions(F);
 
   // Instrument division by zero (critical bug detection)
   Modified |= instrumentDivisionByZero(F);
 
-  // DISABLED: Pure function consistency - expensive hash table lookups
-  // Modified |= instrumentPureFunctionCalls(F);
+  // Instrument pure function consistency
+  Modified |= instrumentPureFunctionCalls(F);
 
-  // DISABLED: Loop bounds - global counters in hot loops kill performance
+  // DISABLED: Loop bounds - atomic counters too expensive
   // Modified |= instrumentLoopBounds(F);
 
   if (Modified) {
