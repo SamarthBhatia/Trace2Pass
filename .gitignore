@@ -50,3 +50,17 @@ benchmarks/*/*.tar.gz
 benchmarks/*/redis-*/
 benchmarks/*/sqlite-*/
 *.tmp
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+*.db
+*.sqlite
