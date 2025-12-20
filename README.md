@@ -472,27 +472,26 @@ Trace2Pass/
 ## Known Limitations
 
 **⚠️ Integration Layer Incomplete:**
+
+The individual components are built and tested, but the integration layer connecting them is missing:
+
 1. **Runtime→Collector integration missing:**
-   - Runtime library currently prints to stderr/file only
-   - No JSON serialization of reports
-   - No HTTP client to send reports to Collector
-   - Cannot send reports to Collector API in production
+   - Runtime library currently prints to stderr/file only (no JSON serialization)
+   - No HTTP client to POST reports to Collector API
+   - Cannot send reports from production binaries to Collector
 
-2. **Collector bugs:**
-   - Deduplication hash missing function name (causes false collisions)
-   - Prioritization algorithm missing recency factor
-   - Does not implement full scoring from design spec
-
-3. **Diagnoser integration missing:**
-   - `analyze_report()` not implemented (throws NotImplementedError)
-   - Cannot automatically replay Collector reports
+2. **Collector→Diagnoser integration missing:**
+   - `UBDetector.analyze_report()` not implemented (throws NotImplementedError)
+   - No automatic source code fetching from reports
    - No end-to-end Collector→Diagnoser flow
 
-4. **Version bisection:**
-   - Assumes all LLVM versions are pre-installed locally
+3. **Version bisection limitations:**
+   - Assumes all LLVM versions (14.0.0-21.1.0) are pre-installed locally
    - No automatic toolchain fetch/build infrastructure
+   - Would benefit from Docker-based version isolation
 
-**Current capability:** Components work standalone with manual testing, but cannot run end-to-end from production binary → diagnosis report.
+**What works:** Each component functions standalone with direct API calls or file-based testing.
+**What's missing:** Automated data flow from production binary → Collector → Diagnoser → report.
 
 ---
 
@@ -514,17 +513,24 @@ Trace2Pass/
 ### What Works Now
 - 8 types of anomaly detection (5 enabled by default)
 - 3-4% production overhead with 5/8 checks
-- Collector API (9/9 tests passing)
+- Collector API with fixed deduplication and prioritization (9/9 tests passing)
 - UB Detection (15/15 tests passing)
 - Version Bisection (18/18 tests passing)
 - Pass Bisection (15/15 tests passing)
-- 15+ test cases passing
+- Total: 57/57 tests passing across all components
 
-### Next Steps (Week 8)
-- [ ] Control flow integrity checks
-- [ ] Memory bounds checks (GEP instrumentation)
-- [ ] Overhead benchmarking
-- [ ] Optimization strategies
+### Next Steps (Week 19-20)
+**Integration Layer (Critical):**
+- [ ] Add JSON serialization to runtime library
+- [ ] Add HTTP client (libcurl) to runtime for Collector communication
+- [ ] Implement `UBDetector.analyze_report()` for automatic Collector→Diagnoser flow
+- [ ] Create `diagnoser/diagnose.py` unified entry point
+- [ ] End-to-end integration tests (production binary → Collector → Diagnoser → report)
+
+**Phase 4 (Weeks 19-24):**
+- [ ] Reporter component (C-Reduce integration, minimal test case generation)
+- [ ] Evaluation on 54 historical bugs
+- [ ] Thesis writing
 
 See [PROJECT_PLAN.md](PROJECT_PLAN.md) for the complete timeline.
 

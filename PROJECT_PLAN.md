@@ -251,9 +251,12 @@
 
 **What's Missing:**
 - ❌ Runtime→Collector integration (JSON serialization, HTTP client)
-- ❌ Collector→Diagnoser integration (report replay)
-- ❌ Collector bugs (deduplication missing function, prioritization missing recency)
-- ❌ End-to-end flow testing
+- ❌ Collector→Diagnoser integration (report replay, source fetching)
+- ❌ End-to-end flow testing (production binary → Collector → Diagnoser → report)
+
+**Fixed in Current Session:**
+- ✅ Collector deduplication hash now includes function name (was missing, caused false collisions)
+- ✅ Collector prioritization now includes recency factor (was missing, old bugs dominated queue)
 
 #### Week 11-12: Collector Implementation ✅
 **What's Complete:**
