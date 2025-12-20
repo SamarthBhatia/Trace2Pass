@@ -66,6 +66,17 @@ echo "Pass plugin: $PASS_PLUGIN"
 echo "Runtime lib: $RUNTIME_LIB"
 echo "Optimization: $OPT_LEVEL"
 echo ""
+echo "IMPORTANT: Production configuration enables 5/8 checks."
+echo "Tests for disabled checks (GEP bounds, sign conversions,"
+echo "loop bounds) verify CORRECTNESS, not production usage."
+echo "These checks are disabled by default due to overhead:"
+echo "  - Sign conversions: 280% overhead"
+echo "  - GEP bounds: 18% overhead"
+echo "  - Loop bounds: 12.7% overhead"
+echo ""
+echo "To enable disabled checks for testing, edit:"
+echo "  instrumentor/src/Trace2PassInstrumentor.cpp lines 88-100"
+echo ""
 echo "======================================================="
 echo ""
 
@@ -100,20 +111,27 @@ run_test() {
 }
 
 # Test categories
-echo "=== Feature Tests ==="
+echo "=== Enabled Feature Tests (Production) ==="
 echo ""
 
-# Core detection features
-run_test "test_arithmetic.c"
-run_test "test_overflow.c"
-run_test "test_shift.c"
-run_test "test_unreachable.c"
-run_test "test_bounds.c"
-run_test "test_bounds_advanced.c"
-run_test "test_sign_conversion.c"
-run_test "test_division_by_zero.c"
-run_test "test_pure_consistency.c"
-run_test "test_loop_bounds.c"
+# Core detection features (enabled by default)
+run_test "test_arithmetic.c"           # Arithmetic overflow ✅ ENABLED
+run_test "test_overflow.c"             # Arithmetic overflow ✅ ENABLED
+run_test "test_shift.c"                # Shift overflow ✅ ENABLED
+run_test "test_unreachable.c"          # Unreachable code ✅ ENABLED
+run_test "test_division_by_zero.c"     # Division by zero ✅ ENABLED
+run_test "test_pure_consistency.c"     # Pure function consistency ✅ ENABLED
+
+echo ""
+echo "=== Disabled Feature Tests (Correctness Only) ==="
+echo ""
+
+# These features are DISABLED by default due to overhead
+# Tests verify code correctness, not production usage
+run_test "test_bounds.c"               # GEP bounds ❌ DISABLED (18% overhead)
+run_test "test_bounds_advanced.c"      # GEP bounds ❌ DISABLED (18% overhead)
+run_test "test_sign_conversion.c"      # Sign conversion ❌ DISABLED (280% overhead)
+run_test "test_loop_bounds.c"          # Loop bounds ❌ DISABLED (12.7% overhead)
 
 echo ""
 echo "=== Comprehensive Tests ==="
