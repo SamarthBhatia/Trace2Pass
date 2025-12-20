@@ -27,7 +27,7 @@ Anomaly Report → UB Detection → Version Bisection → Pass Bisection → Dia
 
 ---
 
-## Stage 1: UB Detection (Current)
+## Stage 1: UB Detection ✅
 
 ### Purpose
 Filter out **undefined behavior in user code** from **compiler bugs**.
@@ -255,19 +255,100 @@ diagnoser/
 
 ---
 
-## Next Steps (Week 15-16: Version Bisection)
+## Stage 2: Compiler Version Bisection ✅
 
-**Goal:** Binary search over LLVM versions to find when bug was introduced.
+### Purpose
+Identify which compiler version introduced the bug through binary search.
 
-**Approach:**
-1. Build Docker images for LLVM 14.0.0 through 21.1.0 (~50 versions)
-2. Binary search: test each version with failing test case
-3. Identify first broken version and last working version
+### Approach
 
-**Deliverables:**
-- [ ] Docker infrastructure (Dockerfiles for 50+ LLVM versions)
-- [ ] `diagnoser/src/version_bisector.py`
-- [ ] Tests with historical bugs (verify correct version detection)
+**Binary Search Algorithm:**
+1. Test with earliest version (LLVM 14.0.0)
+2. Test with latest version (LLVM 21.1.0)
+3. If both pass or both fail → cannot bisect
+4. Binary search to find first broken version
+
+**Efficiency:**
+- Full range: 50+ LLVM versions
+- Binary search: ~6-7 tests (log₂(50))
+- Significant time savings vs linear search
+
+### Usage
+
+```python
+from version_bisector import VersionBisector, create_test_function
+
+# Initialize bisector
+bisector = VersionBisector()
+
+# Create test function
+test_func = create_test_function(expected_output="15\n")
+
+# Bisect to find first bad version
+result = bisector.bisect(
+    source_file="bug.c",
+    test_func=test_func,
+    optimization_level="-O2"
+)
+
+# Check results
+if result.verdict == "bisected":
+    print(f"Bug introduced in: {result.first_bad_version}")
+    print(f"Last working version: {result.last_good_version}")
+    print(f"Tested {result.total_tests} versions")
+
+bisector.cleanup()
+```
+
+### Result Types
+
+**Verdict: "bisected"**
+- Successfully found first bad version
+- Example: Bug introduced in LLVM 17.0.3
+
+**Verdict: "all_pass"**
+- All versions pass the test
+- No regression found (likely not a compiler bug)
+
+**Verdict: "all_fail"**
+- All versions fail the test
+- Bug pre-dates version range or test is wrong
+
+### Custom Test Functions
+
+```python
+def custom_test(version: str, binary_path: str) -> bool:
+    """
+    Custom test logic.
+
+    Returns:
+        True if test passes (no bug)
+        False if test fails (bug present)
+    """
+    import subprocess
+
+    result = subprocess.run(
+        [binary_path],
+        capture_output=True,
+        text=True,
+        timeout=10
+    )
+
+    # Define your pass criteria
+    return result.returncode == 0 and "expected" in result.stdout
+```
+
+### Docker Support (Optional)
+
+For production use with complete version isolation:
+
+```python
+bisector = VersionBisector(use_docker=True)
+```
+
+Requires Docker images: `trace2pass/llvm-{version}`
+
+**Note:** Current implementation uses local compilers. Docker infrastructure can be added for production deployment.
 
 ---
 
