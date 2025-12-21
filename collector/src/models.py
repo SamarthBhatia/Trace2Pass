@@ -217,8 +217,14 @@ class Database:
             report_dict['system_info'] = json.loads(report_dict['system_info']) if report_dict['system_info'] else {}
 
             # Compute recency factor (1.0 for <24h, decays to 0.5 for >7 days)
+            # CRITICAL: Use last_seen, not timestamp!
+            # - timestamp = first occurrence (immutable)
+            # - last_seen = most recent occurrence (updated on duplicates)
+            # This ensures a bug spiking NOW gets high priority even if first seen weeks ago.
             try:
-                report_time = datetime.fromisoformat(report_dict['timestamp'].replace('Z', '+00:00')).timestamp()
+                # Use last_seen if available, fall back to timestamp
+                time_field = report_dict.get('last_seen') or report_dict['timestamp']
+                report_time = datetime.fromisoformat(time_field.replace('Z', '+00:00')).timestamp()
                 age_hours = (current_time - report_time) / 3600
 
                 if age_hours < 24:
