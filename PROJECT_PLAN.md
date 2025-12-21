@@ -257,6 +257,7 @@
 **Fixed in Current Session:**
 - ✅ Collector deduplication hash now includes function name (was missing, caused false collisions)
 - ✅ Collector prioritization now includes recency factor (was missing, old bugs dominated queue)
+- ✅ Recency calculation now uses `last_seen` instead of `timestamp` (was using immutable first occurrence, preventing recent spikes from being prioritized)
 
 #### Week 11-12: Collector Implementation ✅
 **What's Complete:**
