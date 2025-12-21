@@ -521,25 +521,67 @@ int main(void) {{
         prev_result = check_details.get('previous_result', 0)
         curr_result = check_details.get('current_result', 1)
 
-        return f"""// Minimal reproducer for pure_function_inconsistency
+        return f"""// TEMPLATE reproducer for pure_function_inconsistency
 // Function: {func}
 // Args: {arg0}, {arg1}
-// Previous result: {prev_result}, Current result: {curr_result}
+// Observed: First call returned {prev_result}, second call returned {curr_result}
+//
+// CRITICAL: The runtime detected nondeterminism WITHIN a single process run.
+// The function returned different results on repeated calls with identical inputs.
+// This reproducer uses the same cache-based detection as the runtime.
+//
+// TODO: Replace the placeholder function body below with the actual source
+// of '{func}' from your codebase. Without the real function, this reproducer
+// cannot demonstrate the bug.
 
-// This is a compiler bug if the function is pure but returns different results
-static int call_count = 0;
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
 
-long long pure_func(long long a, long long b) {{
-    // In original bug, this would be optimized differently
-    // on different invocations
-    call_count++;
-    return a + b;  // Should always return same result for same inputs
+// Cache for tracking pure function results
+typedef struct {{
+    int64_t arg0;
+    int64_t arg1;
+    int64_t result;
+    int valid;
+}} cache_entry_t;
+
+static cache_entry_t cache = {{0, 0, 0, 0}};
+
+// TODO: Replace this placeholder with the actual function body from your source
+int64_t {func}(int64_t a, int64_t b) {{
+    // PLACEHOLDER: Insert actual function implementation here
+    // The current placeholder just returns a+b, which won't reproduce the bug
+    return a + b;
 }}
 
 int main(void) {{
-    long long r1 = pure_func({arg0}LL, {arg1}LL);
-    long long r2 = pure_func({arg0}LL, {arg1}LL);
-    return (r1 != r2) ? 1 : 0;  // Should return 0 (equal)
+    int64_t arg0 = {arg0}LL;
+    int64_t arg1 = {arg1}LL;
+
+    // First call - cache the result
+    int64_t r1 = {func}(arg0, arg1);
+    cache.arg0 = arg0;
+    cache.arg1 = arg1;
+    cache.result = r1;
+    cache.valid = 1;
+
+    // Second call - check if result matches cache
+    int64_t r2 = {func}(arg0, arg1);
+
+    if (r1 != r2) {{
+        fprintf(stderr, "BUG REPRODUCED: Pure function returned different results!\\n");
+        fprintf(stderr, "  Function: {func}\\n");
+        fprintf(stderr, "  Args: (%lld, %lld)\\n", (long long)arg0, (long long)arg1);
+        fprintf(stderr, "  First result:  %lld\\n", (long long)r1);
+        fprintf(stderr, "  Second result: %lld\\n", (long long)r2);
+        fprintf(stderr, "  Expected: %lld (from runtime report)\\n", (long long){prev_result});
+        return 1;
+    }}
+
+    printf("No inconsistency detected in this run.\\n");
+    printf("Note: Nondeterminism may require specific optimization or multiple runs.\\n");
+    return 0;
 }}
 """
 
