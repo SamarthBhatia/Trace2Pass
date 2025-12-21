@@ -122,29 +122,88 @@ void trace2pass_set_collector_url(const char* url) {
     }
 }
 
-// JSON serialization helper
+// JSON serialization helper - properly escapes all JSON control characters
 static void json_escape_string(const char* str, char* out, size_t out_size) {
     size_t j = 0;
-    for (size_t i = 0; str[i] && j < out_size - 2; i++) {
-        if (str[i] == '"' || str[i] == '\\') {
-            out[j++] = '\\';
+    for (size_t i = 0; str[i] && j < out_size - 6; i++) {  // -6 for worst case \uXXXX
+        switch (str[i]) {
+            case '"':  out[j++] = '\\'; out[j++] = '"'; break;
+            case '\\': out[j++] = '\\'; out[j++] = '\\'; break;
+            case '\b': out[j++] = '\\'; out[j++] = 'b'; break;
+            case '\f': out[j++] = '\\'; out[j++] = 'f'; break;
+            case '\n': out[j++] = '\\'; out[j++] = 'n'; break;
+            case '\r': out[j++] = '\\'; out[j++] = 'r'; break;
+            case '\t': out[j++] = '\\'; out[j++] = 't'; break;
+            default:
+                if ((unsigned char)str[i] < 32) {
+                    // Control character - use \uXXXX notation
+                    j += snprintf(out + j, out_size - j, "\\u%04x", (unsigned char)str[i]);
+                } else {
+                    out[j++] = str[i];
+                }
+                break;
         }
-        out[j++] = str[i];
     }
     out[j] = '\0';
 }
 
-// HTTP POST to Collector (simplified version using system curl)
+// Validate URL to prevent shell injection
+// Returns 1 if URL is safe, 0 otherwise
+static int validate_url(const char* url) {
+    if (!url) return 0;
+
+    // Must start with http:// or https://
+    if (strncmp(url, "http://", 7) != 0 && strncmp(url, "https://", 8) != 0) {
+        return 0;
+    }
+
+    // Check for shell metacharacters that could enable injection
+    const char* dangerous = ";&|`$()<>\"'\\";
+    for (const char* d = dangerous; *d; d++) {
+        if (strchr(url, *d)) {
+            fprintf(stderr, "Trace2Pass: Rejected URL containing shell metacharacter '%c'\n", *d);
+            return 0;
+        }
+    }
+
+    // Check for control characters
+    for (const char* p = url; *p; p++) {
+        if ((unsigned char)*p < 32 || (unsigned char)*p == 127) {
+            fprintf(stderr, "Trace2Pass: Rejected URL containing control character\n");
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
+// HTTP POST to Collector using curl
+// SECURITY NOTE: This spawns an external process on every report.
+// In production, this should be replaced with libcurl or raw sockets.
+// Performance NOTE: Spawning curl adds ~50-100ms per report, but most reports
+// are filtered by bloom filter deduplication (1 report per unique PC address).
+// With 1% sampling rate, overhead remains <5%.
 // Returns 0 on success, -1 on failure
 static int http_post_json(const char* url, const char* json_data) {
     if (!url || !json_data) return -1;
 
-    // Use curl command-line tool (simple approach, no libcurl dependency)
-    // In production, consider using libcurl for better error handling
+    // Validate URL to prevent shell injection
+    if (!validate_url(url)) {
+        fprintf(stderr, "Trace2Pass: Invalid or unsafe Collector URL, skipping HTTP POST\n");
+        return -1;
+    }
+
+    // TODO(Phase 4): Replace with libcurl for better security and performance
+    // Current implementation uses system() which is simple but has limitations:
+    // - Spawns external process (performance cost)
+    // - Requires curl to be installed
+    // - Limited error reporting
+    // Proper implementation should use libcurl or raw HTTP over sockets
+
     char cmd[4096];
     char escaped[2048];
 
-    // Escape single quotes in JSON for shell
+    // Escape single quotes in JSON for shell (JSON itself is already escaped via json_escape_string)
     size_t j = 0;
     for (size_t i = 0; json_data[i] && j < sizeof(escaped) - 4; i++) {
         if (json_data[i] == '\'') {

@@ -147,16 +147,28 @@ class Database:
         Compute deduplication hash for a report.
 
         Two reports are duplicates if they share:
-        - Same source location (file:line:function)
+        - Same source location (file:line:function) OR same PC if location unknown
         - Same compiler version
         - Same optimization flags
         - Same check type
 
-        Fixed: Now includes function name to avoid false collisions
-        (different functions on same header line should not collide)
+        Fixed: Now includes function name to avoid false collisions.
+        Fixed: Uses PC address as fallback when metadata is missing (runtime doesn't embed location yet).
         """
-        # Include function name to avoid false positives
-        location = f"{report['location']['file']}:{report['location']['line']}:{report['location'].get('function', 'unknown')}"
+        # Use PC as unique identifier if location metadata is missing
+        file_name = report['location']['file']
+        line = report['location']['line']
+        function = report['location'].get('function', 'unknown')
+
+        if file_name == 'unknown' and line == 0:
+            # Metadata not available - use PC address as unique identifier
+            # This happens when runtime doesn't embed source location (Phase 4 TODO)
+            pc = report.get('pc', 'unknown')
+            location = f"pc:{pc}"
+        else:
+            # Full metadata available - use file:line:function
+            location = f"{file_name}:{line}:{function}"
+
         compiler_version = report['compiler']['version']
         check_type = report['check_type']
         flags = ','.join(sorted(report['build_info'].get('flags', [])))
