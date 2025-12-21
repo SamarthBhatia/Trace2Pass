@@ -111,81 +111,122 @@ def ub_detect_cmd(source_file: str, test_input: Optional[str] = None,
     }
 
 
-def version_bisect_cmd(source_file: str, compiler_min: str, compiler_max: str,
-                       test_input: Optional[str] = None) -> Dict[str, Any]:
+def version_bisect_cmd(source_file: str, test_command: str,
+                       optimization_level: str = "-O2") -> Dict[str, Any]:
     """
     Run version bisection to find which compiler version introduced the bug.
 
     Args:
         source_file: Path to C source file
-        compiler_min: Minimum compiler version (e.g., "clang-14")
-        compiler_max: Maximum compiler version (e.g., "clang-21")
-        test_input: Optional test input string
+        test_command: Shell command to test binary (use {binary} placeholder)
+                     Returns 0 if test passes, non-zero if bug manifests
+                     Example: "{binary} | grep -q expected_output"
+        optimization_level: Optimization level (default: -O2)
 
     Returns:
         Version bisection result dictionary
     """
+    import subprocess
+
+    # Create test function that runs the provided command
+    def test_func(version: str, binary_path: str) -> bool:
+        """Returns True if test passes, False if bug manifests."""
+        cmd = test_command.replace('{binary}', binary_path)
+        try:
+            result = subprocess.run(cmd, shell=True, timeout=5,
+                                   capture_output=True)
+            return result.returncode == 0
+        except subprocess.TimeoutExpired:
+            return False  # Timeout = bug (infinite loop, etc.)
+        except Exception:
+            return False
+
     bisector = VersionBisector()
-    result = bisector.bisect(source_file, compiler_min, compiler_max, test_input)
+    result = bisector.bisect(source_file, test_func, optimization_level)
 
     print("=== Version Bisection Result ===")
+    print(f"Verdict: {result.verdict}")
     print(f"First bad version: {result.first_bad_version or 'Not found'}")
-    print(f"Iterations: {result.iterations}")
+    print(f"Last good version: {result.last_good_version or 'Not found'}")
+    print(f"Total tests: {result.total_tests}")
     print()
 
     bisector.cleanup()
 
     return {
+        "verdict": result.verdict,
         "first_bad_version": result.first_bad_version,
         "last_good_version": result.last_good_version,
-        "iterations": result.iterations
+        "total_tests": result.total_tests
     }
 
 
-def pass_bisect_cmd(source_file: str, bad_compiler: str,
-                    test_input: Optional[str] = None) -> Dict[str, Any]:
+def pass_bisect_cmd(source_file: str, test_command: str,
+                    optimization_level: str = "-O2") -> Dict[str, Any]:
     """
     Run pass bisection to identify the specific optimization pass responsible.
 
     Args:
         source_file: Path to C source file
-        bad_compiler: Compiler that exhibits the bug (e.g., "clang-21")
-        test_input: Optional test input string
+        test_command: Shell command to test binary (use {binary} placeholder)
+                     Returns 0 if test passes, non-zero if bug manifests
+                     Example: "{binary} | grep -q expected_output"
+        optimization_level: Optimization level (default: -O2)
 
     Returns:
         Pass bisection result dictionary
     """
-    bisector = PassBisector()
-    result = bisector.bisect(source_file, bad_compiler, test_input)
+    import subprocess
+
+    # Create test function that runs the provided command
+    def test_func(binary_path: str) -> bool:
+        """Returns True if test passes, False if bug manifests."""
+        cmd = test_command.replace('{binary}', binary_path)
+        try:
+            result = subprocess.run(cmd, shell=True, timeout=5,
+                                   capture_output=True)
+            return result.returncode == 0
+        except subprocess.TimeoutExpired:
+            return False  # Timeout = bug (infinite loop, etc.)
+        except Exception:
+            return False
+
+    bisector = PassBisector(opt_level=optimization_level)
+    result = bisector.bisect(source_file, test_func)
 
     print("=== Pass Bisection Result ===")
+    print(f"Verdict: {result.verdict}")
     print(f"Culprit pass: {result.culprit_pass or 'Not found'}")
-    print(f"Iterations: {result.iterations}")
-    print(f"Total passes tested: {result.total_passes}")
+    print(f"Culprit index: {result.culprit_index}")
+    print(f"Total passes: {len(result.pass_pipeline)}")
+    print(f"Total tests: {result.total_tests}")
     print()
 
     bisector.cleanup()
 
     return {
+        "verdict": result.verdict,
         "culprit_pass": result.culprit_pass,
-        "iterations": result.iterations,
-        "total_passes": result.total_passes
+        "culprit_index": result.culprit_index,
+        "total_passes": len(result.pass_pipeline),
+        "total_tests": result.total_tests
     }
 
 
-def full_pipeline_cmd(source_file: str, test_input: Optional[str] = None,
+def full_pipeline_cmd(source_file: str, test_command: str,
+                      test_input: Optional[str] = None,
                       expected_output: Optional[str] = None,
-                      compiler_min: str = "clang-14",
-                      compiler_max: str = "clang-21") -> Dict[str, Any]:
+                      optimization_level: str = "-O2") -> Dict[str, Any]:
     """
     Run the full diagnosis pipeline: UB detection → Version bisection → Pass bisection.
 
     Args:
         source_file: Path to C source file
-        test_input: Optional test input string
-        expected_output: Optional expected output string
-        compiler_min: Minimum compiler version for bisection
-        compiler_max: Maximum compiler version for bisection
+        test_command: Shell command to test binary (use {binary} placeholder)
+                     Returns 0 if test passes, non-zero if bug manifests
+        test_input: Optional test input string (for UB detection)
+        expected_output: Optional expected output string (for UB detection)
+        optimization_level: Optimization level (default: -O2)
 
     Returns:
         Complete diagnosis result dictionary
@@ -205,9 +246,9 @@ def full_pipeline_cmd(source_file: str, test_input: Optional[str] = None,
 
     # Stage 2: Version Bisection
     print("Stage 2/3: Version Bisection...")
-    version_result = version_bisect_cmd(source_file, compiler_min, compiler_max, test_input)
+    version_result = version_bisect_cmd(source_file, test_command, optimization_level)
 
-    if not version_result['first_bad_version']:
+    if not version_result.get('first_bad_version'):
         print("⚠ Could not find bad compiler version. Bug may not reproduce reliably.")
         return {
             "ub_detection": ub_result,
@@ -217,21 +258,21 @@ def full_pipeline_cmd(source_file: str, test_input: Optional[str] = None,
 
     # Stage 3: Pass Bisection
     print("Stage 3/3: Pass Bisection...")
-    pass_result = pass_bisect_cmd(source_file, version_result['first_bad_version'], test_input)
+    pass_result = pass_bisect_cmd(source_file, test_command, optimization_level)
 
     # Summary
     print("=== Diagnosis Complete ===")
     print(f"Verdict: Compiler bug (confidence: {ub_result['confidence']:.2%})")
-    print(f"First bad version: {version_result['first_bad_version']}")
-    print(f"Culprit pass: {pass_result['culprit_pass'] or 'Unknown'}")
+    print(f"First bad version: {version_result.get('first_bad_version', 'Unknown')}")
+    print(f"Culprit pass: {pass_result.get('culprit_pass', 'Unknown')}")
     print()
 
     return {
         "ub_detection": ub_result,
         "version_bisection": version_result,
         "pass_bisection": pass_result,
-        "recommendation": f"Compiler bug in {pass_result['culprit_pass'] or 'unknown pass'} "
-                         f"introduced in {version_result['first_bad_version']}"
+        "recommendation": f"Compiler bug in {pass_result.get('culprit_pass', 'unknown pass')} "
+                         f"introduced in {version_result.get('first_bad_version', 'unknown version')}"
     }
 
 
@@ -262,9 +303,10 @@ def main():
         help='Run version bisection'
     )
     version_parser.add_argument('source_file', help='Path to C source file')
-    version_parser.add_argument('compiler_min', help='Minimum compiler version (e.g., clang-14)')
-    version_parser.add_argument('compiler_max', help='Maximum compiler version (e.g., clang-21)')
-    version_parser.add_argument('--test-input', help='Test input string')
+    version_parser.add_argument('test_command',
+                                help='Test command with {binary} placeholder (e.g., "{binary} | grep -q OK")')
+    version_parser.add_argument('--optimization-level', default='-O2',
+                                help='Optimization level (default: -O2)')
 
     # pass-bisect command
     pass_parser = subparsers.add_parser(
@@ -272,8 +314,10 @@ def main():
         help='Run pass bisection'
     )
     pass_parser.add_argument('source_file', help='Path to C source file')
-    pass_parser.add_argument('bad_compiler', help='Compiler that exhibits the bug (e.g., clang-21)')
-    pass_parser.add_argument('--test-input', help='Test input string')
+    pass_parser.add_argument('test_command',
+                            help='Test command with {binary} placeholder (e.g., "{binary} | grep -q OK")')
+    pass_parser.add_argument('--optimization-level', default='-O2',
+                            help='Optimization level (default: -O2)')
 
     # full-pipeline command
     pipeline_parser = subparsers.add_parser(
@@ -281,12 +325,12 @@ def main():
         help='Run complete diagnosis pipeline'
     )
     pipeline_parser.add_argument('source_file', help='Path to C source file')
-    pipeline_parser.add_argument('--test-input', help='Test input string')
-    pipeline_parser.add_argument('--expected-output', help='Expected output string')
-    pipeline_parser.add_argument('--compiler-min', default='clang-14',
-                                 help='Minimum compiler version (default: clang-14)')
-    pipeline_parser.add_argument('--compiler-max', default='clang-21',
-                                 help='Maximum compiler version (default: clang-21)')
+    pipeline_parser.add_argument('test_command',
+                                help='Test command with {binary} placeholder (e.g., "{binary} | grep -q OK")')
+    pipeline_parser.add_argument('--test-input', help='Test input string (for UB detection)')
+    pipeline_parser.add_argument('--expected-output', help='Expected output string (for UB detection)')
+    pipeline_parser.add_argument('--optimization-level', default='-O2',
+                                 help='Optimization level (default: -O2)')
 
     args = parser.parse_args()
 
@@ -300,14 +344,15 @@ def main():
         elif args.command == 'ub-detect':
             result = ub_detect_cmd(args.source_file, args.test_input, args.expected_output)
         elif args.command == 'version-bisect':
-            result = version_bisect_cmd(args.source_file, args.compiler_min,
-                                       args.compiler_max, args.test_input)
+            result = version_bisect_cmd(args.source_file, args.test_command,
+                                       args.optimization_level)
         elif args.command == 'pass-bisect':
-            result = pass_bisect_cmd(args.source_file, args.bad_compiler, args.test_input)
+            result = pass_bisect_cmd(args.source_file, args.test_command,
+                                    args.optimization_level)
         elif args.command == 'full-pipeline':
-            result = full_pipeline_cmd(args.source_file, args.test_input,
-                                      args.expected_output, args.compiler_min,
-                                      args.compiler_max)
+            result = full_pipeline_cmd(args.source_file, args.test_command,
+                                      args.test_input, args.expected_output,
+                                      args.optimization_level)
         else:
             parser.print_help()
             sys.exit(1)
