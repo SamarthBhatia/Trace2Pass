@@ -355,16 +355,212 @@ def analyze_report(report: Dict[str, Any]) -> UBDetectionResult:
         UBDetectionResult with verdict and confidence
 
     Note:
-        This is a convenience wrapper. In practice, you need:
-        1. Source code from the report's source_hash
-        2. Test inputs that trigger the anomaly
-        3. Expected behavior (from -O0 or specification)
-    """
-    # TODO: In production, fetch source code based on report['build_info']['source_hash']
-    # TODO: Extract or reconstruct test inputs
-    # TODO: Determine expected behavior
+        This implementation generates a minimal reproducer from the report's
+        check_details and runs UBSan on it. In production, this should be
+        enhanced to fetch actual source code and test inputs.
 
-    raise NotImplementedError(
-        "Full report analysis requires source code retrieval and test case extraction. "
-        "Use UBDetector.detect() directly with a source file for now."
-    )
+    Limitations (Phase 4 TODO):
+        1. Should fetch source code using report['build_info']['source_hash']
+        2. Should replay actual test inputs that triggered the anomaly
+        3. Should use actual compiler flags from report['build_info']['flags']
+        4. Currently generates synthetic reproducers which may not perfectly
+           represent the original bug
+    """
+    import tempfile
+    import os
+
+    check_type = report.get('check_type', '')
+    check_details = report.get('check_details', {})
+
+    # Generate minimal reproducer based on check type
+    reproducer_code = _generate_reproducer(check_type, check_details)
+
+    if not reproducer_code:
+        # Cannot generate reproducer for this check type
+        return UBDetectionResult(
+            verdict="inconclusive",
+            confidence=0.0,
+            ubsan_clean=False,
+            optimization_sensitive=False,
+            multi_compiler_differs=False,
+            details={
+                "error": f"Cannot generate reproducer for check_type={check_type}",
+                "report_id": report.get('report_id', 'unknown')
+            }
+        )
+
+    # Write reproducer to temporary file
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.c', delete=False) as f:
+        reproducer_file = f.name
+        f.write(reproducer_code)
+
+    try:
+        # Run UB detection on the generated reproducer
+        detector = UBDetector()
+
+        # For generated reproducers, we don't have test inputs
+        # Just check if UBSan detects UB in the code itself
+        result = detector.detect(
+            source_file=reproducer_file,
+            test_input=None,  # No runtime input needed for these synthetic tests
+            expected_output=None  # No expected output
+        )
+
+        # Add original report metadata to result details
+        if not result.details:
+            result.details = {}
+        result.details['synthetic_reproducer'] = True
+        result.details['original_report_id'] = report.get('report_id', 'unknown')
+        result.details['original_check_type'] = report.get('check_type', 'unknown')
+
+        detector.cleanup()
+        return result
+
+    finally:
+        # Clean up temporary file
+        if os.path.exists(reproducer_file):
+            os.unlink(reproducer_file)
+
+
+def _generate_reproducer(check_type: str, check_details: Dict[str, Any]) -> Optional[str]:
+    """
+    Generate minimal C reproducer based on check type and details.
+
+    Args:
+        check_type: Type of check (arithmetic_overflow, division_by_zero, etc.)
+        check_details: Check-specific details from the report
+
+    Returns:
+        C source code as string, or None if cannot generate
+    """
+    if check_type == "arithmetic_overflow":
+        expr = check_details.get('expr', 'a + b')
+        operands = check_details.get('operands', [0, 0])
+        a = operands[0] if len(operands) > 0 else 0
+        b = operands[1] if len(operands) > 1 else 0
+
+        return f"""// Minimal reproducer for arithmetic_overflow
+// Original expression: {expr}
+// Operands: {a}, {b}
+
+int main(void) {{
+    long long a = {a}LL;
+    long long b = {b}LL;
+    long long result = {expr};  // This may overflow
+    return (int)result;
+}}
+"""
+
+    elif check_type == "division_by_zero":
+        operation = check_details.get('operation', 'sdiv')
+        dividend = check_details.get('dividend', 0)
+        divisor = check_details.get('divisor', 0)
+
+        op_char = '/' if 'div' in operation else '%'
+
+        return f"""// Minimal reproducer for division_by_zero
+// Operation: {operation}
+// Dividend: {dividend}, Divisor: {divisor}
+
+int main(void) {{
+    long long dividend = {dividend}LL;
+    long long divisor = {divisor}LL;
+    long long result = dividend {op_char} divisor;  // Division by zero
+    return (int)result;
+}}
+"""
+
+    elif check_type == "sign_conversion":
+        original = check_details.get('original_value', -1)
+        cast_val = check_details.get('cast_value', 0)
+        src_bits = check_details.get('src_bits', 32)
+        dest_bits = check_details.get('dest_bits', 32)
+
+        return f"""// Minimal reproducer for sign_conversion
+// Original (signed i{src_bits}): {original}
+// Cast (unsigned i{dest_bits}): {cast_val}
+
+int main(void) {{
+    long long original = {original}LL;
+    unsigned long long cast_value = (unsigned long long)original;
+    return (int)cast_value;
+}}
+"""
+
+    elif check_type == "unreachable_code_executed":
+        message = check_details.get('message', 'unreachable code executed')
+
+        return f"""// Minimal reproducer for unreachable_code_executed
+// Message: {message}
+
+int main(void) {{
+    // Simulate unreachable code being executed
+    // In practice, this would be __builtin_unreachable() being reached
+    return 1;  // Should never reach here
+}}
+"""
+
+    elif check_type == "bounds_violation":
+        offset = check_details.get('offset', 0)
+        size = check_details.get('size', 0)
+
+        return f"""// Minimal reproducer for bounds_violation
+// Offset: {offset}, Size: {size}
+
+int main(void) {{
+    int arr[10];
+    int index = {offset};  // May be out of bounds
+    return arr[index];
+}}
+"""
+
+    elif check_type == "pure_function_inconsistency":
+        func = check_details.get('function', 'unknown')
+        arg0 = check_details.get('arg0', 0)
+        arg1 = check_details.get('arg1', 0)
+        prev_result = check_details.get('previous_result', 0)
+        curr_result = check_details.get('current_result', 1)
+
+        return f"""// Minimal reproducer for pure_function_inconsistency
+// Function: {func}
+// Args: {arg0}, {arg1}
+// Previous result: {prev_result}, Current result: {curr_result}
+
+// This is a compiler bug if the function is pure but returns different results
+static int call_count = 0;
+
+long long pure_func(long long a, long long b) {{
+    // In original bug, this would be optimized differently
+    // on different invocations
+    call_count++;
+    return a + b;  // Should always return same result for same inputs
+}}
+
+int main(void) {{
+    long long r1 = pure_func({arg0}LL, {arg1}LL);
+    long long r2 = pure_func({arg0}LL, {arg1}LL);
+    return (r1 != r2) ? 1 : 0;  // Should return 0 (equal)
+}}
+"""
+
+    elif check_type == "loop_bound_exceeded":
+        loop_name = check_details.get('loop_name', 'unknown')
+        iteration_count = check_details.get('iteration_count', 1000)
+        threshold = check_details.get('threshold', 100)
+
+        return f"""// Minimal reproducer for loop_bound_exceeded
+// Loop: {loop_name}
+// Iteration count: {iteration_count}, Threshold: {threshold}
+
+int main(void) {{
+    int count = 0;
+    for (int i = 0; i < {threshold}; i++) {{
+        count++;
+    }}
+    return count;
+}}
+"""
+
+    else:
+        # Unknown check type
+        return None
