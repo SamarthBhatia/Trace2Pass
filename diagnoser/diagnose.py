@@ -120,25 +120,48 @@ def version_bisect_cmd(source_file: str, test_command: str,
         source_file: Path to C source file
         test_command: Shell command to test binary (use {binary} placeholder)
                      Returns 0 if test passes, non-zero if bug manifests
-                     Example: "{binary} | grep -q expected_output"
+                     Example: "{binary}" (just run) or "{binary} arg1 arg2"
+
+                     SECURITY WARNING: This command is parsed and executed.
+                     Do NOT pass untrusted input directly. For automated use,
+                     consider validating or sanitizing test_command.
         optimization_level: Optimization level (default: -O2)
 
     Returns:
         Version bisection result dictionary
     """
     import subprocess
+    import shlex
+
+    # Validate that {binary} placeholder exists
+    if '{binary}' not in test_command:
+        raise ValueError("test_command must contain {binary} placeholder")
 
     # Create test function that runs the provided command
     def test_func(version: str, binary_path: str) -> bool:
         """Returns True if test passes, False if bug manifests."""
-        cmd = test_command.replace('{binary}', binary_path)
+        # Replace {binary} placeholder
+        cmd_str = test_command.replace('{binary}', binary_path)
+
+        # Use shlex.split to parse command safely (handles quotes, escaping)
+        # This avoids shell=True while still supporting basic command syntax
         try:
-            result = subprocess.run(cmd, shell=True, timeout=5,
-                                   capture_output=True)
+            cmd_args = shlex.split(cmd_str)
+        except ValueError as e:
+            print(f"Error parsing test command: {e}")
+            return False
+
+        try:
+            # Run without shell for better security
+            result = subprocess.run(cmd_args, timeout=5, capture_output=True)
             return result.returncode == 0
         except subprocess.TimeoutExpired:
             return False  # Timeout = bug (infinite loop, etc.)
-        except Exception:
+        except FileNotFoundError:
+            print(f"Error: Command not found: {cmd_args[0]}")
+            return False
+        except Exception as e:
+            print(f"Error running test: {e}")
             return False
 
     bisector = VersionBisector()
@@ -168,27 +191,51 @@ def pass_bisect_cmd(source_file: str, test_command: str,
 
     Args:
         source_file: Path to C source file
-        test_command: Shell command to test binary (use {binary} placeholder)
+        test_command: Command to test binary (use {binary} placeholder)
                      Returns 0 if test passes, non-zero if bug manifests
-                     Example: "{binary} | grep -q expected_output"
+                     Example: "{binary}" or "{binary} arg1 arg2"
+
+                     LIMITATION: Pipes, redirects, and shell features are NOT supported
+                     for security. For complex tests, write a wrapper script.
+
+                     SECURITY WARNING: Do NOT pass untrusted input directly.
         optimization_level: Optimization level (default: -O2)
 
     Returns:
         Pass bisection result dictionary
     """
     import subprocess
+    import shlex
+
+    # Validate that {binary} placeholder exists
+    if '{binary}' not in test_command:
+        raise ValueError("test_command must contain {binary} placeholder")
 
     # Create test function that runs the provided command
     def test_func(binary_path: str) -> bool:
         """Returns True if test passes, False if bug manifests."""
-        cmd = test_command.replace('{binary}', binary_path)
+        # Replace {binary} placeholder
+        cmd_str = test_command.replace('{binary}', binary_path)
+
+        # Use shlex.split to parse command safely (handles quotes, escaping)
+        # This avoids shell=True while still supporting basic command syntax
         try:
-            result = subprocess.run(cmd, shell=True, timeout=5,
-                                   capture_output=True)
+            cmd_args = shlex.split(cmd_str)
+        except ValueError as e:
+            print(f"Error parsing test command: {e}")
+            return False
+
+        try:
+            # Run without shell for better security
+            result = subprocess.run(cmd_args, timeout=5, capture_output=True)
             return result.returncode == 0
         except subprocess.TimeoutExpired:
             return False  # Timeout = bug (infinite loop, etc.)
-        except Exception:
+        except FileNotFoundError:
+            print(f"Error: Command not found: {cmd_args[0]}")
+            return False
+        except Exception as e:
+            print(f"Error running test: {e}")
             return False
 
     bisector = PassBisector(opt_level=optimization_level)

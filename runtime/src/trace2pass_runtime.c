@@ -298,10 +298,29 @@ int trace2pass_should_sample(void) {
     return random_double < sample_rate;
 }
 
-// Helper: Generate report ID from PC and timestamp
-static void generate_report_id(void* pc, const char* timestamp, char* out, size_t out_size) {
-    // Simple report ID: hash of PC + timestamp
+// Helper: Generate stable call-site ID from PC
+// This is more stable than raw PC address (which changes between runs)
+// but still process-specific. Ideally should use source location once available.
+static void generate_callsite_id(void* pc, const char* check_type, char* out, size_t out_size) {
+    // Hash PC with check type to create stable identifier
+    // This is the same hash used for bloom filter deduplication
     uint64_t h = (uint64_t)pc;
+    const char* p = check_type;
+    while (*p) {
+        h = h * 31 + *p++;
+    }
+    // Use only lower bits to reduce collision with address randomization
+    uint32_t stable_id = (uint32_t)(h & 0xFFFFFFFF);
+    snprintf(out, out_size, "site_%08x", stable_id);
+}
+
+// Helper: Generate report ID from call-site ID and timestamp
+static void generate_report_id(const char* callsite_id, const char* timestamp, char* out, size_t out_size) {
+    // Report ID: callsite_id + timestamp hash
+    uint64_t h = 0;
+    for (const char* p = callsite_id; *p; p++) {
+        h = h * 31 + *p;
+    }
     for (const char* p = timestamp; *p; p++) {
         h = h * 31 + *p;
     }
@@ -330,8 +349,11 @@ void trace2pass_report_overflow(void* pc, const char* expr,
 
     // Send to Collector if configured
     if (collector_url) {
+        char callsite_id[32];
+        generate_callsite_id(pc, "overflow", callsite_id, sizeof(callsite_id));
+
         char report_id[64];
-        generate_report_id(pc, timestamp, report_id, sizeof(report_id));
+        generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
 
         char expr_escaped[256];
         json_escape_string(expr, expr_escaped, sizeof(expr_escaped));
@@ -342,13 +364,13 @@ void trace2pass_report_overflow(void* pc, const char* expr,
             "\"report_id\":\"%s\","
             "\"timestamp\":\"%s\","
             "\"check_type\":\"arithmetic_overflow\","
-            "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"unknown\"},"
+            "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
             "\"pc\":\"0x%llx\","
             "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
             "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
             "\"check_details\":{\"expr\":\"%s\",\"operands\":[%lld,%lld]}"
             "}",
-            report_id, timestamp, (unsigned long long)pc,
+            report_id, timestamp, callsite_id, (unsigned long long)pc,
             expr_escaped, (long long)a, (long long)b);
 
         http_post_json(collector_url, json);
