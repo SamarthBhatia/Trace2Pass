@@ -89,32 +89,34 @@ class VersionBisector:
         self.tested_versions = []
         details = {}
 
-        # Find first available compiler (march from left)
-        first_idx = 0
-        first_passes = None
-        while first_idx < len(self.versions) and first_passes is None:
-            first_version = self.versions[first_idx]
-            first_passes = self._test_version(
-                first_version, source_file, test_func, optimization_level, details
-            )
-            if first_passes is None:
-                # Compiler not found, try next version
-                first_idx += 1
+        # Find endpoints with DIFFERENT outcomes (one pass, one fail)
+        # CRITICAL: We need a passing version and a failing version to bisect
+        # Simply finding two installed compilers is not enough - they both might pass!
 
-        # Find last available compiler (march from right)
-        last_idx = len(self.versions) - 1
-        last_passes = None
-        while last_idx >= first_idx and last_passes is None:
-            last_version = self.versions[last_idx]
-            last_passes = self._test_version(
-                last_version, source_file, test_func, optimization_level, details
-            )
-            if last_passes is None:
-                # Compiler not found, try previous version
-                last_idx -= 1
+        # Strategy: Test all installed compilers and find one passing and one failing
+        passing_idx = None
+        failing_idx = None
 
-        # Check if we found any compilers at all
-        if first_passes is None or last_passes is None:
+        for idx in range(len(self.versions)):
+            result = self._test_version(
+                self.versions[idx], source_file, test_func, optimization_level, details
+            )
+            if result is not None:  # Compiler was installed and tested
+                if result:
+                    # Found a passing version
+                    if passing_idx is None or idx < passing_idx:
+                        passing_idx = idx
+                else:
+                    # Found a failing version
+                    if failing_idx is None:
+                        failing_idx = idx
+
+                # Early exit: if we have both a pass and a fail, we can bisect
+                if passing_idx is not None and failing_idx is not None:
+                    break
+
+        # Check what we found
+        if passing_idx is None and failing_idx is None:
             error_msg = f"No installed compilers found in range {self.versions[0]} to {self.versions[-1]}. "\
                        f"Cannot bisect without at least two installed compiler versions."
             print(f"ERROR: {error_msg}")
@@ -127,34 +129,70 @@ class VersionBisector:
                 details={'error': error_msg, **details}
             )
 
-        # Update first/last to the actual versions we found
+        # Determine endpoints for bisection
+        # We want: left = passing, right = failing (for bisection to work)
+        # But we need to handle cases where we only found one outcome
+
+        if passing_idx is not None and failing_idx is None:
+            # All tested compilers pass - continue testing to find a failure
+            print(f"Tested {self.versions[passing_idx]}: PASS, searching for failing version...")
+            for idx in range(passing_idx + 1, len(self.versions)):
+                result = self._test_version(
+                    self.versions[idx], source_file, test_func, optimization_level, details
+                )
+                if result is not None and not result:
+                    # Found a failing version
+                    failing_idx = idx
+                    break
+
+            if failing_idx is None:
+                # All installed compilers pass - no regression found
+                return VersionBisectionResult(
+                    first_bad_version=None,
+                    last_good_version=self.versions[passing_idx],
+                    tested_versions=self.tested_versions,
+                    total_tests=len(self.tested_versions),
+                    verdict="all_pass",
+                    details=details
+                )
+
+        if failing_idx is not None and passing_idx is None:
+            # All tested compilers fail - continue testing to find a pass
+            print(f"Tested {self.versions[failing_idx]}: FAIL, searching for passing version...")
+            for idx in range(failing_idx + 1, len(self.versions)):
+                result = self._test_version(
+                    self.versions[idx], source_file, test_func, optimization_level, details
+                )
+                if result is not None and result:
+                    # Found a passing version
+                    passing_idx = idx
+                    break
+
+            if passing_idx is None:
+                # All installed compilers fail - bug predates range
+                return VersionBisectionResult(
+                    first_bad_version=self.versions[failing_idx],
+                    last_good_version=None,
+                    tested_versions=self.tested_versions,
+                    total_tests=len(self.tested_versions),
+                    verdict="all_fail",
+                    details=details
+                )
+
+        # At this point we have both passing_idx and failing_idx
+        # Set up bisection boundaries: left = lower index, right = higher index
+        first_idx = min(passing_idx, failing_idx)
+        last_idx = max(passing_idx, failing_idx)
+        first_passes = passing_idx < failing_idx  # True if left is passing
+        last_passes = passing_idx > failing_idx   # True if right is passing
+
         first_version = self.versions[first_idx]
         last_version = self.versions[last_idx]
 
-        if first_idx != 0 or last_idx != len(self.versions) - 1:
-            print(f"Note: Using available compiler range {first_version} to {last_version}")
+        print(f"Bisecting: {first_version} ({'PASS' if first_passes else 'FAIL'}) to {last_version} ({'PASS' if last_passes else 'FAIL'})")
 
-        if first_passes and last_passes:
-            # Both pass - no regression found
-            return VersionBisectionResult(
-                first_bad_version=None,
-                last_good_version=last_version,
-                tested_versions=self.tested_versions,
-                total_tests=len(self.tested_versions),
-                verdict="all_pass",
-                details=details
-            )
-
-        if not first_passes and not last_passes:
-            # Both fail - bug pre-dates version range
-            return VersionBisectionResult(
-                first_bad_version=first_version,
-                last_good_version=None,
-                tested_versions=self.tested_versions,
-                total_tests=len(self.tested_versions),
-                verdict="all_fail",
-                details=details
-            )
+        # At this point we're guaranteed to have different outcomes at the endpoints
+        # (one pass, one fail) so we can proceed with binary search
 
         # Binary search for first bad version
         # Use the actual range of installed compilers
@@ -191,76 +229,96 @@ class VersionBisector:
             mid = (left + right) // 2
             version = self.versions[mid]
 
-            # Skip if already tested
+            # Check if we've already tested this version
             if version in details:
                 result = details[version]['passes']
                 if result is None:
                     # This version was skipped (compiler not found)
-                    # CRITICAL: We can't assume skip = pass or skip = fail
-                    # We need to try another version in the range
-                    # Try mid+1 if available, otherwise try mid-1
-                    if mid + 1 <= right:
-                        left = mid + 1
-                    elif mid - 1 >= left:
-                        right = mid - 1
-                    else:
-                        # Can't narrow further - all remaining versions are skips
-                        break
-                    continue
+                    # CRITICAL: Don't move boundaries - find another testable version
+                    # in the SAME range instead
+                    pass  # Fall through to find alternate version
                 elif result:
                     # Passed
                     left = mid + 1
                     last_good_idx = mid
+                    continue
                 else:
                     # Failed
                     right = mid
                     first_bad_idx = mid
-                continue
+                    continue
 
-            passes = self._test_version(
-                version, source_file, test_func, optimization_level, details
-            )
+            # If we reach here, either:
+            # 1. Version not yet tested
+            # 2. Version was previously skipped
+            # In both cases, we need to find a testable version in [left, right]
 
-            if passes is None:
-                # Compiler not found - we can't use this version to narrow the search
-                # CRITICAL: Don't assume this is a pass!
-                # Try to find another testable version in the range
+            # If version not tested yet, try testing it
+            if version not in details:
+                passes = self._test_version(
+                    version, source_file, test_func, optimization_level, details
+                )
 
-                # Strategy: Try versions around mid to find a testable one
-                # Try right side first (newer versions more likely installed)
-                found_testable = False
-                for offset in range(1, right - mid + 1):
-                    test_idx = mid + offset
-                    if test_idx <= right and self.versions[test_idx] not in details:
-                        # Try this version next
-                        left = test_idx
+                if passes is not None:
+                    # Successfully tested - use the result
+                    if passes:
+                        last_good_idx = mid
+                        left = mid + 1
+                    else:
+                        first_bad_idx = mid
+                        right = mid
+                    continue
+
+            # If we're here, mid is a skip (either already known or just discovered)
+            # Find an alternate testable version in [left, right] without moving boundaries
+            # Strategy: Try versions near mid, alternating left/right
+
+            found_testable = False
+            max_offset = max(mid - left, right - mid)
+
+            for offset in range(1, max_offset + 1):
+                # Try right side
+                test_idx = mid + offset
+                if test_idx <= right and self.versions[test_idx] not in details:
+                    # Test this version
+                    passes = self._test_version(
+                        self.versions[test_idx], source_file, test_func,
+                        optimization_level, details
+                    )
+                    if passes is not None:
+                        # Successfully tested - update boundaries based on result
+                        if passes:
+                            last_good_idx = test_idx
+                            left = test_idx + 1
+                        else:
+                            first_bad_idx = test_idx
+                            right = test_idx
                         found_testable = True
                         break
 
-                if not found_testable:
-                    # Try left side
-                    for offset in range(1, mid - left + 1):
-                        test_idx = mid - offset
-                        if test_idx >= left and self.versions[test_idx] not in details:
-                            # Try this version next
+                # Try left side
+                test_idx = mid - offset
+                if test_idx >= left and self.versions[test_idx] not in details:
+                    # Test this version
+                    passes = self._test_version(
+                        self.versions[test_idx], source_file, test_func,
+                        optimization_level, details
+                    )
+                    if passes is not None:
+                        # Successfully tested - update boundaries based on result
+                        if passes:
+                            last_good_idx = test_idx
+                            left = test_idx + 1
+                        else:
+                            first_bad_idx = test_idx
                             right = test_idx
-                            found_testable = True
-                            break
+                        found_testable = True
+                        break
 
-                if not found_testable:
-                    # No testable versions left in range - stop bisection
-                    # Report the range we have between last tested good and first tested bad
-                    break
-
-                continue
-            elif passes:
-                # This version passes, bug is after this
-                last_good_idx = mid
-                left = mid + 1
-            else:
-                # This version fails, bug is at or before this
-                first_bad_idx = mid
-                right = mid
+            if not found_testable:
+                # No testable versions left in [left, right] range
+                # Stop bisection and report what we have
+                break
 
         return VersionBisectionResult(
             first_bad_version=self.versions[first_bad_idx] if first_bad_idx is not None else None,
