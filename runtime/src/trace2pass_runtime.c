@@ -193,11 +193,43 @@ static int http_post_json(const char* url, const char* json_data) {
         return -1;
     }
 
+    // Rate limiting: Prevent DoS by limiting HTTP requests per second
+    // CRITICAL: system(curl) spawns a process per report, which could be abused
+    // for DoS. This rate limiter caps requests to prevent resource exhaustion.
+    // Even with bloom filter + sampling, an attacker could trigger many unique
+    // reports (different PCs) to bypass dedup. This is a stopgap until libcurl.
+    #define MAX_REPORTS_PER_SECOND 10
+    static pthread_mutex_t rate_limit_mutex = PTHREAD_MUTEX_INITIALIZER;
+    static time_t current_window = 0;
+    static int reports_in_window = 0;
+
+    pthread_mutex_lock(&rate_limit_mutex);
+    time_t now = time(NULL);
+    if (now != current_window) {
+        // New time window - reset counter
+        current_window = now;
+        reports_in_window = 0;
+    }
+    if (reports_in_window >= MAX_REPORTS_PER_SECOND) {
+        // Rate limit exceeded - drop report
+        pthread_mutex_unlock(&rate_limit_mutex);
+        static int warning_printed = 0;
+        if (!warning_printed) {
+            fprintf(stderr, "Trace2Pass: Rate limit exceeded (%d reports/sec), dropping reports\n",
+                    MAX_REPORTS_PER_SECOND);
+            warning_printed = 1;
+        }
+        return -1;
+    }
+    reports_in_window++;
+    pthread_mutex_unlock(&rate_limit_mutex);
+
     // TODO(Phase 4): Replace with libcurl for better security and performance
     // Current implementation uses system() which is simple but has limitations:
     // - Spawns external process (performance cost)
     // - Requires curl to be installed
     // - Limited error reporting
+    // - DoS risk (mitigated by rate limiter above)
     // Proper implementation should use libcurl or raw HTTP over sockets
 
     char cmd[4096];
