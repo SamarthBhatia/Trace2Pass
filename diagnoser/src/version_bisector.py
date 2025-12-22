@@ -89,27 +89,34 @@ class VersionBisector:
         self.tested_versions = []
         details = {}
 
-        # Test extremes
-        first_version = self.versions[0]
-        last_version = self.versions[-1]
-
-        first_passes = self._test_version(
-            first_version, source_file, test_func, optimization_level, details
-        )
-        last_passes = self._test_version(
-            last_version, source_file, test_func, optimization_level, details
-        )
-
-        # Check if bisection is possible
-        if first_passes is None or last_passes is None:
-            # One or both endpoint compilers not found - abort
-            missing = []
+        # Find first available compiler (march from left)
+        first_idx = 0
+        first_passes = None
+        while first_idx < len(self.versions) and first_passes is None:
+            first_version = self.versions[first_idx]
+            first_passes = self._test_version(
+                first_version, source_file, test_func, optimization_level, details
+            )
             if first_passes is None:
-                missing.append(first_version)
+                # Compiler not found, try next version
+                first_idx += 1
+
+        # Find last available compiler (march from right)
+        last_idx = len(self.versions) - 1
+        last_passes = None
+        while last_idx >= first_idx and last_passes is None:
+            last_version = self.versions[last_idx]
+            last_passes = self._test_version(
+                last_version, source_file, test_func, optimization_level, details
+            )
             if last_passes is None:
-                missing.append(last_version)
-            error_msg = f"Endpoint compiler(s) not found: {', '.join(missing)}. "\
-                       f"Cannot bisect without both {first_version} and {last_version} installed."
+                # Compiler not found, try previous version
+                last_idx -= 1
+
+        # Check if we found any compilers at all
+        if first_passes is None or last_passes is None:
+            error_msg = f"No installed compilers found in range {self.versions[0]} to {self.versions[-1]}. "\
+                       f"Cannot bisect without at least two installed compiler versions."
             print(f"ERROR: {error_msg}")
             return VersionBisectionResult(
                 first_bad_version=None,
@@ -119,6 +126,13 @@ class VersionBisector:
                 verdict="insufficient_compilers",
                 details={'error': error_msg, **details}
             )
+
+        # Update first/last to the actual versions we found
+        first_version = self.versions[first_idx]
+        last_version = self.versions[last_idx]
+
+        if first_idx != 0 or last_idx != len(self.versions) - 1:
+            print(f"Note: Using available compiler range {first_version} to {last_version}")
 
         if first_passes and last_passes:
             # Both pass - no regression found
@@ -143,8 +157,9 @@ class VersionBisector:
             )
 
         # Binary search for first bad version
-        left = 0
-        right = len(self.versions) - 1
+        # Use the actual range of installed compilers
+        left = first_idx
+        right = last_idx
         first_bad_idx = right
         last_good_idx = left
 
@@ -153,11 +168,19 @@ class VersionBisector:
             version = self.versions[mid]
 
             # Skip if already tested
-            if version in self.tested_versions:
-                if details[version]['passes']:
+            if version in details:
+                result = details[version]['passes']
+                if result is None:
+                    # This version was skipped (compiler not found)
+                    # Don't treat it as pass or fail, just skip it
+                    left = mid + 1
+                    continue
+                elif result:
+                    # Passed
                     left = mid + 1
                     last_good_idx = mid
                 else:
+                    # Failed
                     right = mid
                     first_bad_idx = mid
                 continue
@@ -197,7 +220,7 @@ class VersionBisector:
         test_func: Callable[[str, str], bool],
         optimization_level: str,
         details: Dict[str, Any]
-    ) -> bool:
+    ) -> Optional[bool]:
         """
         Test a specific compiler version.
 
@@ -209,10 +232,8 @@ class VersionBisector:
             details: Dictionary to store test details
 
         Returns:
-            True if test passes, False if fails
+            True if test passes, False if fails, None if skipped (compiler not found)
         """
-        self.tested_versions.append(version)
-
         if self.use_docker:
             # Docker-based compilation
             binary_path = self._compile_with_docker(
@@ -225,9 +246,8 @@ class VersionBisector:
             )
 
         if not binary_path or not os.path.exists(binary_path):
-            # Check if this was a "compiler not found" vs "compilation failed"
-            # If compiler wasn't found, we should skip this version entirely
-            # rather than treating it as a regression
+            # Compiler not found - skip this version entirely
+            # Do NOT add to tested_versions, as we didn't actually test it
             details[version] = {
                 'passes': None,  # None = skipped (compiler not found)
                 'compile_failed': True,
@@ -235,6 +255,9 @@ class VersionBisector:
                 'skipped': True
             }
             return None  # Return None to indicate "skip", not "fail"
+
+        # Compiler found and compilation succeeded - add to tested_versions
+        self.tested_versions.append(version)
 
         # Run test function
         try:
