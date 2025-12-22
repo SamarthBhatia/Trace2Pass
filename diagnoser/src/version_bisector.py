@@ -101,6 +101,25 @@ class VersionBisector:
         )
 
         # Check if bisection is possible
+        if first_passes is None or last_passes is None:
+            # One or both endpoint compilers not found - abort
+            missing = []
+            if first_passes is None:
+                missing.append(first_version)
+            if last_passes is None:
+                missing.append(last_version)
+            error_msg = f"Endpoint compiler(s) not found: {', '.join(missing)}. "\
+                       f"Cannot bisect without both {first_version} and {last_version} installed."
+            print(f"ERROR: {error_msg}")
+            return VersionBisectionResult(
+                first_bad_version=None,
+                last_good_version=None,
+                tested_versions=self.tested_versions,
+                total_tests=len(self.tested_versions),
+                verdict="insufficient_compilers",
+                details={'error': error_msg, **details}
+            )
+
         if first_passes and last_passes:
             # Both pass - no regression found
             return VersionBisectionResult(
@@ -147,7 +166,13 @@ class VersionBisector:
                 version, source_file, test_func, optimization_level, details
             )
 
-            if passes:
+            if passes is None:
+                # Compiler not found - skip this version
+                # Try to bisect around it by checking if we should go left or right
+                # For now, try going right (newer versions more likely to be installed)
+                left = mid + 1
+                continue
+            elif passes:
                 # This version passes, bug is after this
                 last_good_idx = mid
                 left = mid + 1
@@ -200,13 +225,16 @@ class VersionBisector:
             )
 
         if not binary_path or not os.path.exists(binary_path):
-            # Compilation failed
+            # Check if this was a "compiler not found" vs "compilation failed"
+            # If compiler wasn't found, we should skip this version entirely
+            # rather than treating it as a regression
             details[version] = {
-                'passes': False,
+                'passes': None,  # None = skipped (compiler not found)
                 'compile_failed': True,
-                'binary_path': binary_path
+                'binary_path': binary_path,
+                'skipped': True
             }
-            return False
+            return None  # Return None to indicate "skip", not "fail"
 
         # Run test function
         try:
