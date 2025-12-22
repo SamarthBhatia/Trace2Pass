@@ -185,7 +185,8 @@ def version_bisect_cmd(source_file: str, test_command: str,
 
 
 def pass_bisect_cmd(source_file: str, test_command: str,
-                    optimization_level: str = "-O2") -> Dict[str, Any]:
+                    optimization_level: str = "-O2",
+                    compiler_version: Optional[str] = None) -> Dict[str, Any]:
     """
     Run pass bisection to identify the specific optimization pass responsible.
 
@@ -200,6 +201,10 @@ def pass_bisect_cmd(source_file: str, test_command: str,
 
                      SECURITY WARNING: Do NOT pass untrusted input directly.
         optimization_level: Optimization level (default: -O2)
+        compiler_version: Specific compiler version to use (e.g., "17" for clang-17)
+                         If None, uses system default clang
+                         CRITICAL: Should be set to first_bad_version from version bisection
+                         to analyze the correct compiler's pass pipeline
 
     Returns:
         Pass bisection result dictionary
@@ -238,7 +243,27 @@ def pass_bisect_cmd(source_file: str, test_command: str,
             print(f"Error running test: {e}")
             return False
 
-    bisector = PassBisector(opt_level=optimization_level)
+    # Determine which clang to use
+    # CRITICAL: If compiler_version is specified (e.g., from version bisection),
+    # we MUST use that specific version for pass bisection. Otherwise, we'd be
+    # analyzing the wrong compiler's pass pipeline.
+    if compiler_version:
+        clang_path = f"clang-{compiler_version}"
+        opt_path = f"opt-{compiler_version}"
+        llc_path = f"llc-{compiler_version}"
+        print(f"Using compiler version: {compiler_version}")
+    else:
+        clang_path = "clang"
+        opt_path = "opt"
+        llc_path = "llc"
+        print("Using system default compiler")
+
+    bisector = PassBisector(
+        clang_path=clang_path,
+        opt_path=opt_path,
+        llc_path=llc_path,
+        opt_level=optimization_level
+    )
     result = bisector.bisect(source_file, test_func)
 
     print("=== Pass Bisection Result ===")
@@ -305,7 +330,11 @@ def full_pipeline_cmd(source_file: str, test_command: str,
 
     # Stage 3: Pass Bisection
     print("Stage 3/3: Pass Bisection...")
-    pass_result = pass_bisect_cmd(source_file, test_command, optimization_level)
+    # CRITICAL: Pass the first_bad_version to pass bisection so it analyzes
+    # the correct compiler version's pass pipeline, not the system default
+    first_bad_version = version_result.get('first_bad_version')
+    pass_result = pass_bisect_cmd(source_file, test_command, optimization_level,
+                                  compiler_version=first_bad_version)
 
     # Summary
     print("=== Diagnosis Complete ===")
@@ -365,6 +394,9 @@ def main():
                             help='Test command with {binary} placeholder (e.g., "{binary} | grep -q OK")')
     pass_parser.add_argument('--optimization-level', default='-O2',
                             help='Optimization level (default: -O2)')
+    pass_parser.add_argument('--compiler-version',
+                            help='Specific compiler version to use (e.g., "17" for clang-17). '\
+                                 'If not specified, uses system default clang.')
 
     # full-pipeline command
     pipeline_parser = subparsers.add_parser(
@@ -395,7 +427,8 @@ def main():
                                        args.optimization_level)
         elif args.command == 'pass-bisect':
             result = pass_bisect_cmd(args.source_file, args.test_command,
-                                    args.optimization_level)
+                                    args.optimization_level,
+                                    compiler_version=getattr(args, 'compiler_version', None))
         elif args.command == 'full-pipeline':
             result = full_pipeline_cmd(args.source_file, args.test_command,
                                       args.test_input, args.expected_output,
