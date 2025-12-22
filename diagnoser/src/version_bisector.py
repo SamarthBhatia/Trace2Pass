@@ -247,10 +247,12 @@ class VersionBisector:
             Path to compiled binary, or None if compilation failed
         """
         # Try to find versioned clang
+        # CRITICAL: Do NOT fall back to plain "clang" - that would substitute
+        # the host compiler version for the requested version, making bisection
+        # results meaningless. If the specific version isn't installed, skip it.
         compiler_candidates = [
             f"clang-{version}",
             f"clang-{version.split('.')[0]}",  # Major version only
-            "clang"  # Fallback to default
         ]
 
         compiler = None
@@ -260,6 +262,9 @@ class VersionBisector:
                 break
 
         if not compiler:
+            # Specific version not found - skip this version
+            # Do NOT fall back to plain "clang" (which could be any version)
+            print(f"Warning: clang-{version} not found on system, skipping")
             return None
 
         binary_path = os.path.join(self.work_dir, f"test_{version.replace('.', '_')}")
