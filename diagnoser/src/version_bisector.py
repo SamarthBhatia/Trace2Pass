@@ -186,6 +186,17 @@ class VersionBisector:
         first_passes = passing_idx < failing_idx  # True if left is passing
         last_passes = passing_idx > failing_idx   # True if right is passing
 
+        # CRITICAL VALIDATION: Ensure endpoints have DIFFERENT outcomes
+        # This is required for bisection to work correctly
+        if first_passes == last_passes:
+            # This should never happen given our endpoint search logic,
+            # but validate to catch any logic errors
+            raise RuntimeError(
+                f"Bisection invariant violated: endpoints have same outcome "
+                f"(first_passes={first_passes}, last_passes={last_passes}). "
+                f"This indicates a bug in endpoint finding logic."
+            )
+
         first_version = self.versions[first_idx]
         last_version = self.versions[last_idx]
 
@@ -352,25 +363,38 @@ class VersionBisector:
         """
         if self.use_docker:
             # Docker-based compilation
-            binary_path = self._compile_with_docker(
+            binary_path, compiler_found, compile_succeeded = self._compile_with_docker(
                 version, source_file, optimization_level
             )
         else:
             # Local compilation (requires version to be installed)
-            binary_path = self._compile_local(
+            binary_path, compiler_found, compile_succeeded = self._compile_local(
                 version, source_file, optimization_level
             )
 
-        if not binary_path or not os.path.exists(binary_path):
-            # Compiler not found - skip this version entirely
+        if not compiler_found:
+            # Compiler not installed - skip this version entirely
             # Do NOT add to tested_versions, as we didn't actually test it
             details[version] = {
                 'passes': None,  # None = skipped (compiler not found)
-                'compile_failed': True,
-                'binary_path': binary_path,
+                'compile_failed': False,
+                'binary_path': None,
                 'skipped': True
             }
             return None  # Return None to indicate "skip", not "fail"
+
+        if not compile_succeeded:
+            # Compiler found but compilation failed (ICE, backend crash, etc.)
+            # This is a compiler bug manifestation - treat as test FAILURE
+            # Add to tested_versions since we actually tested this compiler
+            self.tested_versions.append(version)
+            details[version] = {
+                'passes': False,  # False = test failed (compilation failure is a bug)
+                'compile_failed': True,
+                'binary_path': None,
+                'skipped': False
+            }
+            return False  # Compilation failure = test failure
 
         # Compiler found and compilation succeeded - add to tested_versions
         self.tested_versions.append(version)
@@ -398,7 +422,7 @@ class VersionBisector:
         version: str,
         source_file: str,
         optimization_level: str
-    ) -> Optional[str]:
+    ) -> Tuple[Optional[str], bool, bool]:
         """
         Compile with locally installed compiler.
 
@@ -411,7 +435,10 @@ class VersionBisector:
             optimization_level: Optimization level
 
         Returns:
-            Path to compiled binary, or None if compilation failed
+            Tuple of (binary_path, compiler_found, compile_succeeded):
+            - binary_path: Path to compiled binary if successful, None otherwise
+            - compiler_found: True if compiler binary exists on system
+            - compile_succeeded: True if compilation succeeded (only meaningful if compiler_found)
         """
         # Try to find versioned clang
         # CRITICAL: Do NOT fall back to plain "clang" - that would substitute
@@ -432,7 +459,7 @@ class VersionBisector:
             # Specific version not found - skip this version
             # Do NOT fall back to plain "clang" (which could be any version)
             print(f"Warning: clang-{version} not found on system, skipping")
-            return None
+            return (None, False, False)
 
         binary_path = os.path.join(self.work_dir, f"test_{version.replace('.', '_')}")
 
@@ -443,16 +470,19 @@ class VersionBisector:
         )
 
         if result.returncode != 0:
-            return None
+            # Compiler found but compilation failed (ICE, backend crash, etc.)
+            # This is a compiler bug manifestation and should be treated as test FAILURE
+            print(f"Compilation failed for {version}: {result.stderr[:200]}")
+            return (None, True, False)
 
-        return binary_path
+        return (binary_path, True, True)
 
     def _compile_with_docker(
         self,
         version: str,
         source_file: str,
         optimization_level: str
-    ) -> Optional[str]:
+    ) -> Tuple[Optional[str], bool, bool]:
         """
         Compile using Docker container with specific LLVM version.
 
@@ -462,7 +492,10 @@ class VersionBisector:
             optimization_level: Optimization level
 
         Returns:
-            Path to compiled binary, or None if compilation failed
+            Tuple of (binary_path, compiler_found, compile_succeeded):
+            - binary_path: Path to compiled binary if successful, None otherwise
+            - compiler_found: True if Docker image exists
+            - compile_succeeded: True if compilation succeeded
         """
         # Docker image name (would need to be built/pulled)
         image = f"trace2pass/llvm-{version}"
@@ -486,15 +519,24 @@ class VersionBisector:
         )
 
         if result.returncode != 0:
-            return None
+            # Check if error was due to missing image or compilation failure
+            if "Unable to find image" in result.stderr or "No such image" in result.stderr:
+                print(f"Docker image {image} not found, skipping version {version}")
+                return (None, False, False)
+            else:
+                # Image exists but compilation failed
+                print(f"Docker compilation failed for {version}: {result.stderr[:200]}")
+                return (None, True, False)
 
         # Move output to final location
         output_path = os.path.join(self.work_dir, "output")
         if os.path.exists(output_path):
             shutil.move(output_path, binary_path)
-            return binary_path
+            return (binary_path, True, True)
 
-        return None
+        # Compilation succeeded but no output file?
+        print(f"Warning: Docker compilation succeeded but no output file found")
+        return (None, True, False)
 
     def cleanup(self):
         """Clean up temporary files."""
