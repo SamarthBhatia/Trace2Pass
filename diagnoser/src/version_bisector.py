@@ -160,8 +160,32 @@ class VersionBisector:
         # Use the actual range of installed compilers
         left = first_idx
         right = last_idx
-        first_bad_idx = right
-        last_good_idx = left
+
+        # Initialize based on actual endpoint results
+        # At this point we know: first_passes is False/True and last_passes is False/True
+        # and they're different (otherwise we would have returned already)
+
+        # Initialize to None to catch unset cases
+        first_bad_idx = None
+        last_good_idx = None
+
+        if not first_passes:
+            # First version fails - it's a bad version
+            first_bad_idx = first_idx
+        else:
+            # First version passes - track it as last good
+            last_good_idx = first_idx
+
+        if last_passes:
+            # Last version passes - it's a good version
+            last_good_idx = last_idx
+        else:
+            # Last version fails - it's a bad version
+            first_bad_idx = last_idx
+
+        # Sanity check: at least one should be set
+        if first_bad_idx is None and last_good_idx is None:
+            raise RuntimeError("Bisection invariant violated: no good or bad version found")
 
         while left < right:
             mid = (left + right) // 2
@@ -172,8 +196,16 @@ class VersionBisector:
                 result = details[version]['passes']
                 if result is None:
                     # This version was skipped (compiler not found)
-                    # Don't treat it as pass or fail, just skip it
-                    left = mid + 1
+                    # CRITICAL: We can't assume skip = pass or skip = fail
+                    # We need to try another version in the range
+                    # Try mid+1 if available, otherwise try mid-1
+                    if mid + 1 <= right:
+                        left = mid + 1
+                    elif mid - 1 >= left:
+                        right = mid - 1
+                    else:
+                        # Can't narrow further - all remaining versions are skips
+                        break
                     continue
                 elif result:
                     # Passed
@@ -190,10 +222,36 @@ class VersionBisector:
             )
 
             if passes is None:
-                # Compiler not found - skip this version
-                # Try to bisect around it by checking if we should go left or right
-                # For now, try going right (newer versions more likely to be installed)
-                left = mid + 1
+                # Compiler not found - we can't use this version to narrow the search
+                # CRITICAL: Don't assume this is a pass!
+                # Try to find another testable version in the range
+
+                # Strategy: Try versions around mid to find a testable one
+                # Try right side first (newer versions more likely installed)
+                found_testable = False
+                for offset in range(1, right - mid + 1):
+                    test_idx = mid + offset
+                    if test_idx <= right and self.versions[test_idx] not in details:
+                        # Try this version next
+                        left = test_idx
+                        found_testable = True
+                        break
+
+                if not found_testable:
+                    # Try left side
+                    for offset in range(1, mid - left + 1):
+                        test_idx = mid - offset
+                        if test_idx >= left and self.versions[test_idx] not in details:
+                            # Try this version next
+                            right = test_idx
+                            found_testable = True
+                            break
+
+                if not found_testable:
+                    # No testable versions left in range - stop bisection
+                    # Report the range we have between last tested good and first tested bad
+                    break
+
                 continue
             elif passes:
                 # This version passes, bug is after this
@@ -205,8 +263,8 @@ class VersionBisector:
                 right = mid
 
         return VersionBisectionResult(
-            first_bad_version=self.versions[first_bad_idx],
-            last_good_version=self.versions[last_good_idx] if last_good_idx < first_bad_idx else None,
+            first_bad_version=self.versions[first_bad_idx] if first_bad_idx is not None else None,
+            last_good_version=self.versions[last_good_idx] if last_good_idx is not None and (first_bad_idx is None or last_good_idx < first_bad_idx) else None,
             tested_versions=self.tested_versions,
             total_tests=len(self.tested_versions),
             verdict="bisected",
