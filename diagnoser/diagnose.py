@@ -248,10 +248,13 @@ def pass_bisect_cmd(source_file: str, test_command: str,
     # we MUST use that specific version for pass bisection. Otherwise, we'd be
     # analyzing the wrong compiler's pass pipeline.
     if compiler_version:
-        clang_path = f"clang-{compiler_version}"
-        opt_path = f"opt-{compiler_version}"
-        llc_path = f"llc-{compiler_version}"
-        print(f"Using compiler version: {compiler_version}")
+        # Normalize to major version (e.g., "17.0.3" -> "17")
+        # Most systems have clang-17, not clang-17.0.3
+        major_version = compiler_version.split('.')[0]
+        clang_path = f"clang-{major_version}"
+        opt_path = f"opt-{major_version}"
+        llc_path = f"llc-{major_version}"
+        print(f"Using compiler version: {major_version} (from {compiler_version})")
     else:
         clang_path = "clang"
         opt_path = "opt"
