@@ -58,6 +58,7 @@ class TestCaseReducer:
 
         # Create working directory
         self.work_dir = tempfile.mkdtemp(prefix='trace2pass_reduce_')
+        reduced_output = None
 
         try:
             # Copy source file to working directory
@@ -88,21 +89,31 @@ class TestCaseReducer:
                 if output_file:
                     shutil.copy2(work_source, output_file)
                     print(f"✓ Reduced test case saved to: {output_file}")
-                    return output_file
+                    reduced_output = output_file
                 else:
                     # Return path to reduced file in work dir
                     print(f"✓ Reduced test case: {work_source}")
-                    return str(work_source)
+                    reduced_output = str(work_source)
             else:
                 print(f"✗ C-Reduce failed: {result.stderr}")
-                return None
+                reduced_output = None
 
         except subprocess.TimeoutExpired:
             print(f"✗ C-Reduce timed out after {self.timeout}s")
-            return None
+            reduced_output = None
         except Exception as e:
             print(f"✗ Error during reduction: {e}")
-            return None
+            reduced_output = None
+        finally:
+            # Cleanup temp directory after reduction completes
+            # Only skip cleanup if we're returning a path inside work_dir
+            if output_file or reduced_output is None:
+                # Either we copied to output_file (can cleanup) or reduction failed (cleanup)
+                self.cleanup()
+            # If no output_file specified and reduction succeeded, caller must use
+            # the returned path and call cleanup() when done
+
+        return reduced_output
 
     def reduce_inline(self, source_code: str, test_func: Callable[[str], bool],
                       compiler: str = 'clang', opt_flags: str = '-O2') -> Optional[str]:
@@ -158,6 +169,9 @@ exit 0
         except Exception as e:
             print(f"✗ Error during inline reduction: {e}")
             return None
+        finally:
+            # Always cleanup temp directory for inline reduction
+            self.cleanup()
 
     def create_test_script(self, source_file: str, test_command: str,
                           compiler: str = 'clang', opt_flags: str = '-O2') -> str:
