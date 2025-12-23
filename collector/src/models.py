@@ -152,14 +152,20 @@ class Database:
         - Same optimization flags
         - Same check type
 
-        LIMITATION: When source metadata is unavailable (runtime doesn't embed it yet),
-        the 'function' field contains a call-site ID (site_XXXXXXXX) which is derived
-        from PC address hash. This is more stable than raw PC but still process-specific.
-        Different process runs will create separate database entries until Phase 4 when
-        instrumentor embeds true source location (file/line/function).
+        CRITICAL LIMITATION: When source metadata is unavailable, the 'function' field
+        contains a call-site ID (site_XXXXXXXX) derived from hashing the raw PC address.
 
-        Workaround: Reports from the same binary across multiple runs should use a
-        persistent call-site ID mechanism (e.g., hash of binary path + offset).
+        **ASLR Impact**: The PC includes the ASLR base, so the same source bug from
+        different process runs produces DIFFERENT site_XXXXXXXX values. Result: each
+        execution creates a separate database entry, preventing cross-run deduplication
+        and keeping frequency counts at 1.
+
+        **Current Status**: Phase 3 - call-site IDs only stable within single run.
+        **Proper Fix**: Phase 4 - instrumentor must embed deterministic metadata
+        (file:line:function) directly in the binary to enable true deduplication.
+
+        **Workaround**: For now, manual correlation required across runs. Consider
+        binary offset-based IDs or symbol+offset instead of raw PC.
         """
         file_name = report['location']['file']
         line = report['location']['line']
