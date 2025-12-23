@@ -7,7 +7,7 @@ import tempfile
 import shutil
 import os
 from pathlib import Path
-from typing import Optional, Callable
+from typing import Optional
 
 
 class TestCaseReducer:
@@ -116,14 +116,16 @@ class TestCaseReducer:
 
         return reduced_output
 
-    def reduce_inline(self, source_code: str, test_func: Callable[[str], bool],
+    def reduce_inline(self, source_code: str,
                       compiler: str = 'clang', opt_flags: str = '-O2') -> Optional[str]:
         """
         Reduce a test case without external test script.
 
+        NOTE: This method only handles bugs that manifest as non-zero exit codes.
+        For custom test predicates, use reduce() with a custom test script.
+
         Args:
             source_code: Source code to reduce
-            test_func: Function that takes source file path and returns True if bug is present
             compiler: Compiler to use (default: clang)
             opt_flags: Optimization flags (default: -O2)
 
@@ -143,7 +145,7 @@ class TestCaseReducer:
             source_file = Path(self.work_dir) / 'test.c'
             source_file.write_text(source_code)
 
-            # Create test script that calls test_func
+            # Create test script that runs the binary
             test_script = Path(self.work_dir) / 'test.sh'
             test_script.write_text(f'''#!/bin/bash
 set -e
@@ -151,8 +153,7 @@ set -e
 # Compile the candidate source
 {compiler} {opt_flags} "$1" -o test_binary 2>/dev/null || exit 1
 
-# Run user's test function
-# (This is a simplified version - in practice we'd need to call Python)
+# Run binary - bug must manifest as non-zero exit code
 ./test_binary || exit 1
 
 exit 0
