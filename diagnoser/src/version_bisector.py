@@ -93,27 +93,90 @@ class VersionBisector:
         # CRITICAL: We need a passing version and a failing version to bisect
         # Simply finding two installed compilers is not enough - they both might pass!
 
-        # Strategy: Test all installed compilers and find one passing and one failing
+        # OPTIMIZED Strategy: Test extremes first, then march inward (lazy discovery)
+        # Old approach: Linear scan through all N versions (O(N) always)
+        # New approach: Test min/max, then march inward (O(1) best case, O(N) worst case)
         passing_idx = None
         failing_idx = None
 
-        for idx in range(len(self.versions)):
-            result = self._test_version(
-                self.versions[idx], source_file, test_func, optimization_level, details
-            )
-            if result is not None:  # Compiler was installed and tested
-                if result:
-                    # Found a passing version
-                    if passing_idx is None or idx < passing_idx:
-                        passing_idx = idx
-                else:
-                    # Found a failing version
-                    if failing_idx is None:
-                        failing_idx = idx
+        print(f"Searching for endpoints in {len(self.versions)} versions...")
 
-                # Early exit: if we have both a pass and a fail, we can bisect
-                if passing_idx is not None and failing_idx is not None:
-                    break
+        # Test the extremes first (most common case: old passes, new fails)
+        min_idx = 0
+        max_idx = len(self.versions) - 1
+
+        # Test oldest version
+        result_min = self._test_version(
+            self.versions[min_idx], source_file, test_func, optimization_level, details
+        )
+        if result_min is not None:
+            if result_min:
+                passing_idx = min_idx
+                print(f"  {self.versions[min_idx]}: PASS")
+            else:
+                failing_idx = min_idx
+                print(f"  {self.versions[min_idx]}: FAIL")
+
+        # Test newest version (unless it's the same as min)
+        if max_idx != min_idx:
+            result_max = self._test_version(
+                self.versions[max_idx], source_file, test_func, optimization_level, details
+            )
+            if result_max is not None:
+                if result_max:
+                    if passing_idx is None:
+                        passing_idx = max_idx
+                    print(f"  {self.versions[max_idx]}: PASS")
+                else:
+                    if failing_idx is None:
+                        failing_idx = max_idx
+                    print(f"  {self.versions[max_idx]}: FAIL")
+
+        # Fast path: If we found both endpoints, we're done
+        if passing_idx is not None and failing_idx is not None:
+            print(f"Found endpoints in 2 tests!")
+        else:
+            # Slow path: March inward from both ends to find missing endpoint
+            print(f"Marching inward to find missing endpoint...")
+            left = min_idx + 1
+            right = max_idx - 1
+
+            while (passing_idx is None or failing_idx is None) and left <= right:
+                # Test from left if we need more samples
+                if left <= right:
+                    result = self._test_version(
+                        self.versions[left], source_file, test_func, optimization_level, details
+                    )
+                    if result is not None:
+                        if result and passing_idx is None:
+                            passing_idx = left
+                            print(f"  {self.versions[left]}: PASS")
+                        elif not result and failing_idx is None:
+                            failing_idx = left
+                            print(f"  {self.versions[left]}: FAIL")
+
+                        # Early exit if we found both
+                        if passing_idx is not None and failing_idx is not None:
+                            break
+                    left += 1
+
+                # Test from right if we still need more samples
+                if (passing_idx is None or failing_idx is None) and left <= right:
+                    result = self._test_version(
+                        self.versions[right], source_file, test_func, optimization_level, details
+                    )
+                    if result is not None:
+                        if result and passing_idx is None:
+                            passing_idx = right
+                            print(f"  {self.versions[right]}: PASS")
+                        elif not result and failing_idx is None:
+                            failing_idx = right
+                            print(f"  {self.versions[right]}: FAIL")
+
+                        # Early exit if we found both
+                        if passing_idx is not None and failing_idx is not None:
+                            break
+                    right -= 1
 
         # Check what we found
         if passing_idx is None and failing_idx is None:
@@ -129,55 +192,29 @@ class VersionBisector:
                 details={'error': error_msg, **details}
             )
 
-        # Determine endpoints for bisection
-        # We want: left = passing, right = failing (for bisection to work)
-        # But we need to handle cases where we only found one outcome
+        elif passing_idx is not None and failing_idx is None:
+            # All installed compilers pass - no regression found
+            print(f"All tested compilers PASS (tested {len(self.tested_versions)} versions)")
+            return VersionBisectionResult(
+                first_bad_version=None,
+                last_good_version=self.versions[passing_idx],
+                tested_versions=self.tested_versions,
+                total_tests=len(self.tested_versions),
+                verdict="all_pass",
+                details=details
+            )
 
-        if passing_idx is not None and failing_idx is None:
-            # All tested compilers pass - continue testing to find a failure
-            print(f"Tested {self.versions[passing_idx]}: PASS, searching for failing version...")
-            for idx in range(passing_idx + 1, len(self.versions)):
-                result = self._test_version(
-                    self.versions[idx], source_file, test_func, optimization_level, details
-                )
-                if result is not None and not result:
-                    # Found a failing version
-                    failing_idx = idx
-                    break
-
-            if failing_idx is None:
-                # All installed compilers pass - no regression found
-                return VersionBisectionResult(
-                    first_bad_version=None,
-                    last_good_version=self.versions[passing_idx],
-                    tested_versions=self.tested_versions,
-                    total_tests=len(self.tested_versions),
-                    verdict="all_pass",
-                    details=details
-                )
-
-        if failing_idx is not None and passing_idx is None:
-            # All tested compilers fail - continue testing to find a pass
-            print(f"Tested {self.versions[failing_idx]}: FAIL, searching for passing version...")
-            for idx in range(failing_idx + 1, len(self.versions)):
-                result = self._test_version(
-                    self.versions[idx], source_file, test_func, optimization_level, details
-                )
-                if result is not None and result:
-                    # Found a passing version
-                    passing_idx = idx
-                    break
-
-            if passing_idx is None:
-                # All installed compilers fail - bug predates range
-                return VersionBisectionResult(
-                    first_bad_version=self.versions[failing_idx],
-                    last_good_version=None,
-                    tested_versions=self.tested_versions,
-                    total_tests=len(self.tested_versions),
-                    verdict="all_fail",
-                    details=details
-                )
+        elif failing_idx is not None and passing_idx is None:
+            # All installed compilers fail - bug predates range
+            print(f"All tested compilers FAIL (tested {len(self.tested_versions)} versions)")
+            return VersionBisectionResult(
+                first_bad_version=self.versions[failing_idx],
+                last_good_version=None,
+                tested_versions=self.tested_versions,
+                total_tests=len(self.tested_versions),
+                verdict="all_fail",
+                details=details
+            )
 
         # At this point we have both passing_idx and failing_idx
         # Set up bisection boundaries: left = lower index, right = higher index
