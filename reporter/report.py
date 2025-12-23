@@ -91,6 +91,7 @@ Output Formats:
         sys.exit(1)
 
     # Generate report
+    generator = None
     try:
         generator = ReportGenerator(
             reduce_testcase=args.reduce,
@@ -109,13 +110,15 @@ Output Formats:
         if not args.output:
             print(report)
 
-        generator.cleanup()
-
     except Exception as e:
         print(f"Error generating report: {e}", file=sys.stderr)
         import traceback
         traceback.print_exc()
         sys.exit(1)
+    finally:
+        # Always cleanup temp directories, even on error
+        if generator:
+            generator.cleanup()
 
 
 if __name__ == "__main__":
