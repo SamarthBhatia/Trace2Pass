@@ -488,7 +488,111 @@ diagnoser/
 
 ---
 
+## CLI Integration
+
+### Command-Line Interface
+
+The diagnoser provides a command-line interface for all stages:
+
+```bash
+cd diagnoser/
+
+# Stage 1: UB detection only
+python diagnose.py ub-detect test.c
+
+# Stage 2: Version bisection only
+python diagnose.py version-bisect test.c '{binary}' -O2
+
+# Stage 3: Pass bisection only
+python diagnose.py pass-bisect test.c '{binary}' -O2 --compiler-version 17
+
+# Full pipeline: All stages
+python diagnose.py full-pipeline test.c '{binary}' -O2
+```
+
+### Exit Codes
+
+All commands follow standard UNIX exit code conventions:
+
+- **Exit 0:** Successful diagnosis (verdict: `compiler_bug`, `user_ub`, `all_pass`, `all_fail`)
+- **Exit 1:** Error or incomplete result (verdict: `error`, `incomplete`)
+
+**Error Verdicts:**
+- Tool not found (e.g., `opt-17` missing)
+- Compilation failures (non-ICE)
+- Infrastructure errors
+
+**Incomplete Verdicts:**
+- Insufficient compilers installed for bisection
+- Version bisection returned `all_pass` or `all_fail`
+- Test case doesn't reproduce reliably
+
+### Tool Version Requirements
+
+**Pass Bisection (Stage 3):**
+- Requires matching LLVM tools: `clang-N`, `opt-N`, `llc-N`
+- No fallback to unversioned tools (prevents version mismatches)
+- Example: `--compiler-version 17` requires `clang-17`, `opt-17`, `llc-17`
+
+**Version Bisection (Stage 2):**
+- Requires at least 2 different compiler versions installed
+- Automatically detects available versions: `clang-14`, `clang-15`, ..., `clang-21`
+- Returns `error` verdict if insufficient compilers found
+
+### ICE Detection
+
+The version bisector distinguishes between:
+
+**Internal Compiler Errors (ICE):**
+- Compiler crashes or assertion failures
+- Treated as test **failure** (compiler bug)
+- Markers: `PLEASE submit a bug report`, `Assertion failed`, `UNREACHABLE executed`
+
+**Normal Diagnostic Errors:**
+- Legitimate compilation rejections (syntax errors, unsupported features)
+- Version is **skipped** (not counted as pass or fail)
+- Bisection continues with remaining versions
+
+This prevents false positives when testing older compilers that don't support newer C/C++ features.
+
+### Verdict Types
+
+All commands return structured JSON with a top-level `verdict` field:
+
+**Successful Results (Exit 0):**
+- `compiler_bug` - High confidence compiler bug identified
+- `user_ub` - Undefined behavior in user code detected
+- `all_pass` - All tested versions pass (no regression found)
+- `all_fail` - All tested versions fail (bug pre-dates range)
+
+**Error Results (Exit 1):**
+- `error` - Tool failures, missing compilers, infrastructure errors
+- `incomplete` - Valid execution but no actionable diagnosis
+
+**Example Error Response:**
+```json
+{
+  "verdict": "error",
+  "error": "opt-17 not found. Install complete LLVM 17 toolchain.",
+  "first_bad_pass": null,
+  "last_good_pass": null
+}
+```
+
+**Example Incomplete Response:**
+```json
+{
+  "verdict": "incomplete",
+  "reason": "Version bisection did not identify a regression (verdict: all_pass)",
+  "recommendation": "Bug does not reproduce reliably",
+  "ub_detection": {...},
+  "version_bisection": {...}
+}
+```
+
+---
+
 **Created:** 2025-12-20
-**Updated:** 2025-12-20
-**Status:** ✅ All 3 stages complete (57/57 tests passing)
+**Updated:** 2025-12-23
+**Status:** ✅ All 3 stages complete (48/48 tests passing)
 **Week:** 18 of 24

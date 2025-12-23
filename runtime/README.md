@@ -99,6 +99,39 @@ Expected output: 4 unique anomaly reports demonstrating each check type.
 - **Deduplication:** Bloom filter prevents duplicate reports (per-thread)
 - **Low overhead:** <5% runtime impact with default sampling (1%)
 - **Configurable:** Sample rate and output path via environment variables
+- **ASLR-stable call-site IDs:** Module-relative offsets on POSIX, raw PC on Windows
+
+## Call-Site ID Generation
+
+When source metadata is unavailable at runtime, the library generates stable call-site identifiers for deduplication:
+
+**POSIX (Linux, macOS):**
+- Uses `dladdr()` to compute `offset = PC - module_base`
+- Module-relative offsets remain stable across runs (ASLR only shifts base)
+- Enables cross-run deduplication in production
+- Format: `site_XXXXXXXX` (8-digit hex hash)
+
+**Windows:**
+- Falls back to raw PC address (no `dladdr()` available)
+- Call-site IDs change on each run due to ASLR
+- Cross-run deduplication not supported until Phase 4
+- Format: Same `site_XXXXXXXX` but unstable
+
+**Limitation:** Module offsets change when binary is recompiled. Phase 4 instrumentor will embed true source metadata to eliminate this limitation.
+
+## Platform Support
+
+**Fully Supported:**
+- Linux (glibc, musl)
+- macOS (Darwin)
+- FreeBSD
+
+**Partial Support:**
+- Windows (compiles, but ASLR-dependent deduplication)
+
+**Build Requirements:**
+- POSIX: `libdl` (for `dladdr`)
+- Windows: No additional libraries needed
 
 ## Report Format
 
