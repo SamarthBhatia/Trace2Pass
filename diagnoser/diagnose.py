@@ -251,10 +251,54 @@ def pass_bisect_cmd(source_file: str, test_command: str,
         # Normalize to major version (e.g., "17.0.3" -> "17")
         # Most systems have clang-17, not clang-17.0.3
         major_version = compiler_version.split('.')[0]
-        clang_path = f"clang-{major_version}"
-        opt_path = f"opt-{major_version}"
-        llc_path = f"llc-{major_version}"
-        print(f"Using compiler version: {major_version} (from {compiler_version})")
+
+        # Find versioned tools with fallback to unversioned
+        # Many LLVM installs have clang-17 but unversioned opt/llc
+        import shutil
+
+        # Try versioned clang first
+        clang_versioned = f"clang-{major_version}"
+        if shutil.which(clang_versioned):
+            clang_path = clang_versioned
+        else:
+            print(f"Warning: {clang_versioned} not found, cannot perform pass bisection")
+            return {
+                'verdict': 'error',
+                'error': f'Compiler {clang_versioned} not found. Install it or use unversioned bisection.',
+                'first_bad_pass': None,
+                'last_good_pass': None
+            }
+
+        # For opt and llc, try versioned first, fall back to unversioned
+        opt_versioned = f"opt-{major_version}"
+        llc_versioned = f"llc-{major_version}"
+
+        opt_path = opt_versioned if shutil.which(opt_versioned) else "opt"
+        llc_path = llc_versioned if shutil.which(llc_versioned) else "llc"
+
+        # Verify unversioned tools actually exist
+        if not shutil.which(opt_path):
+            print(f"Warning: Neither {opt_versioned} nor opt found")
+            return {
+                'verdict': 'error',
+                'error': f'opt tool not found. Install LLVM {major_version} tools.',
+                'first_bad_pass': None,
+                'last_good_pass': None
+            }
+
+        if not shutil.which(llc_path):
+            print(f"Warning: Neither {llc_versioned} nor llc found")
+            return {
+                'verdict': 'error',
+                'error': f'llc tool not found. Install LLVM {major_version} tools.',
+                'first_bad_pass': None,
+                'last_good_pass': None
+            }
+
+        print(f"Using compiler version {major_version}:")
+        print(f"  clang: {clang_path}")
+        print(f"  opt: {opt_path}")
+        print(f"  llc: {llc_path}")
     else:
         clang_path = "clang"
         opt_path = "opt"
