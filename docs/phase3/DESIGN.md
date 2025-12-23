@@ -676,6 +676,159 @@ diagnoser/
 
 ---
 
-**Status:** Design complete, ready to begin implementation
+## Implementation Status
+
+**Overall Status:** ✅ **Phase 3 Complete** (Week 18)
+
+### Collector ✅
+- [x] Flask app with POST /report endpoint
+- [x] Database schema + deduplication logic
+- [x] Prioritization algorithm
+- [x] CLI dashboard (list top bugs)
+- [x] Comprehensive tests
+- [x] ASLR-stable call-site ID handling
+
+### Diagnoser ✅
+
+**Stage 1: UB Detection** ✅
+- [x] UBSan integration
+- [x] Optimization level sensitivity testing
+- [x] Multi-compiler differential (GCC vs Clang)
+- [x] Confidence scoring algorithm
+- [x] Tests: 15/15 passing
+
+**Stage 2: Compiler Version Bisection** ✅
+- [x] Binary search algorithm
+- [x] ICE (Internal Compiler Error) detection
+- [x] Skip handling for unsupported versions
+- [x] Endpoint finding (ensure pass AND fail)
+- [x] Insufficient compiler detection
+- [x] Tests: 18/18 passing
+
+**Stage 3: Optimization Pass Bisection** ✅
+- [x] Pass list extraction from LLVM
+- [x] Binary search over passes
+- [x] Integration with opt/llc tools
+- [x] Tool version matching (no fallback)
+- [x] Tests: 15/15 passing
+
+**CLI Integration** ✅
+- [x] Command-line interface for all stages
+- [x] Proper exit code propagation
+- [x] Error/incomplete verdict handling
+- [x] JSON output schema validation
+
+**Total Tests:** 48/48 passing
+
+---
+
+## Error Handling and Exit Codes
+
+All diagnoser commands follow UNIX exit code conventions:
+
+**Exit 0 (Success):**
+- Diagnosis completed successfully
+- Verdicts: `compiler_bug`, `user_ub`, `all_pass`, `all_fail`, `bisected`
+
+**Exit 1 (Error/Incomplete):**
+- Tool failures: Missing `opt-N`, `clang-N`, `llc-N`
+- Infrastructure errors: Compilation failures (non-ICE)
+- Incomplete results: Insufficient compilers, unreliable reproduction
+
+### Error Verdict Format
+
+```json
+{
+  "verdict": "error",
+  "error": "opt-17 not found. Install complete LLVM 17 toolchain.",
+  ...
+}
+```
+
+### Incomplete Verdict Format
+
+```json
+{
+  "verdict": "incomplete",
+  "reason": "Version bisection did not identify a regression (verdict: all_pass)",
+  "recommendation": "Bug does not reproduce reliably",
+  ...
+}
+```
+
+This allows automation to distinguish between:
+- **Actionable results** (Exit 0) - Use diagnosis or file bug
+- **Fixable errors** (Exit 1, error) - Install missing tools
+- **Non-bugs** (Exit 1, incomplete) - False alarm, UB, or unreliable
+
+---
+
+## Platform Compatibility
+
+### POSIX (Linux, macOS, FreeBSD)
+- ✅ Full support for all components
+- ✅ ASLR-stable call-site IDs via `dladdr()`
+- ✅ Cross-run deduplication in production
+
+### Windows
+- ✅ Compiles and runs
+- ⚠️ ASLR-dependent call-site IDs (no `dladdr()`)
+- ⚠️ Cross-run deduplication not supported
+- **Workaround:** Phase 4 instrumentor will embed source metadata
+
+### Cross-Platform Build
+- Runtime links `libdl` on Linux (via `CMAKE_DL_LIBS`)
+- Runtime uses `<dlfcn.h>` only on POSIX (guarded with `#if`)
+- Diagnoser uses `shlex.split()` for safe command execution (no shell injection)
+
+---
+
+## Tool Version Requirements
+
+### Pass Bisection
+- **Requires:** Matching LLVM toolchain (`clang-N`, `opt-N`, `llc-N`)
+- **No fallback:** Returns `error` verdict if tools missing
+- **Rationale:** Prevents version mismatches that invalidate analysis
+
+**Example:**
+```bash
+# Requires all three tools at version 17
+python diagnose.py pass-bisect test.c '{binary}' -O2 --compiler-version 17
+
+# Checks for:
+# - clang-17 (compile source to LLVM IR)
+# - opt-17 (apply optimization passes)
+# - llc-17 (compile IR to assembly)
+```
+
+### Version Bisection
+- **Requires:** At least 2 different compiler versions
+- **Auto-detects:** Scans for `clang-14`, `clang-15`, ..., `clang-21`
+- **Error handling:** Returns `error` verdict if <2 versions found
+
+---
+
+## ICE Detection
+
+The version bisector distinguishes Internal Compiler Errors from normal diagnostics:
+
+**ICE Markers (stderr):**
+- `PLEASE submit a bug report`
+- `Internal compiler error`
+- `Assertion failed`
+- `Stack dump:`
+- `UNREACHABLE executed`
+
+**Behavior:**
+- **ICE:** Treated as test **failure** (compiler bug)
+- **Normal error:** Version **skipped** (e.g., C++20 code in C++11 compiler)
+
+This prevents false positives when testing older compilers that don't support newer language features.
+
+---
+
+**Status:** ✅ Implementation complete, all tests passing
 **Start Date:** 2025-12-20
-**Target Completion:** Week 18 (8 weeks from now)
+**Completion Date:** 2025-12-23
+**Duration:** 3 days (accelerated development)
+**Next Phase:** Phase 4 - Reporter + Evaluation (Week 19-24)
