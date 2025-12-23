@@ -229,8 +229,9 @@ def test_deduplication_across_runs(collector_server):
 
     queue = response.json()
     # Should have deduplicated - frequency should be 2
+    # Note: location is a string "file:line:function", not a dict
     matching = [r for r in queue["queue"]
-                if r["location"]["function"] == "vulnerable_function"]
+                if "vulnerable_function" in r["location"]]
 
     assert len(matching) == 1
     assert matching[0]["frequency"] == 2
