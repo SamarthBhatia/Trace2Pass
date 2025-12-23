@@ -10,7 +10,11 @@
 #include <string.h>
 #include <time.h>
 #include <pthread.h>
-#include <dlfcn.h>  // For dladdr() to get module base
+
+// dladdr() for module-relative offsets (POSIX only)
+#if defined(__unix__) || defined(__APPLE__)
+#include <dlfcn.h>
+#endif
 
 // Configuration
 static double sample_rate = 0.01;  // Default: 1%
