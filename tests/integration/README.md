@@ -144,7 +144,7 @@ Tests will be skipped if required compilers are not found.
 
 ### Port Conflicts
 
-Tests start collector servers on ports 5555-5556. If these ports are in use, tests will fail. Change ports in test files if needed.
+Tests start collector servers on ports 58001-58002 (high ephemeral ports to avoid conflicts). If these ports are in use, tests will fail. Change ports in test fixture definitions if needed.
 
 ## Debugging Failed Tests
 

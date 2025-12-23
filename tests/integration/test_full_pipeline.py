@@ -28,25 +28,29 @@ import diagnose
 @pytest.fixture
 def full_system():
     """Start collector server and prepare full system."""
+    from werkzeug.serving import make_server
+    import threading
+
     # Setup collector
     app.config['TESTING'] = True
     db.db_path = ':memory:'
     db.connect()
 
-    # Start collector server
-    import threading
-    server_thread = threading.Thread(
-        target=lambda: app.run(port=5556, debug=False, use_reloader=False)
-    )
+    # Create server with explicit shutdown support
+    server = make_server('localhost', 58002, app, threaded=True)
+    server_thread = threading.Thread(target=server.serve_forever)
     server_thread.daemon = True
     server_thread.start()
-    time.sleep(2)
+    time.sleep(1)
 
     yield {
-        "collector_url": "http://localhost:5556",
+        "collector_url": "http://localhost:58002",
         "db": db
     }
 
+    # Cleanup: shutdown server and wait for thread
+    server.shutdown()
+    server_thread.join(timeout=5)
     db.close()
 
 
