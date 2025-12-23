@@ -4,7 +4,7 @@ Trace2Pass Collector - JSON Schemas
 Marshmallow schemas for validating incoming anomaly reports.
 """
 
-from marshmallow import Schema, fields, validate, ValidationError
+from marshmallow import Schema, fields, validate, ValidationError, INCLUDE
 
 
 class LocationSchema(Schema):
@@ -40,7 +40,7 @@ class CheckDetailsSchema(Schema):
     """Schema for check-specific details (flexible)."""
     class Meta:
         # Allow additional fields not defined in schema
-        unknown = 'INCLUDE'
+        unknown = INCLUDE
 
 
 class ReportSchema(Schema):
