@@ -269,31 +269,37 @@ def pass_bisect_cmd(source_file: str, test_command: str,
                 'last_good_pass': None
             }
 
-        # For opt and llc, try versioned first, fall back to unversioned
+        # For opt and llc, we MUST use the same version as clang
+        # CRITICAL: Falling back to unversioned opt/llc would mix LLVM versions,
+        # producing a pass pipeline that doesn't match the buggy compiler.
+        # This defeats the purpose of version-specific pass bisection.
         opt_versioned = f"opt-{major_version}"
         llc_versioned = f"llc-{major_version}"
 
-        opt_path = opt_versioned if shutil.which(opt_versioned) else "opt"
-        llc_path = llc_versioned if shutil.which(llc_versioned) else "llc"
-
-        # Verify unversioned tools actually exist
-        if not shutil.which(opt_path):
-            print(f"Warning: Neither {opt_versioned} nor opt found")
+        if not shutil.which(opt_versioned):
+            print(f"Error: {opt_versioned} not found")
+            print(f"Pass bisection requires matching LLVM tools for version {major_version}")
+            print(f"Cannot fall back to unversioned 'opt' as it may be a different LLVM release")
             return {
                 'verdict': 'error',
-                'error': f'opt tool not found. Install LLVM {major_version} tools.',
+                'error': f'{opt_versioned} not found. Install complete LLVM {major_version} toolchain.',
                 'first_bad_pass': None,
                 'last_good_pass': None
             }
 
-        if not shutil.which(llc_path):
-            print(f"Warning: Neither {llc_versioned} nor llc found")
+        if not shutil.which(llc_versioned):
+            print(f"Error: {llc_versioned} not found")
+            print(f"Pass bisection requires matching LLVM tools for version {major_version}")
+            print(f"Cannot fall back to unversioned 'llc' as it may be a different LLVM release")
             return {
                 'verdict': 'error',
-                'error': f'llc tool not found. Install LLVM {major_version} tools.',
+                'error': f'{llc_versioned} not found. Install complete LLVM {major_version} toolchain.',
                 'first_bad_pass': None,
                 'last_good_pass': None
             }
+
+        opt_path = opt_versioned
+        llc_path = llc_versioned
 
         print(f"Using compiler version {major_version}:")
         print(f"  clang: {clang_path}")

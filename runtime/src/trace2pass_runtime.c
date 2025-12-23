@@ -124,26 +124,63 @@ void trace2pass_set_collector_url(const char* url) {
 
 // JSON serialization helper - properly escapes all JSON control characters
 static void json_escape_string(const char* str, char* out, size_t out_size) {
+    if (out_size == 0) return;
+
     size_t j = 0;
-    for (size_t i = 0; str[i] && j < out_size - 6; i++) {  // -6 for worst case \uXXXX
+    for (size_t i = 0; str[i]; i++) {
+        // Check remaining space BEFORE each write
+        if (j >= out_size - 1) {
+            // Not enough space even for 1 char + null terminator
+            break;
+        }
+
         switch (str[i]) {
-            case '"':  out[j++] = '\\'; out[j++] = '"'; break;
-            case '\\': out[j++] = '\\'; out[j++] = '\\'; break;
-            case '\b': out[j++] = '\\'; out[j++] = 'b'; break;
-            case '\f': out[j++] = '\\'; out[j++] = 'f'; break;
-            case '\n': out[j++] = '\\'; out[j++] = 'n'; break;
-            case '\r': out[j++] = '\\'; out[j++] = 'r'; break;
-            case '\t': out[j++] = '\\'; out[j++] = 't'; break;
+            case '"':
+            case '\\':
+                if (j >= out_size - 2) goto truncate;  // Need 2 chars + null
+                out[j++] = '\\';
+                out[j++] = str[i];
+                break;
+            case '\b':
+                if (j >= out_size - 2) goto truncate;
+                out[j++] = '\\'; out[j++] = 'b';
+                break;
+            case '\f':
+                if (j >= out_size - 2) goto truncate;
+                out[j++] = '\\'; out[j++] = 'f';
+                break;
+            case '\n':
+                if (j >= out_size - 2) goto truncate;
+                out[j++] = '\\'; out[j++] = 'n';
+                break;
+            case '\r':
+                if (j >= out_size - 2) goto truncate;
+                out[j++] = '\\'; out[j++] = 'r';
+                break;
+            case '\t':
+                if (j >= out_size - 2) goto truncate;
+                out[j++] = '\\'; out[j++] = 't';
+                break;
             default:
                 if ((unsigned char)str[i] < 32) {
-                    // Control character - use \uXXXX notation
-                    j += snprintf(out + j, out_size - j, "\\u%04x", (unsigned char)str[i]);
+                    // Control character - use \uXXXX notation (6 chars)
+                    if (j >= out_size - 6) goto truncate;
+
+                    // CRITICAL: snprintf returns the number it WOULD write, not what it DID write
+                    int written = snprintf(out + j, out_size - j, "\\u%04x", (unsigned char)str[i]);
+                    if (written < 0 || (size_t)written >= out_size - j) {
+                        goto truncate;
+                    }
+                    j += written;
                 } else {
+                    // Normal character - just copy
                     out[j++] = str[i];
                 }
                 break;
         }
     }
+
+truncate:
     out[j] = '\0';
 }
 
