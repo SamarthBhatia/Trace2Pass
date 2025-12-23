@@ -10,6 +10,7 @@
 #include <string.h>
 #include <time.h>
 #include <pthread.h>
+#include <dlfcn.h>  // For dladdr() to get module base
 
 // Configuration
 static double sample_rate = 0.01;  // Default: 1%
@@ -368,22 +369,30 @@ int trace2pass_should_sample(void) {
 }
 
 // Helper: Generate call-site ID from PC
-// LIMITATION: This is still ASLR-dependent and changes between process runs.
-// The raw PC includes absolute address with ASLR base, and even though we mask
-// to lower 32 bits, the high bits are mixed into the hash via multiplication.
-// Result: Same source bug from different executions gets different site_XXXXXXXX,
-// preventing cross-run deduplication in the collector.
+// Uses module-relative offset instead of absolute address to avoid ASLR issues.
+// This enables cross-run deduplication until Phase 4 provides true source metadata.
 //
-// PROPER FIX: Requires Phase 4 instrumentation to embed deterministic metadata
-// (file:line:function) directly in the binary. Until then, deduplication only
-// works within a single process run.
+// APPROACH: Use dladdr() to find module base, compute offset = PC - base.
+// The offset is stable across runs (same source location = same offset).
 //
-// TRADE-OFF: Using raw PC at least provides deterministic IDs within one run,
-// which is sufficient for runtime-side Bloom filter deduplication.
+// LIMITATION: Still not as robust as Phase 4 source metadata (file:line:function),
+// but good enough for production deduplication. Assumes binaries don't change
+// between runs (recompilation would change offsets).
 static void generate_callsite_id(void* pc, const char* check_type, char* out, size_t out_size) {
-    // Hash PC with check type
-    // NOTE: This hash is ASLR-dependent - see limitation comment above
-    uint64_t h = (uint64_t)pc;
+    // Get module base address using dladdr()
+    Dl_info info;
+    uintptr_t offset = (uintptr_t)pc;  // Fallback to raw PC if dladdr fails
+
+    if (dladdr(pc, &info) && info.dli_fbase) {
+        // Compute module-relative offset
+        // This is stable across runs (ASLR only shifts the base, not the offset)
+        offset = (uintptr_t)pc - (uintptr_t)info.dli_fbase;
+    }
+    // If dladdr() fails, fall back to raw PC (still ASLR-dependent)
+    // but at least we tried
+
+    // Hash offset with check type
+    uint64_t h = offset;
     const char* p = check_type;
     while (*p) {
         h = h * 31 + *p++;

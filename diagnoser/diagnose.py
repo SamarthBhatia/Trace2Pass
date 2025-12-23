@@ -506,6 +506,12 @@ def main():
         print("=== JSON Result ===")
         print(json.dumps(result, indent=2))
 
+        # Check verdict and exit with appropriate status
+        # Commands that return {'verdict': 'error', ...} should fail
+        if isinstance(result, dict) and result.get('verdict') == 'error':
+            print(f"\nCommand failed: {result.get('error', 'Unknown error')}", file=sys.stderr)
+            sys.exit(1)
+
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         import traceback
