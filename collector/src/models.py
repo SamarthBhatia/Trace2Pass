@@ -152,20 +152,20 @@ class Database:
         - Same optimization flags
         - Same check type
 
-        CRITICAL LIMITATION: When source metadata is unavailable, the 'function' field
-        contains a call-site ID (site_XXXXXXXX) derived from hashing the raw PC address.
+        When source metadata is unavailable, the 'function' field contains a call-site
+        ID (site_XXXXXXXX) derived from hashing a module-relative offset.
 
-        **ASLR Impact**: The PC includes the ASLR base, so the same source bug from
-        different process runs produces DIFFERENT site_XXXXXXXX values. Result: each
-        execution creates a separate database entry, preventing cross-run deduplication
-        and keeping frequency counts at 1.
+        **ASLR Handling**: Runtime uses dladdr() to compute offset = PC - module_base.
+        This offset is stable across runs (ASLR only shifts the base, not offsets),
+        enabling cross-run deduplication and proper frequency counts.
 
-        **Current Status**: Phase 3 - call-site IDs only stable within single run.
-        **Proper Fix**: Phase 4 - instrumentor must embed deterministic metadata
-        (file:line:function) directly in the binary to enable true deduplication.
+        **Limitation**: Offsets change when binary is recompiled. Same source bug in
+        different builds gets different site_XXXXXXXX. Also, no semantic info (which
+        function/line) makes manual analysis harder.
 
-        **Workaround**: For now, manual correlation required across runs. Consider
-        binary offset-based IDs or symbol+offset instead of raw PC.
+        **Current Status**: Phase 3 - module-relative offsets (good for production).
+        **Ultimate Fix**: Phase 4 - instrumentor embeds true source metadata
+        (file:line:function) for perfect deduplication across builds.
         """
         file_name = report['location']['file']
         line = report['location']['line']
