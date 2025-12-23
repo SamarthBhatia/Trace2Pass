@@ -1,0 +1,14 @@
+# Trace2Pass Reporter Requirements
+
+# No Python-specific dependencies required for core functionality
+# The reporter uses only standard library modules
+
+# Optional: C-Reduce for test case minimization
+# Install with:
+#   macOS: brew install creduce
+#   Linux: apt install creduce (Debian/Ubuntu)
+#          dnf install creduce (Fedora)
+
+# Development dependencies
+pytest>=7.4.0          # Testing framework
+pytest-cov>=4.1.0      # Code coverage
