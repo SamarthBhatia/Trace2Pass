@@ -185,7 +185,8 @@ def test_manual_report_submission(collector_server):
 
     stored = response.json()
     assert stored["check_type"] == "arithmetic_overflow"
-    assert stored["location"]["function"] == "vulnerable_function"
+    # Note: location is stored as string "file:line:function", not a dict
+    assert "vulnerable_function" in stored["location"]
 
 
 def test_deduplication_across_runs(collector_server):
