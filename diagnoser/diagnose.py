@@ -394,6 +394,8 @@ def full_pipeline_cmd(source_file: str, test_command: str,
         print(f"✗ Pass bisection failed: {pass_result.get('error', 'Unknown error')}")
         print()
         return {
+            "verdict": "error",  # Propagate error to top level for CLI exit code check
+            "error": f"Pass bisection failed: {pass_result.get('error', 'Unknown error')}",
             "ub_detection": ub_result,
             "version_bisection": version_result,
             "pass_bisection": pass_result,
