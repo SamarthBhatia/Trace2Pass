@@ -5,8 +5,8 @@
 Trace2Pass is a compiler bug detection system that injects lightweight runtime checks into binaries to detect arithmetic overflows, control flow violations, and memory bounds errors caused by compiler bugs. It automatically bisects bugs to find the responsible compiler pass and generates minimal bug reports.
 
 [![Status](https://img.shields.io/badge/status-active%20development-blue)]()
-[![Phase](https://img.shields.io/badge/phase-2%20instrumentor-orange)]()
-[![Progress](https://img.shields.io/badge/progress-45%25-green)]()
+[![Phase](https://img.shields.io/badge/phase-3%20collector+diagnoser-orange)]()
+[![Progress](https://img.shields.io/badge/progress-80%25-green)]()
 
 ---
 
@@ -21,6 +21,7 @@ Trace2Pass is a compiler bug detection system that injects lightweight runtime c
 - [Testing](#testing)
 - [Project Structure](#project-structure)
 - [Current Status](#current-status)
+- [Known Limitations](#known-limitations)
 - [Troubleshooting](#troubleshooting)
 - [Documentation](#documentation)
 
@@ -28,19 +29,55 @@ Trace2Pass is a compiler bug detection system that injects lightweight runtime c
 
 ## Features
 
-**Currently Implemented (Week 7):**
-- ✅ **Arithmetic Overflow Detection**
-  - Multiply overflow (using `llvm.smul.with.overflow`)
-  - Add overflow (using `llvm.sadd.with.overflow`)
-  - Subtract overflow (using `llvm.ssub.with.overflow`)
-  - Shift overflow (custom check: shift_amount >= bit_width)
+**Currently Implemented (Week 18-19):**
+
+**Phase 2: Runtime Instrumentation (100% Complete)** ✅
+- ✅ **Arithmetic Overflow Detection** (5 types)
+  - Multiply, Add, Subtract, Shift overflow
+  - Uses LLVM intrinsics (`llvm.s*.with.overflow`)
+- ✅ **Unreachable Code Detection**
+  - Detects execution of `llvm.unreachable`
+- ✅ **Division by Zero Detection**
+  - Pre-checks div/mod operations
+- ✅ **Pure Function Consistency**
+  - Verifies deterministic functions return same output
+- ✅ **Sign Conversion Detection** (disabled by default, 280% overhead)
+- ✅ **Memory Bounds Checking** (disabled by default, 18% overhead)
+- ✅ **Loop Bounds Checking** (disabled by default, 12.7% overhead)
 - ✅ **Thread-Safe Runtime Library**
   - Bloom filter deduplication
   - Configurable sampling rate (default: 1%)
-  - Timestamped structured reports
-- ✅ **Non-Fatal Detection**
-  - Program continues executing after overflow
-  - Allows catching multiple bugs in one run
+  - Production overhead: 3-4% with 5/8 checks enabled
+
+**Phase 3: Collector + Diagnoser (80% Complete)** ⚠️
+- ✅ **Collector API** (Flask REST API)
+  - 7 REST endpoints for report aggregation
+  - SQLite database with deduplication (includes function name)
+  - Prioritization algorithm (frequency × severity × recency)
+  - 9/9 tests passing
+- ✅ **UB Detection**
+  - Multi-signal approach (UBSan + optimization sensitivity + multi-compiler)
+  - Confidence scoring (0.0 = user UB, 1.0 = compiler bug)
+  - 15/15 tests passing
+- ✅ **Version Bisection**
+  - Binary search over LLVM 14.0.0 → 21.1.0
+  - O(log n) efficiency (87% reduction in tests)
+  - 18/18 tests passing
+- ✅ **Pass Bisection**
+  - Binary search over LLVM -O2 pipeline (~29 passes)
+  - Identifies specific culprit optimization pass
+  - 15/15 tests passing
+- ✅ **Runtime→Collector Integration**
+  - JSON serialization for all 6 report types
+  - HTTP POST client (curl-based, no libcurl dependency)
+  - Environment variable `TRACE2PASS_COLLECTOR_URL` configuration
+  - Dual output: JSON to Collector + stderr/file logging
+- ✅ **Collector→Diagnoser Integration**
+  - `analyze_report()` processes JSON reports from Collector
+  - Generates minimal C reproducers from check_details
+  - Unified CLI (`diagnose.py`) with 5 commands
+- ❌ **End-to-End Testing** (pending)
+  - Production binary → Collector → Diagnoser → report flow
 
 **Planned Features:**
 - Control flow integrity checks
@@ -440,36 +477,80 @@ Trace2Pass/
 
 ---
 
+## Known Limitations
+
+**⚠️ Metadata Collection (Phase 4 TODO):**
+
+The integration layer is complete and functional, but runtime reports contain placeholder metadata:
+
+1. **Source location metadata:**
+   - Runtime reports: `file:unknown, line:0, function:unknown`
+   - **Fix:** Instrumentor needs to embed DILocation info from LLVM debug metadata
+   - **Impact:** Reduces diagnosis accuracy (reproducers are synthetic)
+
+2. **Build metadata:**
+   - Runtime reports: `compiler:unknown, version:unknown, flags:unknown`
+   - **Fix:** Instrumentor should embed build metadata as global constants
+   - **Impact:** Cannot perform version bisection without manual config
+
+3. **Source code fetching:**
+   - `analyze_report()` generates synthetic reproducers from check_details
+   - **Fix:** Implement source fetching using `build_info.source_hash`
+   - **Impact:** Synthetic reproducers may not perfectly match original bug
+
+4. **Version bisection toolchain:**
+   - Assumes all LLVM versions (14.0.0-21.1.0) are pre-installed locally
+   - No automatic toolchain fetch/build infrastructure
+   - Would benefit from Docker-based version isolation
+
+**What works:** Complete data flow from production binary → Collector → Diagnoser → diagnosis report.
+**What's missing:** Accurate metadata for precise bug localization and source-level reproducers.
+
+---
+
 ## Current Status
 
-**Week 7 of 24** (December 2024)
+**Week 18-19 of 24** (December 2025)
 
 ### Completed Milestones
 - ✅ **Phase 1** (Weeks 1-4): Literature review + Historical bug dataset (54 bugs)
-- ✅ **Week 5-6**: Runtime library + LLVM pass skeleton
-- ✅ **Week 7**: Complete arithmetic overflow detection (mul, add, sub, shl)
+- ✅ **Phase 2** (Weeks 5-10): Runtime instrumentation (<5% overhead achieved)
+- ⚠️ **Phase 3** (Weeks 11-18): Collector + Diagnoser integration layer complete (end-to-end tests pending)
 
 ### Current Progress
 - **Phase 1**: 100% complete
-- **Phase 2**: 58% complete (instrumentation)
-- **Overall Project**: 45% complete
+- **Phase 2**: 100% complete (instrumentation)
+- **Phase 3**: 80% complete (integration layer done, end-to-end tests pending)
+- **Overall Project**: 80% complete
 
 ### What Works Now
-- Multiply overflow detection (`x * y`)
-- Add overflow detection (`x + y`)
-- Subtract overflow detection (`x - y`)
-- Shift overflow detection (`x << y`)
-- Thread-safe runtime reporting
-- Deduplication (Bloom filter)
-- Configurable sampling
-- Non-fatal detection
-- 15+ test cases passing
+- 8 types of anomaly detection (5 enabled by default)
+- 3-4% production overhead with 5/8 checks
+- Complete data flow: Production binary → Collector → Diagnoser → diagnosis report
+- Runtime→Collector: JSON serialization + HTTP POST (curl-based)
+- Collector→Diagnoser: `analyze_report()` + reproducer generation
+- Unified CLI: `diagnose.py` with 5 commands
+- Collector API with fixed deduplication and prioritization (9/9 tests passing)
+- UB Detection (15/15 tests passing)
+- Version Bisection (18/18 tests passing)
+- Pass Bisection (15/15 tests passing)
+- Total: 57/57 tests passing across all components
 
-### Next Steps (Week 8)
-- [ ] Control flow integrity checks
-- [ ] Memory bounds checks (GEP instrumentation)
-- [ ] Overhead benchmarking
-- [ ] Optimization strategies
+### Next Steps (Week 19-20)
+**Phase 3 Completion:**
+- [x] Add JSON serialization to runtime library ✅
+- [x] Add HTTP client (curl) to runtime for Collector communication ✅
+- [x] Implement `UBDetector.analyze_report()` for automatic Collector→Diagnoser flow ✅
+- [x] Create `diagnoser/diagnose.py` unified entry point ✅
+- [ ] End-to-end integration tests (production binary → Collector → Diagnoser → report)
+- [ ] Enhance instrumentor to embed source location metadata (file, line, function)
+- [ ] Enhance instrumentor to embed build metadata (compiler, version, flags)
+
+**Phase 4 (Weeks 19-24):**
+- [ ] Reporter component (C-Reduce integration, minimal test case generation)
+- [ ] Source code fetching using `source_hash`
+- [ ] Evaluation on 54 historical bugs
+- [ ] Thesis writing
 
 See [PROJECT_PLAN.md](PROJECT_PLAN.md) for the complete timeline.
 

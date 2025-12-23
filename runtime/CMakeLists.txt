@@ -13,8 +13,9 @@ add_library(Trace2PassRuntime STATIC
     src/trace2pass_runtime.c
 )
 
-# Link pthread for mutex support
-target_link_libraries(Trace2PassRuntime pthread)
+# Link pthread for mutex support and dl for dladdr()
+# ${CMAKE_DL_LIBS} is libdl on Linux, empty on macOS (where dladdr is in libc)
+target_link_libraries(Trace2PassRuntime pthread ${CMAKE_DL_LIBS})
 
 # Enable PIC for linking into shared objects
 set_target_properties(Trace2PassRuntime PROPERTIES POSITION_INDEPENDENT_CODE ON)
@@ -29,4 +30,4 @@ install(TARGETS Trace2PassRuntime
 
 # Build test executable
 add_executable(test_runtime test/test_runtime.c)
-target_link_libraries(test_runtime Trace2PassRuntime pthread)
+target_link_libraries(test_runtime Trace2PassRuntime pthread ${CMAKE_DL_LIBS})
