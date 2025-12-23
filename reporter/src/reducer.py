@@ -56,8 +56,9 @@ class TestCaseReducer:
             print("C-Reduce not available. Skipping reduction.")
             return source_file
 
-        # Create working directory
-        self.work_dir = tempfile.mkdtemp(prefix='trace2pass_reduce_')
+        # Create working directory if not already created
+        if not self.work_dir:
+            self.work_dir = tempfile.mkdtemp(prefix='trace2pass_reduce_')
         reduced_output = None
 
         try:
@@ -133,8 +134,9 @@ class TestCaseReducer:
             print("C-Reduce not available. Returning original source.")
             return source_code
 
-        # Create working directory
-        self.work_dir = tempfile.mkdtemp(prefix='trace2pass_reduce_')
+        # Create working directory if not already created
+        if not self.work_dir:
+            self.work_dir = tempfile.mkdtemp(prefix='trace2pass_reduce_')
 
         try:
             # Write source to file
@@ -187,7 +189,11 @@ exit 0
         Returns:
             Path to generated test script
         """
-        script_path = Path(self.work_dir or '.') / 'creduce_test.sh'
+        # Ensure work_dir exists before creating script
+        if not self.work_dir:
+            self.work_dir = tempfile.mkdtemp(prefix='trace2pass_reduce_')
+
+        script_path = Path(self.work_dir) / 'creduce_test.sh'
 
         script_content = f'''#!/bin/bash
 set -e
