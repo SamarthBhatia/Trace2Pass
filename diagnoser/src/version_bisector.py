@@ -470,10 +470,32 @@ class VersionBisector:
         )
 
         if result.returncode != 0:
-            # Compiler found but compilation failed (ICE, backend crash, etc.)
-            # This is a compiler bug manifestation and should be treated as test FAILURE
-            print(f"Compilation failed for {version}: {result.stderr[:200]}")
-            return (None, True, False)
+            # Compiler found but compilation failed
+            # Need to distinguish ICE from normal diagnostic errors
+
+            # ICE indicators in stderr
+            ice_markers = [
+                "PLEASE submit a bug report",
+                "Internal compiler error",
+                "internal compiler error",
+                "Assertion failed",
+                "Assertion `",
+                "Stack dump:",
+                "UNREACHABLE executed",
+            ]
+
+            is_ice = any(marker in result.stderr for marker in ice_markers)
+
+            if is_ice:
+                # ICE is a compiler bug - treat as test FAILURE
+                print(f"ICE detected in {version}: {result.stderr[:200]}")
+                return (None, True, False)
+            else:
+                # Normal diagnostic error (e.g., unsupported language feature)
+                # Older compilers legitimately reject newer features
+                # Skip this version rather than marking it as bad
+                print(f"Compilation error in {version} (not ICE, skipping): {result.stderr[:100]}")
+                return (None, False, False)
 
         return (binary_path, True, True)
 
@@ -525,8 +547,27 @@ class VersionBisector:
                 return (None, False, False)
             else:
                 # Image exists but compilation failed
-                print(f"Docker compilation failed for {version}: {result.stderr[:200]}")
-                return (None, True, False)
+                # Distinguish ICE from normal diagnostic errors
+                ice_markers = [
+                    "PLEASE submit a bug report",
+                    "Internal compiler error",
+                    "internal compiler error",
+                    "Assertion failed",
+                    "Assertion `",
+                    "Stack dump:",
+                    "UNREACHABLE executed",
+                ]
+
+                is_ice = any(marker in result.stderr for marker in ice_markers)
+
+                if is_ice:
+                    # ICE is a compiler bug
+                    print(f"ICE detected in {version}: {result.stderr[:200]}")
+                    return (None, True, False)
+                else:
+                    # Normal diagnostic - skip
+                    print(f"Compilation error in {version} (not ICE, skipping): {result.stderr[:100]}")
+                    return (None, False, False)
 
         # Move output to final location
         output_path = os.path.join(self.work_dir, "output")
