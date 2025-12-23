@@ -367,18 +367,27 @@ int trace2pass_should_sample(void) {
     return random_double < sample_rate;
 }
 
-// Helper: Generate stable call-site ID from PC
-// This is more stable than raw PC address (which changes between runs)
-// but still process-specific. Ideally should use source location once available.
+// Helper: Generate call-site ID from PC
+// LIMITATION: This is still ASLR-dependent and changes between process runs.
+// The raw PC includes absolute address with ASLR base, and even though we mask
+// to lower 32 bits, the high bits are mixed into the hash via multiplication.
+// Result: Same source bug from different executions gets different site_XXXXXXXX,
+// preventing cross-run deduplication in the collector.
+//
+// PROPER FIX: Requires Phase 4 instrumentation to embed deterministic metadata
+// (file:line:function) directly in the binary. Until then, deduplication only
+// works within a single process run.
+//
+// TRADE-OFF: Using raw PC at least provides deterministic IDs within one run,
+// which is sufficient for runtime-side Bloom filter deduplication.
 static void generate_callsite_id(void* pc, const char* check_type, char* out, size_t out_size) {
-    // Hash PC with check type to create stable identifier
-    // This is the same hash used for bloom filter deduplication
+    // Hash PC with check type
+    // NOTE: This hash is ASLR-dependent - see limitation comment above
     uint64_t h = (uint64_t)pc;
     const char* p = check_type;
     while (*p) {
         h = h * 31 + *p++;
     }
-    // Use only lower bits to reduce collision with address randomization
     uint32_t stable_id = (uint32_t)(h & 0xFFFFFFFF);
     snprintf(out, out_size, "site_%08x", stable_id);
 }

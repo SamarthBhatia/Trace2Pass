@@ -389,6 +389,18 @@ def full_pipeline_cmd(source_file: str, test_command: str,
     pass_result = pass_bisect_cmd(source_file, test_command, optimization_level,
                                   compiler_version=first_bad_version)
 
+    # Check if pass bisection failed (e.g., missing LLVM tools)
+    if pass_result.get('verdict') == 'error':
+        print(f"✗ Pass bisection failed: {pass_result.get('error', 'Unknown error')}")
+        print()
+        return {
+            "ub_detection": ub_result,
+            "version_bisection": version_result,
+            "pass_bisection": pass_result,
+            "recommendation": f"Partial diagnosis: Bug in {version_result.get('first_bad_version', 'unknown version')} "
+                             f"but pass bisection failed. {pass_result.get('error', 'Install matching LLVM tools.')}"
+        }
+
     # Summary
     print("=== Diagnosis Complete ===")
     print(f"Verdict: Compiler bug (confidence: {ub_result['confidence']:.2%})")
