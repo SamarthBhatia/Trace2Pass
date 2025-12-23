@@ -26,23 +26,27 @@ from collector import app, db
 @pytest.fixture
 def collector_server():
     """Start collector server for testing."""
+    from werkzeug.serving import make_server
+    import threading
+
     app.config['TESTING'] = True
     db.db_path = ':memory:'
     db.connect()
 
-    # Start server in background
-    import threading
-    server_thread = threading.Thread(
-        target=lambda: app.run(port=5555, debug=False, use_reloader=False)
-    )
+    # Create server with explicit shutdown support
+    server = make_server('localhost', 58001, app, threaded=True)
+    server_thread = threading.Thread(target=server.serve_forever)
     server_thread.daemon = True
     server_thread.start()
 
     # Wait for server to be ready
-    time.sleep(2)
+    time.sleep(1)
 
-    yield "http://localhost:5555"
+    yield "http://localhost:58001"
 
+    # Cleanup: shutdown server and wait for thread
+    server.shutdown()
+    server_thread.join(timeout=5)
     db.close()
 
 
