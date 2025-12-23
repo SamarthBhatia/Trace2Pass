@@ -87,7 +87,14 @@ def ub_detect_cmd(source_file: str, test_input: Optional[str] = None,
         expected_output: Optional expected output string
 
     Returns:
-        UB detection result dictionary
+        UB detection result dictionary with schema:
+        {
+            "verdict": str,  # "compiler_bug", "user_ub", "inconclusive", or "error"
+            "confidence": float,
+            "ubsan_clean": bool,
+            "optimization_sensitive": bool,
+            "multi_compiler_differs": bool
+        }
     """
     detector = UBDetector()
     result = detector.detect(source_file, test_input, expected_output)
@@ -509,10 +516,17 @@ def main():
         print(json.dumps(result, indent=2))
 
         # Check verdict and exit with appropriate status
-        # Commands that return {'verdict': 'error', ...} should fail
-        if isinstance(result, dict) and result.get('verdict') == 'error':
-            print(f"\nCommand failed: {result.get('error', 'Unknown error')}", file=sys.stderr)
-            sys.exit(1)
+        # Exit code 1 for errors (tool failure), exit code 0 for all other verdicts
+        # Even "inconclusive" or "all_pass" are successful executions that produced a result
+        if isinstance(result, dict):
+            verdict = result.get('verdict', '')
+
+            # Only "error" verdict means the tool itself failed (missing deps, etc.)
+            # Other verdicts like "user_ub", "all_pass", "inconclusive" are successful results
+            if verdict == 'error':
+                error_msg = result.get('error', 'Unknown error')
+                print(f"\nCommand failed: {error_msg}", file=sys.stderr)
+                sys.exit(1)
 
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)

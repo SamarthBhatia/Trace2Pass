@@ -375,23 +375,30 @@ int trace2pass_should_sample(void) {
 // APPROACH: Use dladdr() to find module base, compute offset = PC - base.
 // The offset is stable across runs (same source location = same offset).
 //
+// PLATFORM SUPPORT:
+// - POSIX (Linux/macOS/BSD): Uses dladdr() for module-relative offsets
+// - Windows: Falls back to raw PC (ASLR-dependent, cross-run dedup won't work)
+//
 // LIMITATION: Still not as robust as Phase 4 source metadata (file:line:function),
-// but good enough for production deduplication. Assumes binaries don't change
+// but good enough for production deduplication on POSIX. Assumes binaries don't change
 // between runs (recompilation would change offsets).
 static void generate_callsite_id(void* pc, const char* check_type, char* out, size_t out_size) {
-    // Get module base address using dladdr()
-    Dl_info info;
-    uintptr_t offset = (uintptr_t)pc;  // Fallback to raw PC if dladdr fails
+    uintptr_t offset = (uintptr_t)pc;  // Default: use raw PC
 
+#if defined(__unix__) || defined(__APPLE__)
+    // POSIX: Use dladdr() to get module-relative offset
+    Dl_info info;
     if (dladdr(pc, &info) && info.dli_fbase) {
         // Compute module-relative offset
         // This is stable across runs (ASLR only shifts the base, not the offset)
         offset = (uintptr_t)pc - (uintptr_t)info.dli_fbase;
     }
-    // If dladdr() fails, fall back to raw PC (still ASLR-dependent)
-    // but at least we tried
+    // If dladdr() fails, fall back to raw PC
+#endif
+    // Windows: No dladdr(), use raw PC (ASLR-dependent)
+    // Cross-run deduplication won't work on Windows until Phase 4
 
-    // Hash offset with check type
+    // Hash offset (or raw PC on Windows) with check type
     uint64_t h = offset;
     const char* p = check_type;
     while (*p) {
