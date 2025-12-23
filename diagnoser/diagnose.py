@@ -380,12 +380,30 @@ def full_pipeline_cmd(source_file: str, test_command: str,
     print("Stage 2/3: Version Bisection...")
     version_result = version_bisect_cmd(source_file, test_command, optimization_level)
 
+    # Check if version bisection failed (no first_bad_version found)
     if not version_result.get('first_bad_version'):
-        print("⚠ Could not find bad compiler version. Bug may not reproduce reliably.")
+        verdict = version_result.get('verdict', 'unknown')
+
+        # "insufficient_compilers" is a tool failure - propagate as error
+        if verdict == "insufficient_compilers":
+            print("✗ Version bisection failed: insufficient compilers installed")
+            return {
+                "verdict": "error",
+                "error": "Version bisection failed: insufficient compilers installed",
+                "ub_detection": ub_result,
+                "version_bisection": version_result,
+                "recommendation": "Install more compiler versions to enable bisection"
+            }
+
+        # "all_pass" or "all_fail" are valid results, but pipeline is incomplete
+        # Return with verdict "incomplete" rather than "error"
+        print(f"⚠ Version bisection incomplete (verdict: {verdict}). Cannot proceed to pass bisection.")
         return {
+            "verdict": "incomplete",
+            "reason": f"Version bisection did not identify a regression (verdict: {verdict})",
             "ub_detection": ub_result,
             "version_bisection": version_result,
-            "recommendation": "Bug does not reproduce or requires specific conditions"
+            "recommendation": "Bug does not reproduce reliably or all tested versions have same behavior"
         }
 
     # Stage 3: Pass Bisection
@@ -516,16 +534,26 @@ def main():
         print(json.dumps(result, indent=2))
 
         # Check verdict and exit with appropriate status
-        # Exit code 1 for errors (tool failure), exit code 0 for all other verdicts
-        # Even "inconclusive" or "all_pass" are successful executions that produced a result
+        # Exit code 1 for:
+        #   - "error": Tool failure (missing deps, can't run)
+        #   - "incomplete": Pipeline didn't complete (for full-pipeline only)
+        # Exit code 0 for:
+        #   - Successful diagnosis results (even if inconclusive)
+        #   - "all_pass", "all_fail" from standalone commands (valid results)
         if isinstance(result, dict):
             verdict = result.get('verdict', '')
 
-            # Only "error" verdict means the tool itself failed (missing deps, etc.)
-            # Other verdicts like "user_ub", "all_pass", "inconclusive" are successful results
+            # "error" - tool failure (missing deps, etc.)
             if verdict == 'error':
                 error_msg = result.get('error', 'Unknown error')
                 print(f"\nCommand failed: {error_msg}", file=sys.stderr)
+                sys.exit(1)
+
+            # "incomplete" - pipeline didn't produce complete diagnosis
+            # (Only returned by full-pipeline when it can't proceed through all stages)
+            if verdict == 'incomplete':
+                reason = result.get('reason', 'Pipeline incomplete')
+                print(f"\nPipeline incomplete: {reason}", file=sys.stderr)
                 sys.exit(1)
 
     except Exception as e:
