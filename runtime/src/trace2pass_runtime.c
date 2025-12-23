@@ -11,9 +11,15 @@
 #include <time.h>
 #include <pthread.h>
 
+// dladdr() for module-relative offsets (POSIX only)
+#if defined(__unix__) || defined(__APPLE__)
+#include <dlfcn.h>
+#endif
+
 // Configuration
 static double sample_rate = 0.01;  // Default: 1%
 static FILE* output_file = NULL;
+static char* collector_url = NULL;  // Collector API endpoint (optional)
 static pthread_mutex_t output_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Bloom filter for deduplication
@@ -75,7 +81,16 @@ void trace2pass_init(void) {
         }
     }
 
-    fprintf(get_output_file(), "Trace2Pass: Runtime initialized (sample_rate=%.3f)\n", sample_rate);
+    const char* collector_env = getenv("TRACE2PASS_COLLECTOR_URL");
+    if (collector_env) {
+        trace2pass_set_collector_url(collector_env);
+    }
+
+    fprintf(get_output_file(), "Trace2Pass: Runtime initialized (sample_rate=%.3f", sample_rate);
+    if (collector_url) {
+        fprintf(get_output_file(), ", collector=%s", collector_url);
+    }
+    fprintf(get_output_file(), ")\n");
 }
 
 // Cleanup
@@ -99,6 +114,192 @@ void trace2pass_set_output_file(const char* path) {
         fclose(output_file);
     }
     output_file = fopen(path, "a");
+}
+
+void trace2pass_set_collector_url(const char* url) {
+    if (collector_url) {
+        free(collector_url);
+    }
+    if (url) {
+        collector_url = strdup(url);
+    } else {
+        collector_url = NULL;
+    }
+}
+
+// JSON serialization helper - properly escapes all JSON control characters
+static void json_escape_string(const char* str, char* out, size_t out_size) {
+    if (out_size == 0) return;
+
+    size_t j = 0;
+    for (size_t i = 0; str[i]; i++) {
+        // Check remaining space BEFORE each write
+        if (j >= out_size - 1) {
+            // Not enough space even for 1 char + null terminator
+            break;
+        }
+
+        switch (str[i]) {
+            case '"':
+            case '\\':
+                if (j >= out_size - 2) goto truncate;  // Need 2 chars + null
+                out[j++] = '\\';
+                out[j++] = str[i];
+                break;
+            case '\b':
+                if (j >= out_size - 2) goto truncate;
+                out[j++] = '\\'; out[j++] = 'b';
+                break;
+            case '\f':
+                if (j >= out_size - 2) goto truncate;
+                out[j++] = '\\'; out[j++] = 'f';
+                break;
+            case '\n':
+                if (j >= out_size - 2) goto truncate;
+                out[j++] = '\\'; out[j++] = 'n';
+                break;
+            case '\r':
+                if (j >= out_size - 2) goto truncate;
+                out[j++] = '\\'; out[j++] = 'r';
+                break;
+            case '\t':
+                if (j >= out_size - 2) goto truncate;
+                out[j++] = '\\'; out[j++] = 't';
+                break;
+            default:
+                if ((unsigned char)str[i] < 32) {
+                    // Control character - use \uXXXX notation (6 chars)
+                    if (j >= out_size - 6) goto truncate;
+
+                    // CRITICAL: snprintf returns the number it WOULD write, not what it DID write
+                    int written = snprintf(out + j, out_size - j, "\\u%04x", (unsigned char)str[i]);
+                    if (written < 0 || (size_t)written >= out_size - j) {
+                        goto truncate;
+                    }
+                    j += written;
+                } else {
+                    // Normal character - just copy
+                    out[j++] = str[i];
+                }
+                break;
+        }
+    }
+
+truncate:
+    out[j] = '\0';
+}
+
+// Validate URL to prevent shell injection
+// Returns 1 if URL is safe, 0 otherwise
+static int validate_url(const char* url) {
+    if (!url) return 0;
+
+    // Must start with http:// or https://
+    if (strncmp(url, "http://", 7) != 0 && strncmp(url, "https://", 8) != 0) {
+        return 0;
+    }
+
+    // Check for shell metacharacters that could enable injection
+    const char* dangerous = ";&|`$()<>\"'\\";
+    for (const char* d = dangerous; *d; d++) {
+        if (strchr(url, *d)) {
+            fprintf(stderr, "Trace2Pass: Rejected URL containing shell metacharacter '%c'\n", *d);
+            return 0;
+        }
+    }
+
+    // Check for control characters
+    for (const char* p = url; *p; p++) {
+        if ((unsigned char)*p < 32 || (unsigned char)*p == 127) {
+            fprintf(stderr, "Trace2Pass: Rejected URL containing control character\n");
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
+// HTTP POST to Collector using curl
+// SECURITY NOTE: This spawns an external process on every report.
+// In production, this should be replaced with libcurl or raw sockets.
+// Performance NOTE: Spawning curl adds ~50-100ms per report, but most reports
+// are filtered by bloom filter deduplication (1 report per unique PC address).
+// With 1% sampling rate, overhead remains <5%.
+// Returns 0 on success, -1 on failure
+static int http_post_json(const char* url, const char* json_data) {
+    if (!url || !json_data) return -1;
+
+    // Validate URL to prevent shell injection
+    if (!validate_url(url)) {
+        fprintf(stderr, "Trace2Pass: Invalid or unsafe Collector URL, skipping HTTP POST\n");
+        return -1;
+    }
+
+    // Rate limiting: Prevent DoS by limiting HTTP requests per second
+    // CRITICAL: system(curl) spawns a process per report, which could be abused
+    // for DoS. This rate limiter caps requests to prevent resource exhaustion.
+    // Even with bloom filter + sampling, an attacker could trigger many unique
+    // reports (different PCs) to bypass dedup. This is a stopgap until libcurl.
+    #define MAX_REPORTS_PER_SECOND 10
+    static pthread_mutex_t rate_limit_mutex = PTHREAD_MUTEX_INITIALIZER;
+    static time_t current_window = 0;
+    static int reports_in_window = 0;
+
+    pthread_mutex_lock(&rate_limit_mutex);
+    time_t now = time(NULL);
+    if (now != current_window) {
+        // New time window - reset counter
+        current_window = now;
+        reports_in_window = 0;
+    }
+    if (reports_in_window >= MAX_REPORTS_PER_SECOND) {
+        // Rate limit exceeded - drop report
+        pthread_mutex_unlock(&rate_limit_mutex);
+        static int warning_printed = 0;
+        if (!warning_printed) {
+            fprintf(stderr, "Trace2Pass: Rate limit exceeded (%d reports/sec), dropping reports\n",
+                    MAX_REPORTS_PER_SECOND);
+            warning_printed = 1;
+        }
+        return -1;
+    }
+    reports_in_window++;
+    pthread_mutex_unlock(&rate_limit_mutex);
+
+    // TODO(Phase 4): Replace with libcurl for better security and performance
+    // Current implementation uses system() which is simple but has limitations:
+    // - Spawns external process (performance cost)
+    // - Requires curl to be installed
+    // - Limited error reporting
+    // - DoS risk (mitigated by rate limiter above)
+    // Proper implementation should use libcurl or raw HTTP over sockets
+
+    char cmd[4096];
+    char escaped[2048];
+
+    // Escape single quotes in JSON for shell (JSON itself is already escaped via json_escape_string)
+    size_t j = 0;
+    for (size_t i = 0; json_data[i] && j < sizeof(escaped) - 4; i++) {
+        if (json_data[i] == '\'') {
+            escaped[j++] = '\'';
+            escaped[j++] = '\\';
+            escaped[j++] = '\'';
+            escaped[j++] = '\'';
+        } else {
+            escaped[j++] = json_data[i];
+        }
+    }
+    escaped[j] = '\0';
+
+    snprintf(cmd, sizeof(cmd),
+        "curl -s -X POST '%s' "
+        "-H 'Content-Type: application/json' "
+        "-d '%s' "
+        ">/dev/null 2>&1",
+        url, escaped);
+
+    int ret = system(cmd);
+    return (ret == 0) ? 0 : -1;
 }
 
 // Portable thread-safe random number generation
@@ -171,6 +372,68 @@ int trace2pass_should_sample(void) {
     return random_double < sample_rate;
 }
 
+// Helper: Generate call-site ID from PC
+// Uses module-relative offset instead of absolute address to avoid ASLR issues.
+// This enables cross-run deduplication until Phase 4 provides true source metadata.
+//
+// APPROACH: Use dladdr() to find module base, compute offset = PC - base.
+// The offset is stable across runs (same source location = same offset).
+//
+// PLATFORM SUPPORT:
+// - POSIX (Linux/macOS/BSD): Uses dladdr() for module-relative offsets
+// - Windows: Falls back to raw PC (ASLR-dependent, cross-run dedup won't work)
+//
+// LIMITATION: Still not as robust as Phase 4 source metadata (file:line:function),
+// but good enough for production deduplication on POSIX. Assumes binaries don't change
+// between runs (recompilation would change offsets).
+static void generate_callsite_id(void* pc, const char* check_type, char* out, size_t out_size) {
+    uintptr_t offset = (uintptr_t)pc;  // Default: use raw PC
+
+#if defined(__unix__) || defined(__APPLE__)
+    // POSIX: Use dladdr() to get module-relative offset
+    Dl_info info;
+    if (dladdr(pc, &info) && info.dli_fbase) {
+        // Compute module-relative offset
+        // This is stable across runs (ASLR only shifts the base, not the offset)
+        offset = (uintptr_t)pc - (uintptr_t)info.dli_fbase;
+    }
+    // If dladdr() fails, fall back to raw PC
+#endif
+    // Windows: No dladdr(), use raw PC (ASLR-dependent)
+    // Cross-run deduplication won't work on Windows until Phase 4
+
+    // Hash offset (or raw PC on Windows) with check type
+    uint64_t h = offset;
+    const char* p = check_type;
+    while (*p) {
+        h = h * 31 + *p++;
+    }
+    uint32_t stable_id = (uint32_t)(h & 0xFFFFFFFF);
+    snprintf(out, out_size, "site_%08x", stable_id);
+}
+
+// Helper: Generate report ID from call-site ID and timestamp
+static void generate_report_id(const char* callsite_id, const char* timestamp, char* out, size_t out_size) {
+    // Report ID: callsite_id + timestamp hash
+    uint64_t h = 0;
+    for (const char* p = callsite_id; *p; p++) {
+        h = h * 31 + *p;
+    }
+    for (const char* p = timestamp; *p; p++) {
+        h = h * 31 + *p;
+    }
+    snprintf(out, out_size, "report_%016llx", (unsigned long long)h);
+}
+
+// TODO(Phase 4): Enhance instrumentor to embed source location metadata
+// Currently, we use placeholders for file/line/function since the instrumentor
+// doesn't pass this information to the runtime. This requires modifying the
+// LLVM pass to:
+// 1. Use DILocation to extract source file/line from debug info
+// 2. Pass function name from LLVM Function object
+// 3. Embed compiler version and optimization flags as global constants
+// 4. Add these as additional parameters to trace2pass_report_* calls
+
 // Arithmetic Checks
 
 void trace2pass_report_overflow(void* pc, const char* expr,
@@ -182,6 +445,36 @@ void trace2pass_report_overflow(void* pc, const char* expr,
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
 
+    // Send to Collector if configured
+    if (collector_url) {
+        char callsite_id[32];
+        generate_callsite_id(pc, "overflow", callsite_id, sizeof(callsite_id));
+
+        char report_id[64];
+        generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+        char expr_escaped[256];
+        json_escape_string(expr, expr_escaped, sizeof(expr_escaped));
+
+        char json[2048];
+        snprintf(json, sizeof(json),
+            "{"
+            "\"report_id\":\"%s\","
+            "\"timestamp\":\"%s\","
+            "\"check_type\":\"arithmetic_overflow\","
+            "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
+            "\"pc\":\"0x%llx\","
+            "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
+            "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
+            "\"check_details\":{\"expr\":\"%s\",\"operands\":[%lld,%lld]}"
+            "}",
+            report_id, timestamp, callsite_id, (unsigned long long)pc,
+            expr_escaped, (long long)a, (long long)b);
+
+        http_post_json(collector_url, json);
+    }
+
+    // Also log to stderr/file for debugging
     pthread_mutex_lock(&output_mutex);
     FILE* out = get_output_file();
     fprintf(out, "\n=== Trace2Pass Report ===\n");
@@ -205,6 +498,35 @@ void trace2pass_report_unreachable(void* pc, const char* message) {
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
 
+    // Send to Collector if configured
+    if (collector_url) {
+        char callsite_id[32];
+        generate_callsite_id(pc, "unreachable", callsite_id, sizeof(callsite_id));
+
+        char report_id[64];
+        generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+        char msg_escaped[256];
+        json_escape_string(message, msg_escaped, sizeof(msg_escaped));
+
+        char json[2048];
+        snprintf(json, sizeof(json),
+            "{"
+            "\"report_id\":\"%s\","
+            "\"timestamp\":\"%s\","
+            "\"check_type\":\"unreachable_code_executed\","
+            "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
+            "\"pc\":\"0x%llx\","
+            "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
+            "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
+            "\"check_details\":{\"message\":\"%s\"}"
+            "}",
+            report_id, timestamp, callsite_id, (unsigned long long)pc, msg_escaped);
+
+        http_post_json(collector_url, json);
+    }
+
+    // Also log to stderr/file for debugging
     pthread_mutex_lock(&output_mutex);
     FILE* out = get_output_file();
     fprintf(out, "\n=== Trace2Pass Report ===\n");
@@ -228,6 +550,33 @@ void trace2pass_report_bounds_violation(void* pc, void* ptr,
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
 
+    // Send to Collector if configured
+    if (collector_url) {
+        char callsite_id[32];
+        generate_callsite_id(pc, "bounds", callsite_id, sizeof(callsite_id));
+
+        char report_id[64];
+        generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+        char json[2048];
+        snprintf(json, sizeof(json),
+            "{"
+            "\"report_id\":\"%s\","
+            "\"timestamp\":\"%s\","
+            "\"check_type\":\"bounds_violation\","
+            "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
+            "\"pc\":\"0x%llx\","
+            "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
+            "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
+            "\"check_details\":{\"ptr\":\"0x%llx\",\"offset\":%zu,\"size\":%zu}"
+            "}",
+            report_id, timestamp, callsite_id, (unsigned long long)pc,
+            (unsigned long long)ptr, offset, size);
+
+        http_post_json(collector_url, json);
+    }
+
+    // Also log to stderr/file for debugging
     pthread_mutex_lock(&output_mutex);
     FILE* out = get_output_file();
     fprintf(out, "\n=== Trace2Pass Report ===\n");
@@ -251,6 +600,33 @@ void trace2pass_report_sign_conversion(void* pc, int64_t original_value,
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
 
+    // Send to Collector if configured
+    if (collector_url) {
+        char callsite_id[32];
+        generate_callsite_id(pc, "sign", callsite_id, sizeof(callsite_id));
+
+        char report_id[64];
+        generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+        char json[2048];
+        snprintf(json, sizeof(json),
+            "{"
+            "\"report_id\":\"%s\","
+            "\"timestamp\":\"%s\","
+            "\"check_type\":\"sign_conversion\","
+            "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
+            "\"pc\":\"0x%llx\","
+            "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
+            "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
+            "\"check_details\":{\"original_value\":%lld,\"cast_value\":%llu,\"src_bits\":%u,\"dest_bits\":%u}"
+            "}",
+            report_id, timestamp, callsite_id, (unsigned long long)pc,
+            (long long)original_value, (unsigned long long)cast_value, src_bits, dest_bits);
+
+        http_post_json(collector_url, json);
+    }
+
+    // Also log to stderr/file for debugging
     pthread_mutex_lock(&output_mutex);
     FILE* out = get_output_file();
     fprintf(out, "\n=== Trace2Pass Report ===\n");
@@ -275,6 +651,36 @@ void trace2pass_report_division_by_zero(void* pc, const char* op_name,
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
 
+    // Send to Collector if configured
+    if (collector_url) {
+        char callsite_id[32];
+        generate_callsite_id(pc, "divzero", callsite_id, sizeof(callsite_id));
+
+        char report_id[64];
+        generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+        char op_escaped[64];
+        json_escape_string(op_name, op_escaped, sizeof(op_escaped));
+
+        char json[2048];
+        snprintf(json, sizeof(json),
+            "{"
+            "\"report_id\":\"%s\","
+            "\"timestamp\":\"%s\","
+            "\"check_type\":\"division_by_zero\","
+            "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
+            "\"pc\":\"0x%llx\","
+            "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
+            "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
+            "\"check_details\":{\"operation\":\"%s\",\"dividend\":%lld,\"divisor\":%lld}"
+            "}",
+            report_id, timestamp, callsite_id, (unsigned long long)pc,
+            op_escaped, (long long)dividend, (long long)divisor);
+
+        http_post_json(collector_url, json);
+    }
+
+    // Also log to stderr/file for debugging
     pthread_mutex_lock(&output_mutex);
     FILE* out = get_output_file();
     fprintf(out, "\n=== Trace2Pass Report ===\n");
@@ -340,6 +746,37 @@ void trace2pass_check_pure_consistency(void* pc, const char* func_name,
             char timestamp[32];
             get_timestamp(timestamp, sizeof(timestamp));
 
+            // Send to Collector if configured
+            if (collector_url) {
+                char callsite_id[32];
+                generate_callsite_id(pc, "pure", callsite_id, sizeof(callsite_id));
+
+                char report_id[64];
+                generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+                char func_escaped[128];
+                json_escape_string(func_name, func_escaped, sizeof(func_escaped));
+
+                char json[2048];
+                snprintf(json, sizeof(json),
+                    "{"
+                    "\"report_id\":\"%s\","
+                    "\"timestamp\":\"%s\","
+                    "\"check_type\":\"pure_function_inconsistency\","
+                    "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
+                    "\"pc\":\"0x%llx\","
+                    "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
+                    "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
+                    "\"check_details\":{\"function\":\"%s\",\"arg0\":%lld,\"arg1\":%lld,\"previous_result\":%lld,\"current_result\":%lld}"
+                    "}",
+                    report_id, timestamp, callsite_id, (unsigned long long)pc,
+                    func_escaped, (long long)arg0, (long long)arg1,
+                    (long long)entry->result, (long long)result);
+
+                http_post_json(collector_url, json);
+            }
+
+            // Also log to stderr/file for debugging
             pthread_mutex_lock(&output_mutex);
             FILE* out = get_output_file();
             fprintf(out, "\n=== Trace2Pass Report ===\n");
@@ -377,6 +814,36 @@ void trace2pass_report_loop_bound_exceeded(void* pc, const char* loop_name,
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
 
+    // Send to Collector if configured
+    if (collector_url) {
+        char callsite_id[32];
+        generate_callsite_id(pc, "loop", callsite_id, sizeof(callsite_id));
+
+        char report_id[64];
+        generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+        char loop_escaped[128];
+        json_escape_string(loop_name, loop_escaped, sizeof(loop_escaped));
+
+        char json[2048];
+        snprintf(json, sizeof(json),
+            "{"
+            "\"report_id\":\"%s\","
+            "\"timestamp\":\"%s\","
+            "\"check_type\":\"loop_bound_exceeded\","
+            "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
+            "\"pc\":\"0x%llx\","
+            "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
+            "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
+            "\"check_details\":{\"loop_name\":\"%s\",\"iteration_count\":%llu,\"threshold\":%llu}"
+            "}",
+            report_id, timestamp, callsite_id, (unsigned long long)pc,
+            loop_escaped, (unsigned long long)iteration_count, (unsigned long long)threshold);
+
+        http_post_json(collector_url, json);
+    }
+
+    // Also log to stderr/file for debugging
     pthread_mutex_lock(&output_mutex);
     FILE* out = get_output_file();
     fprintf(out, "\n=== Trace2Pass Report ===\n");

@@ -52,6 +52,7 @@ void trace2pass_fini(void) __attribute__((destructor));
 
 void trace2pass_set_sample_rate(double rate);
 void trace2pass_set_output_file(const char* path);
+void trace2pass_set_collector_url(const char* url);  // Set Collector API endpoint
 
 #ifdef __cplusplus
 }

@@ -1,0 +1,332 @@
+# Trace2Pass Collector
+
+**Component:** Backend service for aggregating anomaly reports from production
+
+**Status:** In Development (Phase 3, Week 11-12)
+
+---
+
+## Overview
+
+The Collector is a Flask-based HTTP service that:
+1. **Receives** anomaly reports from instrumented production binaries
+2. **Validates** JSON format against schema
+3. **Deduplicates** reports by location, compiler, and flags
+4. **Stores** in SQLite database
+5. **Prioritizes** bugs by frequency and severity
+6. **Provides** triage queue API
+
+---
+
+## Architecture
+
+```
+Production Binary → POST /api/v1/report → Validation → Deduplication → SQLite
+                                                                         ↓
+User/Diagnoser ← GET /api/v1/queue ← Prioritization ←─────────────────┘
+```
+
+---
+
+## Installation
+
+### Prerequisites
+- Python 3.11+
+- pip
+
+### Setup
+
+```bash
+cd collector/
+
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+---
+
+## Usage
+
+### Start the Collector
+
+```bash
+cd collector/src/
+python collector.py
+```
+
+Server starts on `http://localhost:5000`
+
+### Submit a Report
+
+```bash
+curl -X POST http://localhost:5000/api/v1/report \
+  -H "Content-Type: application/json" \
+  -d '{
+    "report_id": "550e8400-e29b-41d4-a716-446655440000",
+    "timestamp": "2025-01-15T10:23:45Z",
+    "check_type": "arithmetic_overflow",
+    "location": {
+      "file": "src/main.c",
+      "line": 42,
+      "function": "process_data"
+    },
+    "compiler": {
+      "name": "clang",
+      "version": "17.0.3"
+    },
+    "build_info": {
+      "optimization_level": "-O2",
+      "flags": ["-O2", "-march=native"]
+    }
+  }'
+```
+
+### Get Triage Queue
+
+```bash
+curl http://localhost:5000/api/v1/queue?limit=10
+```
+
+### Get Statistics
+
+```bash
+curl http://localhost:5000/api/v1/stats
+```
+
+---
+
+## API Endpoints
+
+### `POST /api/v1/report`
+Submit a new anomaly report.
+
+**Request Body:** JSON matching `ReportSchema`
+
+**Response:**
+- `201 Created` - Report stored
+- `400 Bad Request` - Validation error
+- `500 Internal Server Error` - Database error
+
+---
+
+### `GET /api/v1/reports`
+List all reports (paginated).
+
+**Query Parameters:**
+- `limit` (int, default: 100) - Max reports to return
+- `offset` (int, default: 0) - Skip N reports
+- `status` (str, optional) - Filter by status
+
+**Response:**
+```json
+{
+  "reports": [...],
+  "count": 50,
+  "limit": 100,
+  "offset": 0
+}
+```
+
+---
+
+### `GET /api/v1/reports/:id`
+Get a specific report by UUID.
+
+**Response:**
+- `200 OK` - Report details
+- `404 Not Found` - Report does not exist
+
+---
+
+### `GET /api/v1/queue`
+Get prioritized triage queue (sorted by frequency × severity).
+
+**Query Parameters:**
+- `limit` (int, default: 100) - Max reports to return
+
+**Response:**
+```json
+{
+  "queue": [
+    {
+      "report_id": "...",
+      "check_type": "arithmetic_overflow",
+      "location": "main.c:42:process_data",
+      "frequency": 347,
+      "priority_score": 347.0,
+      ...
+    }
+  ],
+  "count": 50
+}
+```
+
+---
+
+### `PATCH /api/v1/reports/:id`
+Update report status.
+
+**Request Body:**
+```json
+{
+  "status": "diagnosed",
+  "diagnosis": {
+    "suspected_pass": "InstCombine",
+    "confidence": 0.85
+  }
+}
+```
+
+**Response:**
+- `200 OK` - Report updated
+- `400 Bad Request` - Invalid status
+- `404 Not Found` - Report does not exist
+
+---
+
+### `GET /api/v1/stats`
+Get dashboard statistics.
+
+**Response:**
+```json
+{
+  "total_reports": 1000,
+  "unique_bugs": 47,
+  "new_reports": 35,
+  "diagnosed_reports": 10,
+  "top_check_types": [
+    {"type": "arithmetic_overflow", "count": 500},
+    {"type": "division_by_zero", "count": 250}
+  ]
+}
+```
+
+---
+
+## Report Format
+
+See `docs/phase3/DESIGN.md` for full schema.
+
+**Minimal Example:**
+```json
+{
+  "report_id": "uuid",
+  "timestamp": "ISO-8601",
+  "check_type": "arithmetic_overflow",
+  "location": {
+    "file": "path/to/file.c",
+    "line": 42,
+    "function": "function_name"
+  },
+  "compiler": {
+    "name": "clang",
+    "version": "17.0.3"
+  },
+  "build_info": {
+    "optimization_level": "-O2"
+  }
+}
+```
+
+---
+
+## Deduplication
+
+Reports are deduplicated using SHA256 hash of:
+- Source location (`file:line:function`)
+- Check type
+- Compiler version
+- Optimization flags (sorted)
+
+**Example:**
+```
+location: main.c:42:process_data
+check_type: arithmetic_overflow
+compiler: clang-17.0.3
+flags: -O2,-march=native
+
+Hash: sha256("main.c:42:process_data:arithmetic_overflow:clang-17.0.3:-O2,-march=native")
+```
+
+When a duplicate is received:
+- `frequency` counter increments
+- `last_seen` timestamp updates
+- Original report data preserved
+
+### Call-Site ID Handling
+
+When source metadata is unavailable, the `function` field contains a call-site ID (`site_XXXXXXXX`) generated by the runtime library.
+
+**ASLR Stability:**
+- **POSIX (Linux, macOS):** Runtime uses `dladdr()` to compute module-relative offsets
+- **Stable across runs:** Same bug location produces same call-site ID
+- **Enables proper deduplication:** Frequency counts work correctly
+- **Windows:** Falls back to raw PC (ASLR-dependent, unstable IDs)
+
+**Limitation:** Module offsets change on binary recompilation. Phase 4 instrumentor will embed true source metadata to eliminate this limitation.
+
+**Current Status:** Phase 3 - module-relative offsets provide good production deduplication on POSIX platforms.
+
+---
+
+## Prioritization
+
+Reports are prioritized by:
+
+**Priority Score = Frequency × Severity Weight**
+
+Severity weights:
+- `bounds_violation`: 0.95
+- `arithmetic_overflow`: 1.0
+- `unreachable_code_executed`: 0.9
+- `pure_function_inconsistency`: 0.85
+- `division_by_zero`: 0.8
+- `sign_conversion`: 0.7
+- `loop_bound_exceeded`: 0.6
+
+---
+
+## Database Schema
+
+See `models.py` for full schema.
+
+**Main Table: `reports`**
+- `id` - Auto-increment primary key
+- `report_id` - UUID from client
+- `dedupe_hash` - SHA256 for deduplication
+- `frequency` - Number of times seen
+- `first_seen`, `last_seen` - Timestamps
+- `status` - new, triaged, diagnosed, false_positive
+- `diagnosis` - JSON (added by Diagnoser)
+
+---
+
+## Testing
+
+```bash
+cd collector/
+pytest tests/
+```
+
+---
+
+## Next Steps (Week 11-12)
+
+- [x] Flask app skeleton
+- [x] Database schema
+- [x] POST /report endpoint
+- [x] Deduplication logic
+- [x] Prioritization algorithm
+- [ ] Write comprehensive tests
+- [ ] CLI dashboard for triage queue
+- [ ] Integration with runtime library (update report format)
+
+---
+
+**Created:** 2025-12-20
+**Status:** In Development
+**Week:** 11 of 24
