@@ -8,20 +8,16 @@ from typing import Dict, Any, List, Optional
 class WorkaroundGenerator:
     """Generates workaround suggestions based on diagnosis results."""
 
-    # Map of pass names to their disable flags
+    # Map of pass names to their disable flags (only valid clang driver flags)
+    # NOTE: Most LLVM optimization passes don't have dedicated -fno-* flags.
+    # Only a few passes have driver-level disable options.
     PASS_DISABLE_FLAGS = {
-        'instcombine': '-fno-instcombine',
-        'gvn': '-fno-gvn',
-        'sccp': '-fno-sccp',
-        'dse': '-fno-dse',
         'inline': '-fno-inline',
         'loop-vectorize': '-fno-vectorize',
         'slp-vectorizer': '-fno-slp-vectorize',
-        'licm': '-fno-licm',
         'unroll': '-fno-unroll-loops',
-        'simplifycfg': '-fno-simplifycfg',
-        'mem2reg': '-fno-mem2reg',
-        'tailcallelim': '-fno-tail-calls',
+        # Note: instcombine, gvn, sccp, dse, licm, simplifycfg, mem2reg, etc.
+        # do not have -fno-* flags. Use -O1 or custom pass pipeline instead.
     }
 
     def __init__(self):
@@ -74,7 +70,17 @@ class WorkaroundGenerator:
                 "Compile with -O1 or -O0 instead of -O2/-O3 to avoid the buggy transformation."
             )
 
-        # 5. Generic workarounds
+        # 5. Bounds violation limitation note
+        # Check if the original report was a bounds violation
+        check_type = diagnosis.get("check_type")
+        if check_type == "bounds_violation":
+            workarounds["Note"] = (
+                "IMPORTANT: Current instrumentation only detects negative array indices. "
+                "Upper-bound violations (index >= size) are not yet implemented. "
+                "If the bug involves array overflows, manual verification is required."
+            )
+
+        # 6. Generic workarounds
         workarounds["Report Bug"] = (
             "File a bug report at https://github.com/llvm/llvm-project/issues "
             "with the minimal reproducer and diagnosis details."
@@ -96,7 +102,7 @@ class WorkaroundGenerator:
         # Example: "InstCombinePass" -> "instcombine"
         pass_name_lower = culprit_pass.lower()
 
-        # Check each known pass
+        # Check each known pass with driver-level disable flags
         for pass_key, disable_flag in self.PASS_DISABLE_FLAGS.items():
             if pass_key in pass_name_lower:
                 return (
@@ -104,10 +110,12 @@ class WorkaroundGenerator:
                     f"Example: clang -O2 {disable_flag} source.c"
                 )
 
-        # Generic workaround if we don't have a specific flag
+        # For passes without dedicated flags, suggest alternative approaches
         return (
-            f"Try disabling the `{culprit_pass}` pass using LLVM's pass manager options. "
-            f"This may require custom compilation flags or modifying the pass pipeline."
+            f"The `{culprit_pass}` pass does not have a dedicated -fno-* disable flag. "
+            f"Workarounds: (1) Compile with -O1 instead of -O2 to avoid aggressive optimizations, "
+            f"or (2) Use a custom pass pipeline with opt tool to exclude this specific pass. "
+            f"See: https://llvm.org/docs/Passes.html for pass pipeline customization."
         )
 
     def format_workarounds(self, workarounds: Dict[str, str], format: str = "text") -> str:

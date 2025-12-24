@@ -16,14 +16,14 @@ class LocationSchema(Schema):
 
 class CompilerSchema(Schema):
     """Schema for compiler information."""
-    name = fields.Str(required=True, validate=validate.OneOf(['clang', 'gcc', 'msvc']))
+    name = fields.Str(required=True, validate=validate.OneOf(['clang', 'gcc', 'msvc', 'unknown']))
     version = fields.Str(required=True)
     target = fields.Str(required=False)
 
 
 class BuildInfoSchema(Schema):
     """Schema for build configuration."""
-    optimization_level = fields.Str(required=True, validate=validate.OneOf(['-O0', '-O1', '-O2', '-O3', '-Os', '-Oz']))
+    optimization_level = fields.Str(required=True, validate=validate.OneOf(['-O0', '-O1', '-O2', '-O3', '-Os', '-Oz', 'unknown']))
     flags = fields.List(fields.Str(), required=False)
     source_hash = fields.Str(required=False)
     binary_checksum = fields.Str(required=False)
