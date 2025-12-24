@@ -226,9 +226,25 @@ class UBDetector:
 
         # If expected_output is provided, check if any optimization level produces wrong output
         if expected_output is not None:
-            # Check each optimization level against expected output
-            o0_correct = outputs.get('-O0', {}).get('stdout') == expected_output
-            o2_correct = outputs.get('-O2', {}).get('stdout') == expected_output
+            # CRITICAL: Check for compile failures/timeouts before comparing stdout
+            # If -O0 compiles but -O2 fails to compile, that's a compiler bug
+            o0_output = outputs.get('-O0', {})
+            o2_output = outputs.get('-O2', {})
+
+            o0_failed = o0_output.get('compile_failed') or o0_output.get('timeout')
+            o2_failed = o2_output.get('compile_failed') or o2_output.get('timeout')
+
+            # If -O0 compiles but -O2 fails to compile → optimizer crash (compiler bug)
+            if not o0_failed and o2_failed:
+                return True  # Optimization-sensitive compiler bug
+
+            # If -O0 fails to compile → can't determine (might be UB in user code)
+            if o0_failed:
+                return False  # Inconclusive (baseline doesn't work)
+
+            # Both compiled successfully - compare outputs
+            o0_correct = o0_output.get('stdout') == expected_output
+            o2_correct = o2_output.get('stdout') == expected_output
 
             # If -O0 is correct but -O2 is wrong, this is optimization-sensitive compiler bug
             if o0_correct and not o2_correct:
