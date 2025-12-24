@@ -88,6 +88,25 @@ class UBDetector:
                 source_file, test_input, details
             )
 
+        # CRITICAL: Check if baseline (-O0) failed before computing confidence
+        # If baseline fails, we cannot determine if behavior is UB or compiler bug
+        opt_details = details.get('optimization_sensitivity', {})
+        baseline_failed = False
+        if '-O0' in opt_details.get('outputs', {}):
+            o0_result = opt_details['outputs']['-O0']
+            baseline_failed = o0_result.get('compile_failed') or o0_result.get('timeout')
+
+        # If baseline fails, return inconclusive verdict immediately
+        if baseline_failed:
+            return UBDetectionResult(
+                verdict="inconclusive",
+                confidence=0.5,  # Neutral - we couldn't test
+                ubsan_clean=ubsan_clean,
+                optimization_sensitive=False,  # Couldn't determine
+                multi_compiler_differs=multi_compiler_differs,
+                details=details
+            )
+
         # Compute confidence score
         confidence = self._compute_confidence(
             ubsan_clean, optimization_sensitive, multi_compiler_differs
@@ -238,9 +257,13 @@ class UBDetector:
             if not o0_failed and o2_failed:
                 return True  # Optimization-sensitive compiler bug
 
-            # If -O0 fails to compile → can't determine (might be UB in user code)
+            # If -O0 fails to compile → can't determine (baseline doesn't work)
+            # NOTE: Returning False here is correct - we're not optimization-sensitive
+            # because we couldn't test it. The detect() method checks for baseline
+            # failures separately and returns "inconclusive" verdict instead of
+            # incorrectly computing confidence with this False value.
             if o0_failed:
-                return False  # Inconclusive (baseline doesn't work)
+                return False  # Not optimization-sensitive (couldn't test baseline)
 
             # Both compiled successfully - compare outputs
             o0_correct = o0_output.get('stdout') == expected_output
