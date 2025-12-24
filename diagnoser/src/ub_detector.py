@@ -439,6 +439,10 @@ def _generate_reproducer(check_type: str, check_details: Dict[str, Any]) -> Opti
         a = operands[0] if len(operands) > 0 else 0
         b = operands[1] if len(operands) > 1 else 0
 
+        # Replace instrumentor placeholders (x, y) with actual variable names (a, b)
+        # Instrumentor generates "x + y", "x * y", etc. as placeholders
+        expr_code = expr.replace('x', 'a').replace('y', 'b')
+
         return f"""// Minimal reproducer for arithmetic_overflow
 // Original expression: {expr}
 // Operands: {a}, {b}
@@ -446,7 +450,7 @@ def _generate_reproducer(check_type: str, check_details: Dict[str, Any]) -> Opti
 int main(void) {{
     long long a = {a}LL;
     long long b = {b}LL;
-    long long result = {expr};  // This may overflow
+    long long result = {expr_code};  // This may overflow
     return (int)result;
 }}
 """

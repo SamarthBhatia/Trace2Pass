@@ -372,6 +372,7 @@ def full_pipeline_cmd(source_file: str, test_command: str,
     if ub_result['verdict'] == 'user_ub':
         print("⚠ UB detected in user code. Skipping compiler bisection.")
         return {
+            "verdict": "user_ub",
             "ub_detection": ub_result,
             "recommendation": "Fix undefined behavior in user code"
         }
@@ -436,6 +437,7 @@ def full_pipeline_cmd(source_file: str, test_command: str,
     print()
 
     return {
+        "verdict": "compiler_bug",
         "ub_detection": ub_result,
         "version_bisection": version_result,
         "pass_bisection": pass_result,

@@ -192,7 +192,7 @@ class TestWorkaroundGenerator:
         assert "Report Bug" in workarounds
 
     def test_generate_pass_workaround_instcombine(self):
-        """Test pass-specific workaround for InstCombine."""
+        """Test pass-specific workaround for InstCombine (no driver flag available)."""
         gen = WorkaroundGenerator()
         diagnosis = {
             "pass_bisection": {
@@ -203,10 +203,12 @@ class TestWorkaroundGenerator:
         workarounds = gen.generate(diagnosis)
 
         assert "Disable Pass" in workarounds
-        assert "-fno-instcombine" in workarounds["Disable Pass"]
+        # InstCombine doesn't have a -fno-* flag, should suggest alternatives
+        assert "does not have a dedicated -fno-* disable flag" in workarounds["Disable Pass"]
+        assert "-O1" in workarounds["Disable Pass"]
 
     def test_generate_pass_workaround_gvn(self):
-        """Test pass-specific workaround for GVN."""
+        """Test pass-specific workaround for GVN (no driver flag available)."""
         gen = WorkaroundGenerator()
         diagnosis = {
             "pass_bisection": {
@@ -217,7 +219,25 @@ class TestWorkaroundGenerator:
         workarounds = gen.generate(diagnosis)
 
         assert "Disable Pass" in workarounds
-        assert "-fno-gvn" in workarounds["Disable Pass"]
+        # GVN doesn't have a -fno-* flag, should suggest alternatives
+        assert "does not have a dedicated -fno-* disable flag" in workarounds["Disable Pass"]
+        assert "-O1" in workarounds["Disable Pass"]
+
+    def test_generate_pass_workaround_inline(self):
+        """Test pass-specific workaround for Inline (has valid driver flag)."""
+        gen = WorkaroundGenerator()
+        diagnosis = {
+            "pass_bisection": {
+                "culprit_pass": "InlinePass"
+            }
+        }
+
+        workarounds = gen.generate(diagnosis)
+
+        assert "Disable Pass" in workarounds
+        # Inline HAS a -fno-inline flag
+        assert "-fno-inline" in workarounds["Disable Pass"]
+        assert "clang -O2 -fno-inline source.c" in workarounds["Disable Pass"]
 
     def test_generate_version_workaround(self):
         """Test version-based workarounds."""
