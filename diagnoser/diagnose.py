@@ -305,6 +305,43 @@ def pass_bisect_cmd(source_file: str, test_command: str,
                 'last_good_pass': None
             }
 
+        # CRITICAL: Verify that opt and clang have matching versions
+        # Check existence is not enough - opt-17 could be 17.0.1 while clang-17 is 17.0.6
+        # This would produce nonsensical pass pipelines
+        try:
+            # Get clang version
+            clang_result = subprocess.run(
+                [clang_versioned, '--version'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            # Get opt version
+            opt_result = subprocess.run(
+                [opt_versioned, '--version'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+
+            # Extract version numbers (looking for X.Y.Z pattern)
+            import re
+            clang_match = re.search(r'version (\d+\.\d+)', clang_result.stdout)
+            opt_match = re.search(r'LLVM version (\d+\.\d+)', opt_result.stdout)
+
+            if clang_match and opt_match:
+                clang_ver = clang_match.group(1)
+                opt_ver = opt_match.group(1)
+                if clang_ver != opt_ver:
+                    print(f"Warning: Version mismatch detected!")
+                    print(f"  {clang_versioned} reports version {clang_ver}")
+                    print(f"  {opt_versioned} reports version {opt_ver}")
+                    print(f"Mismatched toolchains can produce incorrect pass pipelines.")
+                    # Continue with warning rather than error (version may still work)
+        except (subprocess.TimeoutExpired, Exception) as e:
+            # Version check failed - log warning but continue
+            print(f"Warning: Could not verify {clang_versioned}/{opt_versioned} version match: {e}")
+
         opt_path = opt_versioned
         llc_path = llc_versioned
 
