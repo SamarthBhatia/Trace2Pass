@@ -452,12 +452,13 @@ def _generate_reproducer(check_type: str, check_details: Dict[str, Any]) -> Opti
         a = operands[0] if len(operands) > 0 else 0
         b = operands[1] if len(operands) > 1 else 0
 
-        # Map LLVM intrinsic names to C operators
-        # Instrumentor generates "x sadd y", "x umul y", etc. using LLVM intrinsic names
+        # Map LLVM intrinsic names and instruction mnemonics to C operators
+        # Instrumentor generates "x sadd y", "x umul y", "x shl y", etc.
         intrinsic_to_c_op = {
             'sadd': '+', 'uadd': '+',
             'ssub': '-', 'usub': '-',
-            'smul': '*', 'umul': '*'
+            'smul': '*', 'umul': '*',
+            'shl': '<<'  # Left shift operator
         }
 
         # Replace intrinsic names with C operators

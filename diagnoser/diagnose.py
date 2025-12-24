@@ -429,21 +429,65 @@ def full_pipeline_cmd(source_file: str, test_command: str,
                              f"but pass bisection failed. {pass_result.get('error', 'Install matching LLVM tools.')}"
         }
 
-    # Summary
-    print("=== Diagnosis Complete ===")
-    print(f"Verdict: Compiler bug (confidence: {ub_result['confidence']:.2%})")
-    print(f"First bad version: {version_result.get('first_bad_version', 'Unknown')}")
-    print(f"Culprit pass: {pass_result.get('culprit_pass', 'Unknown')}")
-    print()
+    # Check pass bisection verdict to determine final diagnosis
+    pass_verdict = pass_result.get('verdict', 'unknown')
 
-    return {
-        "verdict": "compiler_bug",
-        "ub_detection": ub_result,
-        "version_bisection": version_result,
-        "pass_bisection": pass_result,
-        "recommendation": f"Compiler bug in {pass_result.get('culprit_pass', 'unknown pass')} "
-                         f"introduced in {version_result.get('first_bad_version', 'unknown version')}"
-    }
+    if pass_verdict == "baseline_fails":
+        # Baseline (no optimization) fails - this is UB in user code
+        print("=== Diagnosis Complete ===")
+        print(f"Verdict: User UB (baseline fails)")
+        print()
+        return {
+            "verdict": "user_ub",
+            "ub_detection": ub_result,
+            "version_bisection": version_result,
+            "pass_bisection": pass_result,
+            "recommendation": "Baseline compilation fails test - likely UB in user code, not compiler bug"
+        }
+
+    elif pass_verdict == "full_passes":
+        # All pass combinations pass - bug doesn't reproduce reliably
+        print("=== Diagnosis Complete ===")
+        print(f"Verdict: Incomplete (full pipeline passes)")
+        print()
+        return {
+            "verdict": "incomplete",
+            "reason": "Full optimization pipeline passes test - bug does not reproduce at pass level",
+            "ub_detection": ub_result,
+            "version_bisection": version_result,
+            "pass_bisection": pass_result,
+            "recommendation": "Bug does not reproduce reliably at pass level"
+        }
+
+    elif pass_verdict == "bisected":
+        # Successfully identified culprit pass - this is a compiler bug
+        print("=== Diagnosis Complete ===")
+        print(f"Verdict: Compiler bug (confidence: {ub_result['confidence']:.2%})")
+        print(f"First bad version: {version_result.get('first_bad_version', 'Unknown')}")
+        print(f"Culprit pass: {pass_result.get('culprit_pass', 'Unknown')}")
+        print()
+        return {
+            "verdict": "compiler_bug",
+            "ub_detection": ub_result,
+            "version_bisection": version_result,
+            "pass_bisection": pass_result,
+            "recommendation": f"Compiler bug in {pass_result.get('culprit_pass', 'unknown pass')} "
+                             f"introduced in {version_result.get('first_bad_version', 'unknown version')}"
+        }
+
+    else:
+        # Unknown verdict - treat as incomplete
+        print("=== Diagnosis Complete ===")
+        print(f"Verdict: Incomplete (unknown pass bisection verdict: {pass_verdict})")
+        print()
+        return {
+            "verdict": "incomplete",
+            "reason": f"Pass bisection returned unexpected verdict: {pass_verdict}",
+            "ub_detection": ub_result,
+            "version_bisection": version_result,
+            "pass_bisection": pass_result,
+            "recommendation": "Pass bisection did not complete successfully"
+        }
 
 
 def main():
