@@ -19,15 +19,20 @@ from tqdm import tqdm
 
 # Import Trace2Pass components
 import sys
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(project_root / "diagnoser"))
 
 try:
-    from diagnoser.src.diagnoser import Diagnoser
+    # Import diagnoser functions directly from diagnose.py
+    from diagnose import full_pipeline_cmd, ub_detect_cmd
     from reporter.src.report_generator import ReportGenerator as BugReportGenerator
     from reporter.src.templates import MarkdownTemplate
+    DIAGNOSER_AVAILABLE = True
 except ImportError as e:
     print(f"Warning: Could not import Trace2Pass components: {e}")
     print("Pipeline runner will operate in mock mode for testing")
+    DIAGNOSER_AVAILABLE = False
 
 
 @dataclass
@@ -133,7 +138,7 @@ class PipelineRunner:
         except Exception as e:
             return (False, time.time() - start_time, '', str(e))
 
-    def _diagnose(self, source_file: str, bug_id: str) -> tuple:
+    def _diagnose(self, source_file: str, bug_id: str, binary_path: str) -> tuple:
         """
         Run diagnoser on test case.
 
@@ -141,16 +146,30 @@ class PipelineRunner:
         """
         start_time = time.time()
 
-        try:
-            # Initialize diagnoser
-            diagnoser = Diagnoser()
+        if not DIAGNOSER_AVAILABLE:
+            # Mock diagnosis for testing
+            diagnosis = {
+                "verdict": "error",
+                "error": "Diagnoser not available",
+                "culprit_pass": "",
+                "confidence": 0.0
+            }
+            return (False, 0.0, diagnosis, "Diagnoser not available")
 
-            # Run diagnosis
-            # This simulates receiving a runtime anomaly report and diagnosing it
-            diagnosis = diagnoser.diagnose(source_file)
+        try:
+            # Use ub_detect_cmd for now (simpler than full pipeline)
+            # Full pipeline requires a test command which we'd need to construct
+            diagnosis = ub_detect_cmd(source_file)
+
+            # If it's a compiler bug, we could run full pipeline for pass bisection
+            # but for now, just return the UB detection result
+            if diagnosis['verdict'] == 'compiler_bug':
+                # Add placeholder fields that reporter expects
+                diagnosis['culprit_pass'] = 'Unknown'
+                diagnosis['compiler_versions'] = {'broken': 'current', 'working': 'unknown'}
+                diagnosis['recommendation'] = 'Potential compiler bug detected'
 
             diagnosis_time = time.time() - start_time
-
             return (True, diagnosis_time, diagnosis, '')
 
         except Exception as e:
@@ -163,6 +182,9 @@ class PipelineRunner:
 
         Returns: (success: bool, report: str, error: str)
         """
+        if not DIAGNOSER_AVAILABLE:
+            return (False, '', "Reporter not available")
+
         try:
             # Create temporary diagnosis file
             diagnosis_json = output_file.replace('.md', '_diagnosis.json')
@@ -170,13 +192,13 @@ class PipelineRunner:
                 json.dump(diagnosis, f, indent=2)
 
             # Generate report using reporter
-            generator = BugReportGenerator(diagnosis, source_file)
-            template = MarkdownTemplate()
-            report = generator.generate(template)
-
-            # Save report
-            with open(output_file, 'w') as f:
-                f.write(report)
+            generator = BugReportGenerator()
+            report = generator.generate(
+                diagnosis=diagnosis,
+                source_file=source_file,
+                output_format='markdown',
+                output_file=output_file
+            )
 
             return (True, report, '')
 
@@ -265,7 +287,7 @@ class PipelineRunner:
 
         # Step 3: Diagnose
         logs.append("\n=== DIAGNOSIS ===")
-        success, diag_time, diagnosis, error = self._diagnose(source_file, bug_id)
+        success, diag_time, diagnosis, error = self._diagnose(source_file, bug_id, str(binary))
         timing['diagnosis'] = diag_time
 
         if not success:
