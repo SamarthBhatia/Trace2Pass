@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# Evaluation artifacts
+results/
+reports/
+testcases/*.o
+testcases/test_*
+
+# OS
+.DS_Store
+*.dSYM/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
