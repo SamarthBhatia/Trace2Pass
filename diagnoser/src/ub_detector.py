@@ -366,27 +366,38 @@ class UBDetector:
             clang_result = outputs['clang']
             gcc_result = outputs['gcc']
 
-            # Only compare if both compilers successfully compiled and ran
-            clang_failed = (
-                clang_result.get('compile_failed') or
+            # Separate compile failures from runtime failures
+            clang_compile_failed = clang_result.get('compile_failed', False)
+            gcc_compile_failed = gcc_result.get('compile_failed', False)
+
+            # If either compiler failed to compile, this is a front-end difference
+            # (e.g., GCC rejecting C23 syntax, different extension support)
+            # NOT an optimizer bug, so don't boost confidence
+            if clang_compile_failed or gcc_compile_failed:
+                return False
+
+            # Both compiled successfully - now check runtime behavior
+            clang_runtime_failed = (
                 clang_result.get('timeout') or
                 clang_result.get('returncode', 0) != 0  # Runtime crashes/failures
             )
-            gcc_failed = (
-                gcc_result.get('compile_failed') or
+            gcc_runtime_failed = (
                 gcc_result.get('timeout') or
                 gcc_result.get('returncode', 0) != 0  # Runtime crashes/failures
             )
 
-            # If both failed, can't determine (might be UB in both)
-            if clang_failed and gcc_failed:
+            # If both failed at runtime, can't determine (might be UB in both)
+            if clang_runtime_failed and gcc_runtime_failed:
                 return False
 
-            # If only one failed, that's a compiler difference (one handles it, one doesn't)
-            if clang_failed or gcc_failed:
-                return True
+            # If only one failed at runtime, this could indicate an optimizer bug
+            # (one compiler's optimizer introduced UB/crash, the other didn't)
+            # However, this is a weaker signal than output differences
+            # For now, treat runtime failures as inconclusive to avoid false positives
+            if clang_runtime_failed or gcc_runtime_failed:
+                return False
 
-            # Both succeeded - compare outputs
+            # Both compiled AND ran successfully - compare outputs
             clang_out = clang_result.get('stdout', '')
             gcc_out = gcc_result.get('stdout', '')
 
