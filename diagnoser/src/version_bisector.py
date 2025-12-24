@@ -410,29 +410,31 @@ class VersionBisector:
             )
 
         if not compiler_found:
-            # Compiler not installed - skip this version entirely
+            # Compiler not installed OR non-ICE compilation error (language feature gap)
             # Do NOT add to tested_versions, as we didn't actually test it
             details[version] = {
-                'passes': None,  # None = skipped (compiler not found)
+                'passes': None,  # None = skipped (compiler not found or incompatible)
                 'compile_failed': False,
                 'binary_path': None,
-                'skipped': True
+                'skipped': True,
+                'stderr': stderr if stderr else None  # Log reason for skip (if available)
             }
             return None  # Return None to indicate "skip", not "fail"
 
         if not compile_succeeded:
-            # Compiler found but compilation failed (ICE, semantic error, etc.)
-            # This is a compiler bug manifestation - treat as test FAILURE
+            # Compiler found but compilation failed with ICE
+            # (Non-ICE errors are handled above as compiler_found=False)
+            # ICE is a compiler bug manifestation - treat as test FAILURE
             # Add to tested_versions since we actually tested this compiler
             self.tested_versions.append(version)
             details[version] = {
-                'passes': False,  # False = test failed (compilation failure is a bug)
+                'passes': False,  # False = test failed (ICE is a compiler bug)
                 'compile_failed': True,
                 'binary_path': None,
                 'skipped': False,
-                'stderr': stderr  # Store stderr for debugging (ICE or semantic errors)
+                'stderr': stderr  # Store stderr for debugging (ICE details)
             }
-            return False  # Compilation failure = test failure
+            return False  # Compilation failure (ICE) = test failure
 
         # Compiler found and compilation succeeded - add to tested_versions
         self.tested_versions.append(version)
@@ -531,11 +533,12 @@ class VersionBisector:
                 return (None, True, False, result.stderr)
             else:
                 # Normal diagnostic error (e.g., unsupported language feature, semantic error)
-                # Older compilers legitimately reject newer features
-                # CRITICAL: Return compiler_found=True so caller can log the error
-                # Previously returned False which made it look like compiler wasn't installed
-                print(f"Compilation error in {version} (not ICE): {result.stderr[:100]}")
-                return (None, True, False, result.stderr)
+                # Older compilers legitimately reject newer features - treat as SKIP, not FAILURE
+                # CRITICAL: Return compiler_found=False so this version is skipped (not marked as regression)
+                # This prevents falsely reporting "compiler bug introduced in 14.0.0" when it's just
+                # a missing C23 feature. Stderr is still returned for logging.
+                print(f"Compilation error in {version} (not ICE, skipping): {result.stderr[:100]}")
+                return (None, False, False, result.stderr)
 
         return (binary_path, True, True, None)
 
@@ -602,13 +605,13 @@ class VersionBisector:
                 is_ice = any(marker in result.stderr for marker in ice_markers)
 
                 if is_ice:
-                    # ICE is a compiler bug
+                    # ICE is a compiler bug - treat as test FAILURE
                     print(f"ICE detected in {version}: {result.stderr[:200]}")
                     return (None, True, False, result.stderr)
                 else:
-                    # Normal diagnostic error - return compiler_found=True to log it
-                    print(f"Compilation error in {version} (not ICE): {result.stderr[:100]}")
-                    return (None, True, False, result.stderr)
+                    # Normal diagnostic error - skip this version (not a regression)
+                    print(f"Compilation error in {version} (not ICE, skipping): {result.stderr[:100]}")
+                    return (None, False, False, result.stderr)
 
         # Move output to final location
         output_path = os.path.join(self.work_dir, "output")
