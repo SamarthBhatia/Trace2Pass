@@ -70,17 +70,12 @@ class WorkaroundGenerator:
                 "Compile with -O1 or -O0 instead of -O2/-O3 to avoid the buggy transformation."
             )
 
-        # 5. Bounds violation limitation note
-        # Check if the original report was a bounds violation
-        check_type = diagnosis.get("check_type")
-        if check_type == "bounds_violation":
-            workarounds["Note"] = (
-                "IMPORTANT: Current instrumentation only detects negative array indices. "
-                "Upper-bound violations (index >= size) are not yet implemented. "
-                "If the bug involves array overflows, manual verification is required."
-            )
+        # NOTE: Removed bounds violation limitation warning here.
+        # The diagnoser doesn't track check_type (it diagnoses from source, not reports),
+        # so that condition would never be true. This is a system limitation documented
+        # in the instrumentor code comments, not a per-diagnosis workaround.
 
-        # 6. Generic workarounds
+        # 5. Generic workarounds
         workarounds["Report Bug"] = (
             "File a bug report at https://github.com/llvm/llvm-project/issues "
             "with the minimal reproducer and diagnosis details."
