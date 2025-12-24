@@ -90,11 +90,29 @@ class UBDetector:
 
         # CRITICAL: Check if baseline (-O0) failed before computing confidence
         # If baseline fails, we cannot determine if behavior is UB or compiler bug
-        opt_details = details.get('optimization_sensitivity', {})
+        opt_details = details.get('optimization', {})
+
+        # Check if optimization phase ran at all
+        if 'error' in opt_details or '-O0' not in opt_details:
+            # Optimization sensitivity check didn't run or failed
+            # Cannot determine compiler bug without optimization data
+            return UBDetectionResult(
+                verdict="inconclusive",
+                confidence=0.5,  # Neutral - no optimization data
+                ubsan_clean=ubsan_clean,
+                optimization_sensitive=False,  # Couldn't determine
+                multi_compiler_differs=multi_compiler_differs,
+                details=details
+            )
+
+        # Check if baseline (-O0) failed
         baseline_failed = False
-        if '-O0' in opt_details.get('outputs', {}):
-            o0_result = opt_details['outputs']['-O0']
-            baseline_failed = o0_result.get('compile_failed') or o0_result.get('timeout')
+        o0_result = opt_details['-O0']
+        baseline_failed = (
+            o0_result.get('compile_failed') or
+            o0_result.get('timeout') or
+            o0_result.get('returncode', 0) != 0  # Crashes, assertions, UB
+        )
 
         # If baseline fails, return inconclusive verdict immediately
         if baseline_failed:
@@ -343,10 +361,34 @@ class UBDetector:
 
         details['multi_compiler'] = outputs
 
-        # Check if outputs differ
+        # Check if outputs differ - but ONLY if both compilers succeeded
         if 'clang' in outputs and 'gcc' in outputs:
-            clang_out = outputs['clang'].get('stdout', '')
-            gcc_out = outputs['gcc'].get('stdout', '')
+            clang_result = outputs['clang']
+            gcc_result = outputs['gcc']
+
+            # Only compare if both compilers successfully compiled and ran
+            clang_failed = (
+                clang_result.get('compile_failed') or
+                clang_result.get('timeout') or
+                clang_result.get('returncode', 0) != 0  # Runtime crashes/failures
+            )
+            gcc_failed = (
+                gcc_result.get('compile_failed') or
+                gcc_result.get('timeout') or
+                gcc_result.get('returncode', 0) != 0  # Runtime crashes/failures
+            )
+
+            # If both failed, can't determine (might be UB in both)
+            if clang_failed and gcc_failed:
+                return False
+
+            # If only one failed, that's a compiler difference (one handles it, one doesn't)
+            if clang_failed or gcc_failed:
+                return True
+
+            # Both succeeded - compare outputs
+            clang_out = clang_result.get('stdout', '')
+            gcc_out = gcc_result.get('stdout', '')
 
             return clang_out != gcc_out
 
