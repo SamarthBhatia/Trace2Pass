@@ -1,0 +1,32 @@
+{
+  "sample-instcombine": {
+    "bug_id": "sample-instcombine",
+    "compiler": "llvm",
+    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/sample-instcombine.c",
+    "expected_pass": "InstCombine",
+    "optimization_level": "-O2",
+    "status": "manual",
+    "url": "",
+    "notes": "Sample test case simulating InstCombine wrong-code bug with signed integer comparison"
+  },
+  "sample-gvn": {
+    "bug_id": "sample-gvn",
+    "compiler": "llvm",
+    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/sample-gvn.c",
+    "expected_pass": "GVN",
+    "optimization_level": "-O2",
+    "status": "manual",
+    "url": "",
+    "notes": "Sample test case simulating GVN wrong-code bug with redundant load elimination"
+  },
+  "sample-licm": {
+    "bug_id": "sample-licm",
+    "compiler": "llvm",
+    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/sample-licm.c",
+    "expected_pass": "LICM",
+    "optimization_level": "-O2",
+    "status": "manual",
+    "url": "",
+    "notes": "Sample test case simulating LICM wrong-code bug with incorrect loop invariant hoisting"
+  }
+}
