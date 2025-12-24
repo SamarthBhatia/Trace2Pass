@@ -210,78 +210,115 @@ void Trace2PassInstrumentorPass::insertOverflowCheck(IRBuilder<> &Builder,
 
   // Determine if we should check signed or unsigned overflow
   // Use nsw/nuw flags if present, otherwise default to signed
-  bool checkSigned = true;
+  bool checkSigned = false;
   bool checkUnsigned = false;
 
   if (auto *BinOp = dyn_cast<BinaryOperator>(I)) {
     // If instruction has nsw (no signed wrap) flag, check signed overflow
     // If instruction has nuw (no unsigned wrap) flag, check unsigned overflow
-    checkSigned = BinOp->hasNoSignedWrap() || (!BinOp->hasNoSignedWrap() && !BinOp->hasNoUnsignedWrap());
+    checkSigned = BinOp->hasNoSignedWrap();
     checkUnsigned = BinOp->hasNoUnsignedWrap();
   }
 
-  // Select the appropriate overflow intrinsic based on operation and signedness
-  Intrinsic::ID IntrinsicID;
-  const char *OpName;
-
-  switch (I->getOpcode()) {
-    case Instruction::Mul:
-      IntrinsicID = checkUnsigned ? Intrinsic::umul_with_overflow : Intrinsic::smul_with_overflow;
-      OpName = checkUnsigned ? "umul" : "smul";
-      break;
-    case Instruction::Add:
-      IntrinsicID = checkUnsigned ? Intrinsic::uadd_with_overflow : Intrinsic::sadd_with_overflow;
-      OpName = checkUnsigned ? "uadd" : "sadd";
-      break;
-    case Instruction::Sub:
-      IntrinsicID = checkUnsigned ? Intrinsic::usub_with_overflow : Intrinsic::ssub_with_overflow;
-      OpName = checkUnsigned ? "usub" : "ssub";
-      break;
-    default:
-      return; // Shouldn't reach here
+  // If neither flag is set, default to signed
+  if (!checkSigned && !checkUnsigned) {
+    checkSigned = true;
   }
 
-  // Use LLVM's overflow intrinsic
-  Function *OverflowIntrinsic = Intrinsic::getOrInsertDeclaration(
-      &M, IntrinsicID, {IntTy});
+  // Lambda to emit a single overflow check for given signedness
+  // When both nsw and nuw are present, this gets called twice
+  Value *FinalResult = nullptr;
+  auto emitSingleCheck = [&](bool isUnsigned) -> Value* {
+    // Select the appropriate overflow intrinsic based on operation and signedness
+    Intrinsic::ID IntrinsicID;
+    const char *OpName;
 
-  // Call the intrinsic
-  CallInst *OverflowCall = Builder.CreateCall(OverflowIntrinsic, {LHS, RHS});
+    switch (I->getOpcode()) {
+      case Instruction::Mul:
+        IntrinsicID = isUnsigned ? Intrinsic::umul_with_overflow : Intrinsic::smul_with_overflow;
+        OpName = isUnsigned ? "umul" : "smul";
+        break;
+      case Instruction::Add:
+        IntrinsicID = isUnsigned ? Intrinsic::uadd_with_overflow : Intrinsic::sadd_with_overflow;
+        OpName = isUnsigned ? "uadd" : "sadd";
+        break;
+      case Instruction::Sub:
+        IntrinsicID = isUnsigned ? Intrinsic::usub_with_overflow : Intrinsic::ssub_with_overflow;
+        OpName = isUnsigned ? "usub" : "ssub";
+        break;
+      default:
+        return nullptr; // Shouldn't reach here
+    }
 
-  // Extract result and overflow flag
-  Value *Result = Builder.CreateExtractValue(OverflowCall, 0);
-  Value *OverflowFlag = Builder.CreateExtractValue(OverflowCall, 1);
+    // Use LLVM's overflow intrinsic
+    Function *OverflowIntrinsic = Intrinsic::getOrInsertDeclaration(
+        &M, IntrinsicID, {IntTy});
 
-  // CRITICAL FIX: Use SplitBlockAndInsertIfThen instead of manual block splitting
-  // This prevents LLVM -O2 crashes by properly handling CFG construction, PHI nodes,
-  // and terminator management. Manual splicing was causing invalid IR that crashed
-  // SimplifyCFG pass on large codebases like SQLite.
-  Instruction *ThenTerm = SplitBlockAndInsertIfThen(OverflowFlag, I, false);
+    // Call the intrinsic
+    CallInst *OverflowCall = Builder.CreateCall(OverflowIntrinsic, {LHS, RHS});
 
-  Builder.SetInsertPoint(ThenTerm);
+    // Extract result and overflow flag
+    Value *Result = Builder.CreateExtractValue(OverflowCall, 0);
+    Value *OverflowFlag = Builder.CreateExtractValue(OverflowCall, 1);
 
-  // Get the runtime report function
-  FunctionCallee ReportFunc = getOverflowReportFunc(M);
+    // CRITICAL FIX: Use SplitBlockAndInsertIfThen instead of manual block splitting
+    // This prevents LLVM -O2 crashes by properly handling CFG construction, PHI nodes,
+    // and terminator management. Manual splicing was causing invalid IR that crashed
+    // SimplifyCFG pass on large codebases like SQLite.
+    Instruction *ThenTerm = SplitBlockAndInsertIfThen(OverflowFlag, I, false);
 
-  // Get PC (return address)
-  Function *ReturnAddrIntrinsic = Intrinsic::getOrInsertDeclaration(
-      &M, Intrinsic::returnaddress);
-  Value *PC = Builder.CreateCall(ReturnAddrIntrinsic,
-                                  {Builder.getInt32(0)});
+    Builder.SetInsertPoint(ThenTerm);
 
-  // Create expression string based on operation
-  std::string ExprStr = std::string("x ") + OpName + " y";
-  Value *ExprGlobal = Builder.CreateGlobalString(ExprStr);
+    // Get the runtime report function
+    FunctionCallee ReportFunc = getOverflowReportFunc(M);
 
-  // Convert operands to i64 for reporting
-  Value *LHS_i64 = Builder.CreateSExtOrTrunc(LHS, Builder.getInt64Ty());
-  Value *RHS_i64 = Builder.CreateSExtOrTrunc(RHS, Builder.getInt64Ty());
+    // Get PC (return address)
+    Function *ReturnAddrIntrinsic = Intrinsic::getOrInsertDeclaration(
+        &M, Intrinsic::returnaddress);
+    Value *PC = Builder.CreateCall(ReturnAddrIntrinsic,
+                                    {Builder.getInt32(0)});
 
-  // Call the report function
-  Builder.CreateCall(ReportFunc, {PC, ExprGlobal, LHS_i64, RHS_i64});
+    // Create expression string based on operation
+    std::string ExprStr = std::string("x ") + OpName + " y";
+    Value *ExprGlobal = Builder.CreateGlobalString(ExprStr);
+
+    // Convert operands to i64 for reporting
+    Value *LHS_i64 = Builder.CreateSExtOrTrunc(LHS, Builder.getInt64Ty());
+    Value *RHS_i64 = Builder.CreateSExtOrTrunc(RHS, Builder.getInt64Ty());
+
+    // Call the report function
+    Builder.CreateCall(ReportFunc, {PC, ExprGlobal, LHS_i64, RHS_i64});
+
+    // Reset builder to after the merge point for potential next check
+    // The split created: OrigBlock -> ThenBlock -> MergeBlock
+    // We want to insert the next check at the start of MergeBlock
+    BasicBlock *MergeBlock = ThenTerm->getParent()->getSingleSuccessor();
+    if (MergeBlock) {
+      Builder.SetInsertPoint(&MergeBlock->front());
+    }
+
+    return Result;
+  };
+
+  // Emit signed overflow check if needed
+  if (checkSigned) {
+    FinalResult = emitSingleCheck(false);
+  }
+
+  // Emit unsigned overflow check if needed
+  if (checkUnsigned) {
+    Value *UnsignedResult = emitSingleCheck(true);
+    // Use the unsigned result if we didn't emit a signed check
+    if (!FinalResult) {
+      FinalResult = UnsignedResult;
+    }
+    // Note: Both results should be identical at the bit level for add/sub/mul
+  }
 
   // Replace uses of the original instruction with our computed result
-  I->replaceAllUsesWith(Result);
+  if (FinalResult) {
+    I->replaceAllUsesWith(FinalResult);
+  }
 }
 
 void Trace2PassInstrumentorPass::insertShiftCheck(IRBuilder<> &Builder,
