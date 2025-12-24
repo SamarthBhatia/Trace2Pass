@@ -5,8 +5,8 @@
 Trace2Pass is a compiler bug detection system that injects lightweight runtime checks into binaries to detect arithmetic overflows, control flow violations, and memory bounds errors caused by compiler bugs. It automatically bisects bugs to find the responsible compiler pass and generates minimal bug reports.
 
 [![Status](https://img.shields.io/badge/status-active%20development-blue)]()
-[![Phase](https://img.shields.io/badge/phase-4%20reporter-orange)]()
-[![Progress](https://img.shields.io/badge/progress-85%25-green)]()
+[![Phase](https://img.shields.io/badge/phase-4%20evaluation-orange)]()
+[![Progress](https://img.shields.io/badge/progress-90%25-green)]()
 
 ---
 
@@ -80,27 +80,38 @@ Trace2Pass is a compiler bug detection system that injects lightweight runtime c
   - 18/18 integration tests passing
   - Full pipeline: Runtime → Collector → Diagnoser → Reporter
 
-**Phase 4: Reporter (50% Complete)** ⚠️
-- ✅ **Report Generation**
+**Phase 4: Reporter + Evaluation (75% Complete)** ⚠️
+- ✅ **Report Generation** (100%)
   - Multiple output formats (Text, Markdown, LLVM Bugzilla)
   - Automatic workaround generation (pass disable flags, version downgrade)
   - CLI interface: `report.py`
   - 24/24 unit tests passing
-- ✅ **Integration Testing**
+- ✅ **Integration Testing** (100%)
   - 9/9 integration tests with full pipeline
   - End-to-end: Diagnoser → Reporter → Bug Report
-- ✅ **C-Reduce Integration**
+- ✅ **C-Reduce Integration** (100%)
   - Test case minimization (optional, requires creduce)
   - Automatic test script generation
-- ❌ **Historical Bug Evaluation** (pending)
-  - Test on 54 bugs from Phase 1 dataset
-  - Measure detection rate, accuracy, time to diagnosis
+- ✅ **Evaluation Framework** (100%)
+  - Automated evaluation harness for 54 historical bugs
+  - Test case manager (auto-fetch from GitHub/Bugzilla)
+  - Full pipeline runner (compile → execute → diagnose → report)
+  - Metrics collector (detection rate, accuracy, timing, false positives)
+  - Multi-format reporting (Markdown, LaTeX, CSV, charts)
+  - CLI: `python evaluation/evaluate.py`
+  - 3 sample test cases validated
+  - **Target Metrics**: Detection ≥70%, Accuracy ≥60%, Time ≤2min, FP ≤5%
+- ⚠️ **Historical Bug Evaluation** (0% - pending diagnoser integration)
+  - Evaluate on 54 bugs from Phase 1 dataset
+  - Generate thesis-ready results
+
+**Total Tests**: 117/117 passing (100%)
 
 **Planned Features:**
-- Historical bug evaluation
+- Complete historical bug evaluation
+- Results analysis and thesis documentation
 - Automated bug submission to LLVM Bugzilla
 - Multi-file test case support
-- Thesis writing and documentation
 
 ---
 
@@ -564,20 +575,20 @@ The integration layer is complete and functional, but runtime reports contain pl
 
 ## Current Status
 
-**Week 19-20 of 24** (December 2025)
+**Week 19-20 of 24** (December 2024)
 
 ### Completed Milestones
 - ✅ **Phase 1** (Weeks 1-4): Literature review + Historical bug dataset (54 bugs)
 - ✅ **Phase 2** (Weeks 5-10): Runtime instrumentation (<5% overhead achieved)
 - ✅ **Phase 3** (Weeks 11-18): Collector + Diagnoser with full integration testing
-- ⚠️ **Phase 4** (Weeks 19-24): Reporter module complete, evaluation pending
+- ⚠️ **Phase 4** (Weeks 19-24): Reporter + Evaluation framework complete, historical evaluation pending
 
 ### Current Progress
 - **Phase 1**: 100% complete
 - **Phase 2**: 100% complete (instrumentation)
 - **Phase 3**: 100% complete (all integration tests passing)
-- **Phase 4**: 50% complete (report generation done, evaluation pending)
-- **Overall Project**: 85% complete
+- **Phase 4**: 75% complete (reporter + evaluation framework done, historical evaluation pending)
+- **Overall Project**: 90% complete
 
 ### What Works Now
 - 8 types of anomaly detection (5 enabled by default)
@@ -586,7 +597,8 @@ The integration layer is complete and functional, but runtime reports contain pl
 - Runtime→Collector: JSON serialization + HTTP POST (curl-based)
 - Collector→Diagnoser: `analyze_report()` + reproducer generation
 - Diagnoser→Reporter: Multi-format bug report generation
-- Unified CLIs: `diagnose.py` (5 commands) + `report.py` (report generation)
+- Automated evaluation framework for 54 historical bugs
+- Unified CLIs: `diagnose.py` (5 commands) + `report.py` (report generation) + `evaluate.py` (4 commands)
 - **Test Coverage:**
   - Collector: 9/9 tests passing
   - UB Detection: 15/15 tests passing
