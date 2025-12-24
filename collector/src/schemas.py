@@ -10,7 +10,7 @@ from marshmallow import Schema, fields, validate, ValidationError, INCLUDE
 class LocationSchema(Schema):
     """Schema for source code location."""
     file = fields.Str(required=True)
-    line = fields.Int(required=True, validate=validate.Range(min=1))
+    line = fields.Int(required=True, validate=validate.Range(min=0))  # Allow 0 when metadata unavailable
     function = fields.Str(required=True)
 
 

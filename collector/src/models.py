@@ -7,7 +7,7 @@ Defines the schema for storing anomaly reports in SQLite.
 import sqlite3
 import json
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Dict, List, Any
 
@@ -86,7 +86,8 @@ class Database:
             (dedupe_hash,)
         ).fetchone()
 
-        now = datetime.utcnow().isoformat()
+        # Use timezone-aware UTC timestamp (fixes priority calculation on non-UTC hosts)
+        now = datetime.now(timezone.utc).isoformat()
 
         if existing:
             # Update existing report: increment frequency, update last_seen

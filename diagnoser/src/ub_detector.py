@@ -224,14 +224,27 @@ class UBDetector:
 
         details['optimization'] = outputs
 
-        # Check if -O0/-O1 agree but -O2/-O3 differ
-        if '-O0' in outputs and '-O2' in outputs:
-            o0_output = outputs['-O0'].get('stdout', '')
-            o2_output = outputs['-O2'].get('stdout', '')
+        # If expected_output is provided, check if any optimization level produces wrong output
+        if expected_output is not None:
+            # Check each optimization level against expected output
+            o0_correct = outputs.get('-O0', {}).get('stdout') == expected_output
+            o2_correct = outputs.get('-O2', {}).get('stdout') == expected_output
 
-            # If outputs differ, this is optimization-sensitive
-            if o0_output != o2_output:
+            # If -O0 is correct but -O2 is wrong, this is optimization-sensitive compiler bug
+            if o0_correct and not o2_correct:
                 return True
+            # If both are wrong, might be UB (not optimization-sensitive)
+            # If both are correct, no bug detected
+            return False
+        else:
+            # Fallback: Check if -O0/-O1 agree but -O2/-O3 differ
+            if '-O0' in outputs and '-O2' in outputs:
+                o0_output = outputs['-O0'].get('stdout', '')
+                o2_output = outputs['-O2'].get('stdout', '')
+
+                # If outputs differ, this is optimization-sensitive
+                if o0_output != o2_output:
+                    return True
 
         return False
 
@@ -439,9 +452,21 @@ def _generate_reproducer(check_type: str, check_details: Dict[str, Any]) -> Opti
         a = operands[0] if len(operands) > 0 else 0
         b = operands[1] if len(operands) > 1 else 0
 
-        # Replace instrumentor placeholders (x, y) with actual variable names (a, b)
-        # Instrumentor generates "x + y", "x * y", etc. as placeholders
-        expr_code = expr.replace('x', 'a').replace('y', 'b')
+        # Map LLVM intrinsic names to C operators
+        # Instrumentor generates "x sadd y", "x umul y", etc. using LLVM intrinsic names
+        intrinsic_to_c_op = {
+            'sadd': '+', 'uadd': '+',
+            'ssub': '-', 'usub': '-',
+            'smul': '*', 'umul': '*'
+        }
+
+        # Replace intrinsic names with C operators
+        expr_code = expr
+        for intrinsic, c_op in intrinsic_to_c_op.items():
+            expr_code = expr_code.replace(intrinsic, c_op)
+
+        # Replace variable placeholders (x, y) with actual variable names (a, b)
+        expr_code = expr_code.replace('x', 'a').replace('y', 'b')
 
         return f"""// Minimal reproducer for arithmetic_overflow
 // Original expression: {expr}
