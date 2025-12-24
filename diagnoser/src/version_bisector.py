@@ -400,12 +400,12 @@ class VersionBisector:
         """
         if self.use_docker:
             # Docker-based compilation
-            binary_path, compiler_found, compile_succeeded = self._compile_with_docker(
+            binary_path, compiler_found, compile_succeeded, stderr = self._compile_with_docker(
                 version, source_file, optimization_level
             )
         else:
             # Local compilation (requires version to be installed)
-            binary_path, compiler_found, compile_succeeded = self._compile_local(
+            binary_path, compiler_found, compile_succeeded, stderr = self._compile_local(
                 version, source_file, optimization_level
             )
 
@@ -421,7 +421,7 @@ class VersionBisector:
             return None  # Return None to indicate "skip", not "fail"
 
         if not compile_succeeded:
-            # Compiler found but compilation failed (ICE, backend crash, etc.)
+            # Compiler found but compilation failed (ICE, semantic error, etc.)
             # This is a compiler bug manifestation - treat as test FAILURE
             # Add to tested_versions since we actually tested this compiler
             self.tested_versions.append(version)
@@ -429,7 +429,8 @@ class VersionBisector:
                 'passes': False,  # False = test failed (compilation failure is a bug)
                 'compile_failed': True,
                 'binary_path': None,
-                'skipped': False
+                'skipped': False,
+                'stderr': stderr  # Store stderr for debugging (ICE or semantic errors)
             }
             return False  # Compilation failure = test failure
 
@@ -459,7 +460,7 @@ class VersionBisector:
         version: str,
         source_file: str,
         optimization_level: str
-    ) -> Tuple[Optional[str], bool, bool]:
+    ) -> Tuple[Optional[str], bool, bool, Optional[str]]:
         """
         Compile with locally installed compiler.
 
@@ -472,10 +473,11 @@ class VersionBisector:
             optimization_level: Optimization level
 
         Returns:
-            Tuple of (binary_path, compiler_found, compile_succeeded):
+            Tuple of (binary_path, compiler_found, compile_succeeded, stderr):
             - binary_path: Path to compiled binary if successful, None otherwise
             - compiler_found: True if compiler binary exists on system
             - compile_succeeded: True if compilation succeeded (only meaningful if compiler_found)
+            - stderr: Compilation stderr (for logging non-ICE errors)
         """
         # Try to find versioned clang
         # CRITICAL: Do NOT fall back to plain "clang" - that would substitute
@@ -496,7 +498,7 @@ class VersionBisector:
             # Specific version not found - skip this version
             # Do NOT fall back to plain "clang" (which could be any version)
             print(f"Warning: clang-{version} not found on system, skipping")
-            return (None, False, False)
+            return (None, False, False, None)
 
         binary_path = os.path.join(self.work_dir, f"test_{version.replace('.', '_')}")
 
@@ -526,22 +528,23 @@ class VersionBisector:
             if is_ice:
                 # ICE is a compiler bug - treat as test FAILURE
                 print(f"ICE detected in {version}: {result.stderr[:200]}")
-                return (None, True, False)
+                return (None, True, False, result.stderr)
             else:
-                # Normal diagnostic error (e.g., unsupported language feature)
+                # Normal diagnostic error (e.g., unsupported language feature, semantic error)
                 # Older compilers legitimately reject newer features
-                # Skip this version rather than marking it as bad
-                print(f"Compilation error in {version} (not ICE, skipping): {result.stderr[:100]}")
-                return (None, False, False)
+                # CRITICAL: Return compiler_found=True so caller can log the error
+                # Previously returned False which made it look like compiler wasn't installed
+                print(f"Compilation error in {version} (not ICE): {result.stderr[:100]}")
+                return (None, True, False, result.stderr)
 
-        return (binary_path, True, True)
+        return (binary_path, True, True, None)
 
     def _compile_with_docker(
         self,
         version: str,
         source_file: str,
         optimization_level: str
-    ) -> Tuple[Optional[str], bool, bool]:
+    ) -> Tuple[Optional[str], bool, bool, Optional[str]]:
         """
         Compile using Docker container with specific LLVM version.
 
@@ -551,10 +554,11 @@ class VersionBisector:
             optimization_level: Optimization level
 
         Returns:
-            Tuple of (binary_path, compiler_found, compile_succeeded):
+            Tuple of (binary_path, compiler_found, compile_succeeded, stderr):
             - binary_path: Path to compiled binary if successful, None otherwise
             - compiler_found: True if Docker image exists
             - compile_succeeded: True if compilation succeeded
+            - stderr: Compilation stderr (for logging errors)
         """
         # Docker image name (would need to be built/pulled)
         image = f"trace2pass/llvm-{version}"
@@ -581,7 +585,7 @@ class VersionBisector:
             # Check if error was due to missing image or compilation failure
             if "Unable to find image" in result.stderr or "No such image" in result.stderr:
                 print(f"Docker image {image} not found, skipping version {version}")
-                return (None, False, False)
+                return (None, False, False, None)
             else:
                 # Image exists but compilation failed
                 # Distinguish ICE from normal diagnostic errors
@@ -600,21 +604,21 @@ class VersionBisector:
                 if is_ice:
                     # ICE is a compiler bug
                     print(f"ICE detected in {version}: {result.stderr[:200]}")
-                    return (None, True, False)
+                    return (None, True, False, result.stderr)
                 else:
-                    # Normal diagnostic - skip
-                    print(f"Compilation error in {version} (not ICE, skipping): {result.stderr[:100]}")
-                    return (None, False, False)
+                    # Normal diagnostic error - return compiler_found=True to log it
+                    print(f"Compilation error in {version} (not ICE): {result.stderr[:100]}")
+                    return (None, True, False, result.stderr)
 
         # Move output to final location
         output_path = os.path.join(self.work_dir, "output")
         if os.path.exists(output_path):
             shutil.move(output_path, binary_path)
-            return (binary_path, True, True)
+            return (binary_path, True, True, None)
 
         # Compilation succeeded but no output file?
         print(f"Warning: Docker compilation succeeded but no output file found")
-        return (None, True, False)
+        return (None, True, False, "No output file generated")
 
     def cleanup(self):
         """Clean up temporary files."""
