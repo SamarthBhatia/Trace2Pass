@@ -46,14 +46,19 @@ class WorkaroundGenerator:
 
         # 1. Pass-specific workaround
         # Only generate if we have a real, actionable pass name
-        # Filter out: None, empty strings, whitespace, and strings containing "unknown"
-        if (culprit_pass and
-            isinstance(culprit_pass, str) and
-            culprit_pass.strip() and
-            "unknown" not in culprit_pass.lower()):
-            pass_workaround = self._generate_pass_workaround(culprit_pass)
-            if pass_workaround:
-                workarounds["Disable Pass"] = pass_workaround
+        # Filter out: None, empty strings, whitespace, and passes with "unknown" as a word
+        if culprit_pass and isinstance(culprit_pass, str) and culprit_pass.strip():
+            import re
+            # Normalize to handle camelCase, hyphens, underscores, colons
+            # 1. Split camelCase: "UnknownPass" -> "Unknown Pass"
+            temp = re.sub(r'([a-z])([A-Z])', r'\1 \2', culprit_pass)
+            # 2. Replace non-alphanumeric with spaces: "unknown-pass" -> "unknown pass"
+            normalized = re.sub(r'[^a-zA-Z0-9]+', ' ', temp).lower()
+            # 3. Check for word boundary "unknown"
+            if not re.search(r'\bunknown\b', normalized):
+                pass_workaround = self._generate_pass_workaround(culprit_pass)
+                if pass_workaround:
+                    workarounds["Disable Pass"] = pass_workaround
 
         # 2. Version downgrade workaround
         if last_good_version:
