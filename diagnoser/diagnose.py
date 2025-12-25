@@ -105,23 +105,6 @@ def ub_detect_cmd(source_file: str, test_input: Optional[str] = None,
     print(f"UBSan clean: {result.ubsan_clean}")
     print(f"Optimization sensitive: {result.optimization_sensitive}")
     print(f"Multi-compiler differs: {result.multi_compiler_differs}")
-
-    # Show multi-compiler details for transparency
-    if 'multi_compiler' in result.details:
-        mc_details = result.details['multi_compiler']
-        if 'clang' in mc_details:
-            clang = mc_details['clang']
-            if clang.get('compile_failed'):
-                print("  ⚠️  Clang compilation failed (multi-compiler signal suppressed)")
-            elif clang.get('timeout'):
-                print("  ⚠️  Clang execution timeout (multi-compiler signal suppressed)")
-        if 'gcc' in mc_details:
-            gcc = mc_details['gcc']
-            if gcc.get('compile_failed'):
-                print("  ⚠️  GCC compilation failed (multi-compiler signal suppressed)")
-            elif gcc.get('timeout'):
-                print("  ⚠️  GCC execution timeout (multi-compiler signal suppressed)")
-
     print()
 
     detector.cleanup()
