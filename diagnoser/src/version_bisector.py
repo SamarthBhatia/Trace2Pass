@@ -180,9 +180,25 @@ class VersionBisector:
 
         # Check what we found
         if passing_idx is None and failing_idx is None:
-            error_msg = f"No installed compilers found in range {self.versions[0]} to {self.versions[-1]}. "\
-                       f"Cannot bisect without at least two installed compiler versions."
-            print(f"ERROR: {error_msg}")
+            # Check if versions were skipped due to diagnostic errors vs not installed
+            diagnostic_errors = [
+                ver for ver, info in details.items()
+                if isinstance(info, dict) and info.get('compile_error_type') == 'diagnostic'
+            ]
+
+            if diagnostic_errors:
+                error_msg = f"No testable compilers in range {self.versions[0]} to {self.versions[-1]}. "\
+                           f"{len(diagnostic_errors)} version(s) skipped due to diagnostic compile errors."
+                print(f"ERROR: {error_msg}")
+                print(f"⚠️  Diagnostic errors prevent bisection:")
+                for ver in sorted(diagnostic_errors):
+                    stderr_preview = details[ver].get('stderr', '')[:80]
+                    print(f"   - {ver}: {stderr_preview}")
+            else:
+                error_msg = f"No installed compilers found in range {self.versions[0]} to {self.versions[-1]}. "\
+                           f"Cannot bisect without at least two installed compiler versions."
+                print(f"ERROR: {error_msg}")
+
             return VersionBisectionResult(
                 first_bad_version=None,
                 last_good_version=None,

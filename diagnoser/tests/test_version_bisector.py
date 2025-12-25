@@ -383,3 +383,119 @@ class TestBisectionScenarios:
     # Unit testing the Docker path requires mocking subprocess.run for both
     # compilation AND execution inside Docker containers, which doesn't add
     # meaningful test coverage beyond what integration tests already provide.
+
+
+class TestDiagnosticErrorHandling:
+    """Test handling of diagnostic compile errors."""
+
+    @pytest.fixture
+    def temp_source(self):
+        """Create temporary source file."""
+        fd, path = tempfile.mkstemp(suffix=".c")
+        with os.fdopen(fd, 'w') as f:
+            f.write("int main() { return 0; }\n")
+        yield path
+        if os.path.exists(path):
+            os.remove(path)
+
+    def mock_compile_diagnostic_error(self, version, source_file, optimization_level):
+        """Mock that simulates diagnostic compile error for all versions."""
+        error_msg = f"DIAGNOSTIC_ERROR: error: unknown warning option '-Wfoo'"
+        return (None, True, False, error_msg)
+
+    def mock_compile_mixed(self, version, source_file, optimization_level):
+        """Mock with some diagnostic errors and some missing compilers."""
+        if version in ["14.0.0", "15.0.0"]:
+            # Diagnostic error
+            error_msg = f"DIAGNOSTIC_ERROR: error: unknown warning option '-Wfoo'"
+            return (None, True, False, error_msg)
+        else:
+            # Compiler not found
+            return (None, False, False, None)
+
+    @patch('version_bisector.VersionBisector._compile_local')
+    def test_all_diagnostic_errors(self, mock_compile, temp_source):
+        """Test when all versions have diagnostic compile errors."""
+        mock_compile.side_effect = self.mock_compile_diagnostic_error
+        
+        versions = ["14.0.0", "15.0.0", "16.0.0"]
+        bisector = VersionBisector(versions=versions, use_docker=False)
+
+        def test_func(version, binary_path):
+            return True
+
+        result = bisector.bisect(temp_source, test_func)
+
+        # Should return insufficient_compilers since no versions could be tested
+        assert result.verdict == "insufficient_compilers"
+        
+        # All versions should be in details with diagnostic error type
+        for ver in versions:
+            assert ver in result.details
+            assert result.details[ver]['compile_error_type'] == 'diagnostic'
+            assert 'stderr' in result.details[ver]
+
+        bisector.cleanup()
+
+    @patch('version_bisector.VersionBisector._compile_local')
+    def test_mixed_diagnostic_and_missing(self, mock_compile, temp_source):
+        """Test mix of diagnostic errors and missing compilers."""
+        mock_compile.side_effect = self.mock_compile_mixed
+        
+        versions = ["14.0.0", "15.0.0", "16.0.0", "17.0.0"]
+        bisector = VersionBisector(versions=versions, use_docker=False)
+
+        def test_func(version, binary_path):
+            return True
+
+        result = bisector.bisect(temp_source, test_func)
+
+        assert result.verdict == "insufficient_compilers"
+        
+        # Check diagnostic errors are recorded
+        assert result.details["14.0.0"]['compile_error_type'] == 'diagnostic'
+        assert result.details["15.0.0"]['compile_error_type'] == 'diagnostic'
+        
+        # Check missing compilers are recorded
+        assert result.details["16.0.0"]['skipped'] == True
+        assert result.details["17.0.0"]['skipped'] == True
+
+        bisector.cleanup()
+
+
+class TestDockerFailureHandling:
+    """Test handling when Docker is not available."""
+
+    @pytest.fixture
+    def temp_source(self):
+        """Create temporary source file."""
+        fd, path = tempfile.mkstemp(suffix=".c")
+        with os.fdopen(fd, 'w') as f:
+            f.write("int main() { return 0; }\n")
+        yield path
+        if os.path.exists(path):
+            os.remove(path)
+
+    def mock_compile_docker_not_found(self, version, source_file, optimization_level):
+        """Mock _compile_with_docker when Docker is not installed."""
+        # Simulate FileNotFoundError being caught and returning compiler_found=False
+        return (None, False, False, None)
+
+    @patch('version_bisector.VersionBisector._compile_with_docker')
+    def test_docker_not_installed(self, mock_docker, temp_source):
+        """Test graceful handling when Docker is not installed."""
+        mock_docker.side_effect = self.mock_compile_docker_not_found
+        
+        versions = ["14.0.0", "15.0.0"]
+        bisector = VersionBisector(versions=versions, use_docker=True)
+
+        def test_func(version, binary_path):
+            return True
+
+        result = bisector.bisect(temp_source, test_func)
+
+        # Should return insufficient_compilers since Docker isn't available
+        assert result.verdict == "insufficient_compilers"
+        assert "error" in result.details
+
+        bisector.cleanup()
