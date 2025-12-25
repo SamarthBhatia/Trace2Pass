@@ -186,6 +186,11 @@ class VersionBisector:
                 if isinstance(info, dict) and info.get('compile_error_type') == 'diagnostic'
             ]
 
+            docker_failures = [
+                ver for ver, info in details.items()
+                if isinstance(info, dict) and info.get('skip_reason') == 'docker_failure'
+            ]
+
             if diagnostic_errors:
                 error_msg = f"No testable compilers in range {self.versions[0]} to {self.versions[-1]}. "\
                            f"{len(diagnostic_errors)} version(s) skipped due to diagnostic compile errors."
@@ -203,6 +208,26 @@ class VersionBisector:
                     total_tests=len(self.tested_versions),
                     verdict="diagnostic_errors",  # Dedicated verdict for user code issues
                     details={'error': error_msg, 'diagnostic_errors': diagnostic_errors, **details}
+                )
+            elif docker_failures:
+                error_msg = f"No testable compilers in range {self.versions[0]} to {self.versions[-1]}. "\
+                           f"{len(docker_failures)} version(s) skipped due to Docker failures."
+                print(f"ERROR: {error_msg}")
+                print(f"⚠️  Docker infrastructure failures:")
+                for ver in sorted(docker_failures):
+                    stderr_preview = details[ver].get('stderr', 'Unknown error')
+                    # Strip DOCKER_ERROR: prefix for display
+                    if stderr_preview.startswith("DOCKER_ERROR:"):
+                        stderr_preview = stderr_preview[13:].strip()
+                    print(f"   - {ver}: {stderr_preview[:100]}")
+
+                return VersionBisectionResult(
+                    first_bad_version=None,
+                    last_good_version=None,
+                    tested_versions=self.tested_versions,
+                    total_tests=len(self.tested_versions),
+                    verdict="insufficient_compilers",  # Tooling failure
+                    details={'error': error_msg, 'docker_failures': docker_failures, **details}
                 )
             else:
                 error_msg = f"No installed compilers found in range {self.versions[0]} to {self.versions[-1]}. "\
@@ -444,13 +469,18 @@ class VersionBisector:
             )
 
         if not compiler_found:
-            # Compiler not installed OR non-ICE compilation error (language feature gap)
+            # Compiler not installed, Docker failure, or non-ICE compilation error
             # Do NOT add to tested_versions, as we didn't actually test it
+
+            # Distinguish Docker infrastructure failures from missing compiler
+            is_docker_error = stderr and stderr.startswith("DOCKER_ERROR:")
+
             details[version] = {
                 'passes': None,  # None = skipped (compiler not found or incompatible)
                 'compile_failed': False,
                 'binary_path': None,
                 'skipped': True,
+                'skip_reason': 'docker_failure' if is_docker_error else 'compiler_not_found',
                 'stderr': stderr if stderr else None  # Log reason for skip (if available)
             }
             return None  # Return None to indicate "skip", not "fail"
@@ -655,7 +685,9 @@ class VersionBisector:
                 )
                 if pull_result.returncode != 0:
                     print(f"  Failed to pull {image}, skipping version {version}")
-                    return (None, False, False, None)
+                    stderr_preview = pull_result.stderr[:200] if pull_result.stderr else "Unknown error"
+                    error_msg = f"DOCKER_ERROR: Failed to pull image {image}: {stderr_preview}"
+                    return (None, False, False, error_msg)
 
             # Run Docker container to compile
             # Mount source directory (read-only) and work directory (read-write)
@@ -673,15 +705,22 @@ class VersionBisector:
                 text=True,
                 timeout=60  # 1 minute timeout for compilation
             )
-        except FileNotFoundError:
+        except FileNotFoundError as e:
             # Docker not installed or not in PATH
             print(f"  Docker not found on system, skipping version {version}")
             print("  Install Docker to enable multi-version bisection")
-            return (None, False, False, None)
+            error_msg = f"DOCKER_ERROR: Docker not found on system ({str(e)})"
+            return (None, False, False, error_msg)
+        except subprocess.TimeoutExpired as e:
+            # Docker command timed out
+            print(f"  Docker timeout for version {version}: {e}")
+            error_msg = f"DOCKER_ERROR: Docker command timed out ({str(e)})"
+            return (None, False, False, error_msg)
         except subprocess.CalledProcessError as e:
             # Docker command failed unexpectedly
             print(f"  Docker command failed for version {version}: {e}")
-            return (None, False, False, None)
+            error_msg = f"DOCKER_ERROR: Docker command failed ({str(e)})"
+            return (None, False, False, error_msg)
 
         if result.returncode != 0:
             # Compilation failed

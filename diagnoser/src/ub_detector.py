@@ -132,10 +132,15 @@ class UBDetector:
                 verdict="inconclusive",
                 confidence=0.5,  # Neutral - we couldn't test
                 ubsan_clean=ubsan_clean,
-                optimization_sensitive=False,  # Couldn't determine
+                optimization_sensitive=False,  # Couldn't determine (override None)
                 multi_compiler_differs=multi_compiler_differs,
                 details=details
             )
+
+        # If optimization_sensitive is None (baseline unusable), override to False
+        # This ensures we don't pass None to _compute_confidence
+        if optimization_sensitive is None:
+            optimization_sensitive = False
 
         # Compute confidence score
         confidence = self._compute_confidence(
@@ -288,12 +293,10 @@ class UBDetector:
                 return True  # Optimization-sensitive compiler bug
 
             # If -O0 fails to compile → can't determine (baseline doesn't work)
-            # NOTE: Returning False here is correct - we're not optimization-sensitive
-            # because we couldn't test it. The detect() method checks for baseline
-            # failures separately and returns "inconclusive" verdict instead of
-            # incorrectly computing confidence with this False value.
+            # Return None to signal that we couldn't determine optimization sensitivity
+            # (as opposed to False, which means "tested and not optimization-sensitive")
             if o0_failed:
-                return False  # Not optimization-sensitive (couldn't test baseline)
+                return None  # Couldn't determine (baseline unusable)
 
             # Both compiled successfully - compare outputs
             o0_correct = o0_output.get('stdout') == expected_output
