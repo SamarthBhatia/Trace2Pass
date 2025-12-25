@@ -556,13 +556,14 @@ class VersionBisector:
                 print(f"ICE detected in {version}: {result.stderr[:200]}")
                 return (None, True, False, result.stderr)
             else:
-                # Normal diagnostic error (e.g., unsupported language feature, semantic error)
-                # Older compilers legitimately reject newer features - treat as SKIP, not FAILURE
-                # CRITICAL: Return compiler_found=False so this version is skipped (not marked as regression)
-                # This prevents falsely reporting "compiler bug introduced in 14.0.0" when it's just
-                # a missing C23 feature. Stderr is still returned for logging.
-                print(f"Compilation error in {version} (not ICE, skipping): {result.stderr[:100]}")
-                return (None, False, False, result.stderr)
+                # Normal diagnostic error (e.g., -Werror, new warning, language feature gap)
+                # This could be a front-end regression (new -Werror default) or legitimate
+                # incompatibility (older compiler rejecting newer C features).
+                # Mark compiler_found=True but with DIAGNOSTIC_ERROR prefix so caller can
+                # distinguish from "compiler not installed" and log appropriately.
+                print(f"Compile error in {version} (diagnostic, skipping): {result.stderr[:100]}")
+                error_msg = f"DIAGNOSTIC_ERROR: {result.stderr}"
+                return (None, True, False, error_msg)
 
         return (binary_path, True, True, None)
 
