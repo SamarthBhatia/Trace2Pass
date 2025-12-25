@@ -441,7 +441,13 @@ class VersionBisector:
 
         # Run test function
         try:
-            passes = test_func(version, binary_path)
+            # For Docker-compiled binaries, we need to run the test inside Docker too
+            # to avoid architecture mismatch (e.g., x86_64 binary on ARM64 host)
+            if self.use_docker:
+                passes = self._run_test_in_docker(version, binary_path, test_func)
+            else:
+                passes = test_func(version, binary_path)
+
             details[version] = {
                 'passes': passes,
                 'compile_failed': False,
@@ -551,6 +557,8 @@ class VersionBisector:
         """
         Compile using Docker container with specific LLVM version.
 
+        Uses pre-built silkeh/clang images from Docker Hub.
+
         Args:
             version: LLVM version (e.g., "17.0.3")
             source_file: Source file to compile
@@ -563,55 +571,78 @@ class VersionBisector:
             - compile_succeeded: True if compilation succeeded
             - stderr: Compilation stderr (for logging errors)
         """
-        # Docker image name (would need to be built/pulled)
-        image = f"trace2pass/llvm-{version}"
+        # Use pre-built silkeh/clang images
+        # Extract major version (17.0.3 -> 17)
+        major_version = version.split('.')[0]
+        image = f"silkeh/clang:{major_version}"
 
         binary_path = os.path.join(self.work_dir, f"test_{version.replace('.', '_')}")
 
-        # Copy source to temp location accessible by Docker
-        temp_source = os.path.join(self.work_dir, "source.c")
-        shutil.copy(source_file, temp_source)
+        # Get absolute paths for Docker volumes
+        source_abs = os.path.abspath(source_file)
+        source_dir = os.path.dirname(source_abs)
+        source_name = os.path.basename(source_abs)
+        work_dir_abs = os.path.abspath(self.work_dir)
+
+        # Check if image is available, pull if not
+        check_result = subprocess.run(
+            ["docker", "image", "inspect", image],
+            capture_output=True,
+            timeout=5
+        )
+
+        if check_result.returncode != 0:
+            # Image not found, try to pull
+            print(f"  Pulling Docker image {image}...")
+            pull_result = subprocess.run(
+                ["docker", "pull", image],
+                capture_output=True,
+                timeout=300  # 5 minute timeout for pull
+            )
+            if pull_result.returncode != 0:
+                print(f"  Failed to pull {image}, skipping version {version}")
+                return (None, False, False, None)
 
         # Run Docker container to compile
+        # Mount source directory (read-only) and work directory (read-write)
+        # Use --platform linux/amd64 to ensure x86_64 even on ARM64 hosts
         result = subprocess.run(
             [
                 "docker", "run", "--rm",
-                "-v", f"{self.work_dir}:/work",
+                "--platform", "linux/amd64",  # Force x86_64 (works on ARM64 via Rosetta)
+                "-v", f"{source_dir}:/src:ro",
+                "-v", f"{work_dir_abs}:/work",
                 image,
-                "clang", optimization_level, "/work/source.c", "-o", "/work/output"
+                "clang", optimization_level, f"/src/{source_name}", "-o", "/work/output"
             ],
             capture_output=True,
-            text=True
+            text=True,
+            timeout=60  # 1 minute timeout for compilation
         )
 
         if result.returncode != 0:
-            # Check if error was due to missing image or compilation failure
-            if "Unable to find image" in result.stderr or "No such image" in result.stderr:
-                print(f"Docker image {image} not found, skipping version {version}")
-                return (None, False, False, None)
+            # Compilation failed
+            # Distinguish ICE from normal diagnostic errors
+            ice_markers = [
+                "PLEASE submit a bug report",
+                "Internal compiler error",
+                "internal compiler error",
+                "Assertion failed",
+                "Assertion `",
+                "Stack dump:",
+                "UNREACHABLE executed",
+            ]
+
+            is_ice = any(marker in result.stderr for marker in ice_markers)
+
+            if is_ice:
+                # ICE is a compiler bug - treat as test FAILURE
+                print(f"  ICE detected in {version}: {result.stderr[:200]}")
+                return (None, True, False, result.stderr)
             else:
-                # Image exists but compilation failed
-                # Distinguish ICE from normal diagnostic errors
-                ice_markers = [
-                    "PLEASE submit a bug report",
-                    "Internal compiler error",
-                    "internal compiler error",
-                    "Assertion failed",
-                    "Assertion `",
-                    "Stack dump:",
-                    "UNREACHABLE executed",
-                ]
-
-                is_ice = any(marker in result.stderr for marker in ice_markers)
-
-                if is_ice:
-                    # ICE is a compiler bug - treat as test FAILURE
-                    print(f"ICE detected in {version}: {result.stderr[:200]}")
-                    return (None, True, False, result.stderr)
-                else:
-                    # Normal diagnostic error - skip this version (not a regression)
-                    print(f"Compilation error in {version} (not ICE, skipping): {result.stderr[:100]}")
-                    return (None, False, False, result.stderr)
+                # Normal diagnostic error - skip this version (not a regression)
+                print(f"  Compilation error in {version} (not ICE, skipping): {result.stderr[:100]}")
+                return (None, False, False, result.stderr)
 
         # Move output to final location
         output_path = os.path.join(self.work_dir, "output")
@@ -620,8 +651,63 @@ class VersionBisector:
             return (binary_path, True, True, None)
 
         # Compilation succeeded but no output file?
-        print(f"Warning: Docker compilation succeeded but no output file found")
+        print(f"  Warning: Docker compilation succeeded but no output file found")
         return (None, True, False, "No output file generated")
+
+    def _run_test_in_docker(
+        self,
+        version: str,
+        binary_path: str,
+        test_func: Callable[[str, str], bool]
+    ) -> bool:
+        """
+        Run test inside Docker container to handle architecture mismatch.
+
+        When Docker compiles for x86_64 but host is ARM64, we need to run
+        the binary inside Docker too.
+
+        Args:
+            version: Compiler version
+            binary_path: Path to compiled binary
+            test_func: Test function (we'll simulate it by running binary)
+
+        Returns:
+            True if test passes, False if fails
+        """
+        # Make binary executable
+        os.chmod(binary_path, 0o755)
+
+        # Get absolute paths for Docker
+        binary_abs = os.path.abspath(binary_path)
+        binary_dir = os.path.dirname(binary_abs)
+        binary_name = os.path.basename(binary_abs)
+
+        # Use a minimal Ubuntu image to run the binary
+        # We use ubuntu:22.04 instead of silkeh/clang for smaller footprint
+        # and because we just need to run the binary, not compile
+        # Use --platform linux/amd64 to match the compiled binary architecture
+        try:
+            result = subprocess.run(
+                [
+                    "docker", "run", "--rm",
+                    "--platform", "linux/amd64",  # Match compiled binary architecture
+                    "-v", f"{binary_dir}:/bin_dir:ro",
+                    "ubuntu:22.04",
+                    f"/bin_dir/{binary_name}"
+                ],
+                capture_output=True,
+                timeout=10  # 10 second timeout for execution
+            )
+
+            # Return True if exit code is 0 (pass), False otherwise (fail)
+            return result.returncode == 0
+
+        except subprocess.TimeoutExpired:
+            # Timeout = bug (infinite loop, etc.) = test FAIL
+            return False
+        except Exception as e:
+            print(f"Error running test in Docker: {e}")
+            return False
 
     def cleanup(self):
         """Clean up temporary files."""
