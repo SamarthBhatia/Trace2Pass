@@ -315,10 +315,12 @@ class UBDetector:
                 o2_result = outputs['-O2']
 
                 # Check for compile failures first (same logic as expected_output path)
-                o0_failed = o0_result.get('compile_failed') or o0_result.get('timeout')
-                o2_failed = o2_result.get('compile_failed') or o2_result.get('timeout')
+                # Convert None/falsy to explicit False for clearer logic
+                o0_failed = bool(o0_result.get('compile_failed') or o0_result.get('timeout'))
+                o2_failed = bool(o2_result.get('compile_failed') or o2_result.get('timeout'))
 
                 # If -O0 compiles but -O2 fails → optimizer crash (compiler bug)
+                # CRITICAL: This must be caught BEFORE stdout comparison
                 if not o0_failed and o2_failed:
                     return True  # Optimization-sensitive compiler bug
 
@@ -326,7 +328,9 @@ class UBDetector:
                 if o0_failed:
                     return None  # Couldn't determine (baseline unusable)
 
-                # Both compiled - compare outputs
+                # Both compiled successfully - compare outputs
+                # NOTE: For programs with no output, both will be '', so we return False
+                # This is correct behavior - no output difference = not optimization-sensitive
                 o0_output = o0_result.get('stdout', '')
                 o2_output = o2_result.get('stdout', '')
 
