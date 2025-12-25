@@ -96,6 +96,10 @@ class UBDetector:
         if 'error' in opt_details or '-O0' not in opt_details:
             # Optimization sensitivity check didn't run or failed
             # Cannot determine compiler bug without optimization data
+            reason = opt_details.get('error', 'Clang not installed or compilation failed')
+            print(f"⚠️  WARNING: Optimization sensitivity check failed: {reason}")
+            print(f"   Install clang to enable optimization-level comparison (-O0 vs -O2)")
+            details['missing_optimization_data'] = reason
             return UBDetectionResult(
                 verdict="inconclusive",
                 confidence=0.5,  # Neutral - no optimization data
@@ -116,6 +120,14 @@ class UBDetector:
 
         # If baseline fails, return inconclusive verdict immediately
         if baseline_failed:
+            print("⚠️  WARNING: Baseline (-O0) execution failed")
+            if o0_result.get('compile_failed'):
+                print("   Baseline compilation failed - cannot establish expected behavior")
+            elif o0_result.get('timeout'):
+                print("   Baseline timed out - program may have infinite loop")
+            elif o0_result.get('returncode', 0) != 0:
+                print(f"   Baseline crashed (exit code {o0_result.get('returncode')})")
+            details['baseline_failed'] = True
             return UBDetectionResult(
                 verdict="inconclusive",
                 confidence=0.5,  # Neutral - we couldn't test

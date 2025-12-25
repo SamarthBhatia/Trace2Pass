@@ -183,6 +183,19 @@ def version_bisect_cmd(source_file: str, test_command: str,
     print(f"First bad version: {result.first_bad_version or 'Not found'}")
     print(f"Last good version: {result.last_good_version or 'Not found'}")
     print(f"Total tests: {result.total_tests}")
+
+    # Surface diagnostic errors (front-end regressions, incompatible code)
+    diagnostic_errors = {
+        ver: info for ver, info in result.details.items()
+        if info.get('compile_error_type') == 'diagnostic'
+    }
+    if diagnostic_errors:
+        print(f"\n⚠️  {len(diagnostic_errors)} version(s) skipped due to diagnostic compile errors:")
+        for ver in sorted(diagnostic_errors.keys()):
+            stderr_preview = diagnostic_errors[ver].get('stderr', '')[:100]
+            print(f"   - {ver}: {stderr_preview}")
+        print("   (These may indicate front-end regressions or code incompatibility)")
+
     print()
 
     bisector.cleanup()
