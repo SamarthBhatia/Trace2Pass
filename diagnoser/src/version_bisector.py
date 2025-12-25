@@ -773,21 +773,23 @@ class VersionBisector:
         Run test inside Docker container to handle architecture mismatch.
 
         When Docker compiles for x86_64 but host is ARM64, we need to run
-        the binary inside Docker too.
+        the binary inside Docker too. This method creates a wrapper script
+        that executes the binary in the same silkeh/clang image used for
+        compilation, ensuring runtime library compatibility.
 
-        LIMITATION: This method creates a temporary wrapper binary in the work_dir
-        and executes it in Docker, then uses test_func to validate the wrapper's
-        behavior. The test_func receives a path to the wrapper binary, which when
-        executed will internally run the actual test inside Docker.
+        The wrapper script:
+        - Uses the same Docker image as compilation (silkeh/clang:<major>)
+        - Forwards all command-line arguments to the binary
+        - Passes stdin/stdout/stderr through transparently
+        - Returns the binary's exit code
 
-        For simple test functions created by create_test_function(), this works
-        transparently. For complex custom test functions, behavior may differ
-        from host execution.
+        This works transparently with create_test_function() and most custom
+        test functions.
 
         Args:
-            version: Compiler version
+            version: Compiler version (e.g., "17.0.6")
             binary_path: Path to compiled binary
-            test_func: Test function (receives wrapper binary path)
+            test_func: Test function (receives wrapper script path)
 
         Returns:
             True if test passes, False if fails
@@ -800,6 +802,10 @@ class VersionBisector:
         binary_dir = os.path.dirname(binary_abs)
         binary_name = os.path.basename(binary_abs)
 
+        # Extract major version for Docker image (e.g., "17.0.6" -> "17")
+        major_version = version.split('.')[0]
+        image = f"silkeh/clang:{major_version}"
+
         # Create a wrapper script that test_func can call
         # This wrapper will execute the binary inside Docker when invoked
         wrapper_path = os.path.join(self.work_dir, f"docker_wrapper_{version.replace('.', '_')}.sh")
@@ -807,14 +813,15 @@ class VersionBisector:
         with open(wrapper_path, 'w') as f:
             f.write(f"""#!/bin/bash
 # Wrapper script for Docker execution
-# Passes stdin through to Docker container and captures stdout/stderr/exitcode
+# Passes stdin, stdout, stderr, arguments, and exitcode through Docker container
+# Uses same image as compilation to ensure runtime library compatibility
 
 docker run --rm \\
     --platform linux/amd64 \\
     -i \\
     -v "{binary_dir}:/bin_dir:ro" \\
-    ubuntu:22.04 \\
-    /bin_dir/{binary_name}
+    {image} \\
+    /bin_dir/{binary_name} "$@"
 
 exit $?
 """)
