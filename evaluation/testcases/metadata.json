@@ -28,5 +28,85 @@
     "status": "manual",
     "url": "",
     "notes": "Sample test case simulating LICM wrong-code bug with incorrect loop invariant hoisting"
+  },
+  "llvm-97330": {
+    "bug_id": "llvm-97330",
+    "compiler": "llvm",
+    "source_file": null,
+    "expected_pass": "InstCombine",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://github.com/llvm/llvm-project/issues/97330",
+    "notes": "Miscompilation with llvm.assume in unreachable blocks July 2024"
+  },
+  "llvm-115651": {
+    "bug_id": "llvm-115651",
+    "compiler": "llvm",
+    "source_file": null,
+    "expected_pass": "InstCombine",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://github.com/llvm/llvm-project/issues/115651",
+    "notes": "Comparison with min intrinsic miscompiled Nov 2024"
+  },
+  "llvm-114350": {
+    "bug_id": "llvm-114350",
+    "compiler": "llvm",
+    "source_file": null,
+    "expected_pass": "InstCombine",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://github.com/llvm/llvm-project/issues/114350",
+    "notes": "OR folding produces wrong code Oct 2024"
+  },
+  "llvm-114182": {
+    "bug_id": "llvm-114182",
+    "compiler": "llvm",
+    "source_file": null,
+    "expected_pass": "InstCombine",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://github.com/llvm/llvm-project/issues/114182",
+    "notes": "PHI node negation incorrect Oct 2024"
+  },
+  "llvm-60622": {
+    "bug_id": "llvm-60622",
+    "compiler": "llvm",
+    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/llvm-60622.c",
+    "expected_pass": "Loop Optimization",
+    "optimization_level": "-O2",
+    "status": "verified",
+    "url": "https://github.com/llvm/llvm-project/issues/60622",
+    "notes": "Treats infinite loops as UB and makes incorrect transformations"
+  },
+  "gcc-110726": {
+    "bug_id": "gcc-110726",
+    "compiler": "gcc",
+    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/gcc-110726.c",
+    "expected_pass": "Tree Optimization",
+    "optimization_level": "-O2",
+    "status": "manual",
+    "url": "https://gcc.gnu.org/bugzilla/show_bug.cgi?id=110726",
+    "notes": "GCC 14 regression with 'a |= a == 0' pattern"
+  },
+  "gcc-108308": {
+    "bug_id": "gcc-108308",
+    "compiler": "gcc",
+    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/gcc-108308.c",
+    "expected_pass": "Tree Optimization",
+    "optimization_level": "-Os",
+    "status": "manual",
+    "url": "https://gcc.gnu.org/bugzilla/show_bug.cgi?id=108308",
+    "notes": "GCC 13 regression at -Os with -fno-tree-ccp"
+  },
+  "gcc-115388": {
+    "bug_id": "gcc-115388",
+    "compiler": "gcc",
+    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/gcc-115388.c",
+    "expected_pass": "Tree Optimization",
+    "optimization_level": "-O3",
+    "status": "manual",
+    "url": "https://gcc.gnu.org/bugzilla/show_bug.cgi?id=115388",
+    "notes": "GCC 15 regression at -O3 on x86_64"
   }
 }
