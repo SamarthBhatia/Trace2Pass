@@ -3,9 +3,9 @@
 **THIS IS THE OFFICIAL PLAN. FOLLOW IT EXACTLY.**
 
 **Last Updated:** 2024-12-24
-**Status:** Phase 1: 100% ✅ | Phase 2: 100% ✅ | Phase 3: 100% ✅ | Phase 4: 80% ⚠️
+**Status:** Phase 1: 100% ✅ | Phase 2: 100% ✅ | Phase 3: 100% ✅ | Phase 4: 85% ⚠️
 **Current Week:** 19-20 of 24
-**⚠️ STATUS:** Phase 4 reporter + evaluation + integration complete (100% success on samples), historical bug evaluation ready
+**⚠️ STATUS:** Phase 4 reporter + evaluation + integration complete, 6/54 historical bugs evaluated (100% detection rate, 3/4 metrics achieved)
 
 ---
 
@@ -438,9 +438,9 @@ python diagnoser/diagnose.py full-pipeline test.c --test-input "5"
 
 ---
 
-### **PHASE 4: Reporter + Evaluation (Weeks 19-24) - 80% COMPLETE ⚠️**
+### **PHASE 4: Reporter + Evaluation (Weeks 19-24) - 85% COMPLETE ⚠️**
 
-**Status: Reporter + Evaluation + Integration Complete - Historical evaluation ready to run**
+**Status: Reporter + Evaluation + Integration Complete - 6/54 historical bugs evaluated**
 
 **Goal:** Automated bug reporting + comprehensive thesis evaluation
 
@@ -617,10 +617,21 @@ python diagnoser/diagnose.py full-pipeline test.c --test-input "5"
   - **100% success rate on 3 sample bugs** (InstCombine, GVN, LICM)
   - Average time: 4.7s per bug (well under 2-minute target)
   - All artifacts generated: diagnosis.json, bug_report.md, metrics.json
-- ⚠️ **Historical Evaluation** (0% - ready to execute)
-  - Framework fully functional and validated
-  - Ready to run on 54 historical bugs
-  - Can execute immediately (2-4 hours estimated)
+- ⚠️ **Historical Evaluation** (15% - in progress)
+  - **6 real bugs evaluated** (InstCombine, GVN, LICM, 3× GCC Tree Optimization)
+  - **100% detection rate** (6/6 bugs detected)
+  - **3/4 target metrics achieved:**
+    - Detection Rate: 100% ✅ (target ≥70%)
+    - Avg Time to Diagnosis: 5.2s ✅ (target ≤2min)
+    - False Positive Rate: 0% ✅ (target ≤5%)
+    - Diagnosis Accuracy: 0% ❌ (target ≥60%) - expected without full bisection
+  - Average timing breakdown:
+    - Compilation: 0.29s
+    - Runtime: 0.55s
+    - Diagnosis: 4.35s (UB detection only)
+    - Total: 5.18s per bug
+  - Reports generated: Markdown, LaTeX tables, CSV data
+  - Remaining: 48 bugs from Phase 1 dataset
 
 **Next Steps:**
 1. ~~Fix diagnoser integration in pipeline_runner.py~~ ✅ Done
