@@ -467,3 +467,12 @@ class PassBisector:
         lines.append("=" * 60)
 
         return "\n".join(lines)
+
+    def cleanup(self):
+        """
+        Cleanup temporary files and resources.
+
+        PassBisector doesn't create persistent temporary files (uses tempfile for IR),
+        so this is a no-op for API consistency with VersionBisector.
+        """
+        pass
