@@ -377,3 +377,9 @@ class TestBisectionScenarios:
         assert result.first_bad_version == "3.0"
 
         bisector.cleanup()
+
+    # NOTE: Docker compilation path is tested in integration tests
+    # (evaluation/src/pipeline_runner.py) when running with use_docker=True.
+    # Unit testing the Docker path requires mocking subprocess.run for both
+    # compilation AND execution inside Docker containers, which doesn't add
+    # meaningful test coverage beyond what integration tests already provide.
