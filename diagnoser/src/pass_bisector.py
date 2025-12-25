@@ -140,18 +140,34 @@ class PassBisector:
                 f"Ensure tools are installed and in PATH."
             )
 
-        # Check if all versions match
-        if not (clang_version == opt_version == llc_version):
+        # Extract major versions for comparison
+        # Handles cases where one tool reports "17.0.6" and another reports "17.0"
+        def get_major_version(version_str: str) -> str:
+            """Extract major version (e.g., "17.0.6" -> "17")."""
+            return version_str.split('.')[0]
+
+        clang_major = get_major_version(clang_version)
+        opt_major = get_major_version(opt_version)
+        llc_major = get_major_version(llc_version)
+
+        # Check if all major versions match
+        if not (clang_major == opt_major == llc_major):
             raise RuntimeError(
                 f"LLVM tool version mismatch detected!\n"
-                f"  clang: {clang_version}\n"
-                f"  opt:   {opt_version}\n"
-                f"  llc:   {llc_version}\n"
+                f"  clang: {clang_version} (major: {clang_major})\n"
+                f"  opt:   {opt_version} (major: {opt_major})\n"
+                f"  llc:   {llc_version} (major: {llc_major})\n"
                 f"Pass bisection requires all tools from the same LLVM build.\n"
                 f"Install matching versions or use versioned binaries (clang-17, opt-17, llc-17)."
             )
 
-        self._log(f"Verified tool versions: clang/opt/llc all at {clang_version}")
+        # Warn if patch versions differ (acceptable but worth noting)
+        if not (clang_version == opt_version == llc_version):
+            print(f"⚠️  Warning: Minor version mismatch detected (major versions match)")
+            print(f"   clang: {clang_version}, opt: {opt_version}, llc: {llc_version}")
+            print(f"   This is usually acceptable but may cause issues in rare cases.")
+
+        self._log(f"Verified tool versions: major version {clang_major} across clang/opt/llc")
 
     def _parse_pipeline_to_passes(self, pipeline_str: str) -> List[str]:
         """

@@ -775,10 +775,19 @@ class VersionBisector:
         When Docker compiles for x86_64 but host is ARM64, we need to run
         the binary inside Docker too.
 
+        LIMITATION: This method creates a temporary wrapper binary in the work_dir
+        and executes it in Docker, then uses test_func to validate the wrapper's
+        behavior. The test_func receives a path to the wrapper binary, which when
+        executed will internally run the actual test inside Docker.
+
+        For simple test functions created by create_test_function(), this works
+        transparently. For complex custom test functions, behavior may differ
+        from host execution.
+
         Args:
             version: Compiler version
             binary_path: Path to compiled binary
-            test_func: Test function (we'll simulate it by running binary)
+            test_func: Test function (receives wrapper binary path)
 
         Returns:
             True if test passes, False if fails
@@ -791,31 +800,33 @@ class VersionBisector:
         binary_dir = os.path.dirname(binary_abs)
         binary_name = os.path.basename(binary_abs)
 
-        # Use a minimal Ubuntu image to run the binary
-        # We use ubuntu:22.04 instead of silkeh/clang for smaller footprint
-        # and because we just need to run the binary, not compile
-        # Use --platform linux/amd64 to match the compiled binary architecture
+        # Create a wrapper script that test_func can call
+        # This wrapper will execute the binary inside Docker when invoked
+        wrapper_path = os.path.join(self.work_dir, f"docker_wrapper_{version.replace('.', '_')}.sh")
+
+        with open(wrapper_path, 'w') as f:
+            f.write(f"""#!/bin/bash
+# Wrapper script for Docker execution
+# Passes stdin through to Docker container and captures stdout/stderr/exitcode
+
+docker run --rm \\
+    --platform linux/amd64 \\
+    -i \\
+    -v "{binary_dir}:/bin_dir:ro" \\
+    ubuntu:22.04 \\
+    /bin_dir/{binary_name}
+
+exit $?
+""")
+
+        os.chmod(wrapper_path, 0o755)
+
+        # Call test_func with the wrapper - it will execute inside Docker
+        # when test_func runs it
         try:
-            result = subprocess.run(
-                [
-                    "docker", "run", "--rm",
-                    "--platform", "linux/amd64",  # Match compiled binary architecture
-                    "-v", f"{binary_dir}:/bin_dir:ro",
-                    "ubuntu:22.04",
-                    f"/bin_dir/{binary_name}"
-                ],
-                capture_output=True,
-                timeout=10  # 10 second timeout for execution
-            )
-
-            # Return True if exit code is 0 (pass), False otherwise (fail)
-            return result.returncode == 0
-
-        except subprocess.TimeoutExpired:
-            # Timeout = bug (infinite loop, etc.) = test FAIL
-            return False
+            return test_func(version, wrapper_path)
         except Exception as e:
-            print(f"Error running test in Docker: {e}")
+            print(f"Error running test_func with Docker wrapper: {e}")
             return False
 
     def cleanup(self):
