@@ -325,7 +325,10 @@ class UBDetector:
                     return True  # Optimization-sensitive compiler bug
 
                 # If -O0 fails → can't determine baseline
+                # Record this for diagnostics (same as expected_output path)
                 if o0_failed:
+                    details['baseline_failed'] = True
+                    details['baseline_failure_reason'] = 'fallback_path'
                     return None  # Couldn't determine (baseline unusable)
 
                 # Both compiled successfully - compare outputs
