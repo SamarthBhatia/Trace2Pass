@@ -422,19 +422,37 @@ class VersionBisector:
             return None  # Return None to indicate "skip", not "fail"
 
         if not compile_succeeded:
-            # Compiler found but compilation failed with ICE
-            # (Non-ICE errors are handled above as compiler_found=False)
-            # ICE is a compiler bug manifestation - treat as test FAILURE
-            # Add to tested_versions since we actually tested this compiler
-            self.tested_versions.append(version)
-            details[version] = {
-                'passes': False,  # False = test failed (ICE is a compiler bug)
-                'compile_failed': True,
-                'binary_path': None,
-                'skipped': False,
-                'stderr': stderr  # Store stderr for debugging (ICE details)
-            }
-            return False  # Compilation failure (ICE) = test failure
+            # Compiler found but compilation failed
+            # Distinguish ICE (compiler bug) from diagnostic errors (incompatible code)
+
+            is_diagnostic_error = stderr and stderr.startswith("DIAGNOSTIC_ERROR:")
+
+            if is_diagnostic_error:
+                # Diagnostic error (e.g., -Werror, unsupported feature)
+                # NOT the optimizer bug we're looking for - SKIP this version
+                # Do NOT add to tested_versions (we're skipping, not testing)
+                details[version] = {
+                    'passes': None,
+                    'compile_failed': True,
+                    'compile_error_type': 'diagnostic',
+                    'binary_path': None,
+                    'skipped': True,
+                    'stderr': stderr.replace("DIAGNOSTIC_ERROR: ", "", 1)  # Remove marker
+                }
+                return None  # Skip (not the bug we're looking for)
+            else:
+                # ICE is a compiler bug manifestation - treat as test FAILURE
+                # Add to tested_versions since we actually tested this compiler
+                self.tested_versions.append(version)
+                details[version] = {
+                    'passes': False,  # False = test failed (ICE is a compiler bug)
+                    'compile_failed': True,
+                    'compile_error_type': 'ICE',
+                    'binary_path': None,
+                    'skipped': False,
+                    'stderr': stderr  # Store stderr for debugging (ICE details)
+                }
+                return False  # Compilation failure (ICE) = test failure
 
         # Compiler found and compilation succeeded - add to tested_versions
         self.tested_versions.append(version)
@@ -640,9 +658,14 @@ class VersionBisector:
                 print(f"  ICE detected in {version}: {result.stderr[:200]}")
                 return (None, True, False, result.stderr)
             else:
-                # Normal diagnostic error - skip this version (not a regression)
-                print(f"  Compilation error in {version} (not ICE, skipping): {result.stderr[:100]}")
-                return (None, False, False, result.stderr)
+                # Normal diagnostic error (e.g., -Werror, language feature gap)
+                # This is NOT the optimizer bug we're looking for, but compiler WAS found
+                # Mark as compiler_found=True but with special error marker so caller can distinguish
+                # from "compiler not installed" case
+                print(f"  Compile error in {version} (diagnostic, skipping): {result.stderr[:100]}")
+                # Return with a marker in stderr to indicate this is a compile-time rejection
+                error_msg = f"DIAGNOSTIC_ERROR: {result.stderr}"
+                return (None, True, False, error_msg)
 
         # Move output to final location
         output_path = os.path.join(self.work_dir, "output")

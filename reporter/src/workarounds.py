@@ -64,11 +64,20 @@ class WorkaroundGenerator:
                 f"The bug may be fixed in recent releases."
             )
 
-        # 4. Optimization level workaround
+        # 4. Optimization level workaround (with caution)
         if ub_detection.get("optimization_sensitive"):
-            workarounds["Lower Optimization"] = (
-                "Compile with -O1 or -O0 instead of -O2/-O3 to avoid the buggy transformation."
-            )
+            # If we have a specific pass to disable, prefer that over lowering optimization
+            if culprit_pass and culprit_pass != "Unknown":
+                workarounds["Lower Optimization (Not Recommended)"] = (
+                    "⚠️  Compiling with -O1 or -O0 may work around the bug but sacrifices performance. "
+                    "Prefer disabling the specific pass (see above) instead of lowering global optimization."
+                )
+            else:
+                workarounds["Lower Optimization (Temporary)"] = (
+                    "⚠️  As a temporary workaround, compile with -O1 instead of -O2/-O3. "
+                    "This masks the bug but reduces performance. "
+                    "Report the bug so it can be fixed properly."
+                )
 
         # NOTE: Removed bounds violation limitation warning here.
         # The diagnoser doesn't track check_type (it diagnoses from source, not reports),
