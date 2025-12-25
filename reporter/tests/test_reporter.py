@@ -95,16 +95,18 @@ class TestPlainTextTemplate:
     def test_format_with_workarounds(self, sample_diagnosis, sample_source_file):
         """Test formatting with workarounds."""
         template = PlainTextTemplate()
-        workarounds = {
-            "Disable Pass": "Compile with -fno-instcombine",
-            "Downgrade": "Use Clang 16.0.6"
-        }
+
+        # Generate realistic workarounds using WorkaroundGenerator
+        generator = WorkaroundGenerator()
+        workarounds = generator.generate(sample_diagnosis)
 
         report = template.format(sample_diagnosis, sample_source_file, workarounds=workarounds)
 
         assert "Workarounds:" in report
-        assert "Disable Pass:" in report
-        assert "Compile with -fno-instcombine" in report
+        # InstCombine doesn't have -fno-instcombine flag, so expect the generic message
+        assert "does not have a dedicated -fno-* disable flag" in report or "Lower Optimization" in report
+        # Should have downgrade recommendation since last_good_version exists
+        assert "16.0.6" in report
 
     def test_format_with_minimal_reproducer(self, sample_diagnosis, sample_source_file):
         """Test formatting with minimal reproducer."""
@@ -188,7 +190,8 @@ class TestWorkaroundGenerator:
         assert "Disable Pass" in workarounds
         assert "Downgrade Compiler" in workarounds
         assert "Upgrade Compiler" in workarounds
-        assert "Lower Optimization" in workarounds
+        # With culprit_pass present, key is "Lower Optimization (Not Recommended)"
+        assert "Lower Optimization (Not Recommended)" in workarounds
         assert "Report Bug" in workarounds
 
     def test_generate_pass_workaround_instcombine(self):
