@@ -194,10 +194,14 @@ class VersionBisector:
 
         elif passing_idx is not None and failing_idx is None:
             # All installed compilers pass - no regression found
+            # Return the highest (most recent) passing version
             print(f"All tested compilers PASS (tested {len(self.tested_versions)} versions)")
+            highest_passing_idx = max(
+                idx for idx, ver in enumerate(self.versions) if ver in self.tested_versions
+            )
             return VersionBisectionResult(
                 first_bad_version=None,
-                last_good_version=self.versions[passing_idx],
+                last_good_version=self.versions[highest_passing_idx],
                 tested_versions=self.tested_versions,
                 total_tests=len(self.tested_versions),
                 verdict="all_pass",
@@ -206,9 +210,13 @@ class VersionBisector:
 
         elif failing_idx is not None and passing_idx is None:
             # All installed compilers fail - bug predates range
+            # Return the lowest (oldest) failing version
             print(f"All tested compilers FAIL (tested {len(self.tested_versions)} versions)")
+            lowest_failing_idx = min(
+                idx for idx, ver in enumerate(self.versions) if ver in self.tested_versions
+            )
             return VersionBisectionResult(
-                first_bad_version=self.versions[failing_idx],
+                first_bad_version=self.versions[lowest_failing_idx],
                 last_good_version=None,
                 tested_versions=self.tested_versions,
                 total_tests=len(self.tested_versions),
@@ -603,41 +611,51 @@ class VersionBisector:
         source_name = os.path.basename(source_abs)
         work_dir_abs = os.path.abspath(self.work_dir)
 
-        # Check if image is available, pull if not
-        check_result = subprocess.run(
-            ["docker", "image", "inspect", image],
-            capture_output=True,
-            timeout=5
-        )
-
-        if check_result.returncode != 0:
-            # Image not found, try to pull
-            print(f"  Pulling Docker image {image}...")
-            pull_result = subprocess.run(
-                ["docker", "pull", image],
+        try:
+            # Check if image is available, pull if not
+            check_result = subprocess.run(
+                ["docker", "image", "inspect", image],
                 capture_output=True,
-                timeout=300  # 5 minute timeout for pull
+                timeout=5
             )
-            if pull_result.returncode != 0:
-                print(f"  Failed to pull {image}, skipping version {version}")
-                return (None, False, False, None)
 
-        # Run Docker container to compile
-        # Mount source directory (read-only) and work directory (read-write)
-        # Use --platform linux/amd64 to ensure x86_64 even on ARM64 hosts
-        result = subprocess.run(
-            [
-                "docker", "run", "--rm",
-                "--platform", "linux/amd64",  # Force x86_64 (works on ARM64 via Rosetta)
-                "-v", f"{source_dir}:/src:ro",
-                "-v", f"{work_dir_abs}:/work",
-                image,
-                "clang", optimization_level, f"/src/{source_name}", "-o", "/work/output"
-            ],
-            capture_output=True,
-            text=True,
-            timeout=60  # 1 minute timeout for compilation
-        )
+            if check_result.returncode != 0:
+                # Image not found, try to pull
+                print(f"  Pulling Docker image {image}...")
+                pull_result = subprocess.run(
+                    ["docker", "pull", image],
+                    capture_output=True,
+                    timeout=300  # 5 minute timeout for pull
+                )
+                if pull_result.returncode != 0:
+                    print(f"  Failed to pull {image}, skipping version {version}")
+                    return (None, False, False, None)
+
+            # Run Docker container to compile
+            # Mount source directory (read-only) and work directory (read-write)
+            # Use --platform linux/amd64 to ensure x86_64 even on ARM64 hosts
+            result = subprocess.run(
+                [
+                    "docker", "run", "--rm",
+                    "--platform", "linux/amd64",  # Force x86_64 (works on ARM64 via Rosetta)
+                    "-v", f"{source_dir}:/src:ro",
+                    "-v", f"{work_dir_abs}:/work",
+                    image,
+                    "clang", optimization_level, f"/src/{source_name}", "-o", "/work/output"
+                ],
+                capture_output=True,
+                text=True,
+                timeout=60  # 1 minute timeout for compilation
+            )
+        except FileNotFoundError:
+            # Docker not installed or not in PATH
+            print(f"  Docker not found on system, skipping version {version}")
+            print("  Install Docker to enable multi-version bisection")
+            return (None, False, False, None)
+        except subprocess.CalledProcessError as e:
+            # Docker command failed unexpectedly
+            print(f"  Docker command failed for version {version}: {e}")
+            return (None, False, False, None)
 
         if result.returncode != 0:
             # Compilation failed
