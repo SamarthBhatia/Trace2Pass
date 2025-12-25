@@ -404,10 +404,17 @@ class UBDetector:
 
             # If only one failed at runtime, this could indicate an optimizer bug
             # (one compiler's optimizer introduced UB/crash, the other didn't)
-            # However, this is a weaker signal than output differences
-            # For now, treat runtime failures as inconclusive to avoid false positives
-            if clang_runtime_failed or gcc_runtime_failed:
-                return False
+            # This is actually a STRONG signal - one compiler's codegen is broken
+            if clang_runtime_failed and not gcc_runtime_failed:
+                # Clang crashed but GCC didn't - likely Clang optimizer bug
+                details['multi_compiler']['clang']['runtime_crash_signal'] = True
+                print("  ⚠️  Clang crashed but GCC succeeded - strong compiler-bug signal")
+                return True  # Different behavior = multi-compiler differs
+            elif gcc_runtime_failed and not clang_runtime_failed:
+                # GCC crashed but Clang didn't - likely GCC optimizer bug
+                details['multi_compiler']['gcc']['runtime_crash_signal'] = True
+                print("  ⚠️  GCC crashed but Clang succeeded - strong compiler-bug signal")
+                return True  # Different behavior = multi-compiler differs
 
             # Both compiled AND ran successfully - compare outputs
             clang_out = clang_result.get('stdout', '')
