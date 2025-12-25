@@ -9,6 +9,7 @@ import os
 import tempfile
 from pathlib import Path
 import sys
+from unittest.mock import patch
 
 # Add src directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
@@ -25,6 +26,19 @@ int main() {
     return 0;
 }
 """
+
+
+def mock_compile_success(self, version, source_file, optimization_level):
+    """
+    Mock _compile_local to always succeed without actually calling clang.
+    Returns a fake binary path for testing purposes.
+    """
+    # Create a fake binary file
+    binary_path = os.path.join(self.work_dir, f"test_{version.replace('.', '_')}")
+    # Touch the file so it exists
+    with open(binary_path, 'w') as f:
+        f.write("fake binary")
+    return (binary_path, True, True, None)  # (binary_path, compiler_found, compile_succeeded, stderr)
 
 
 class TestVersionBisector:
@@ -56,13 +70,15 @@ class TestVersionBisector:
 
     def test_custom_versions(self, simple_versions):
         """Test bisector with custom version list."""
-        bisector = VersionBisector(versions=simple_versions)
+        bisector = VersionBisector(versions=simple_versions, use_docker=False)
         assert bisector.versions == simple_versions
         bisector.cleanup()
 
+    @patch('version_bisector.VersionBisector._compile_local', mock_compile_success)
+    @patch('version_bisector.VersionBisector._compile_with_docker', mock_compile_success)
     def test_all_pass_scenario(self, temp_source, simple_versions):
         """Test scenario where all versions pass."""
-        bisector = VersionBisector(versions=simple_versions)
+        bisector = VersionBisector(versions=simple_versions, use_docker=False)
 
         # Test function that always passes
         def always_pass(version: str, binary_path: str) -> bool:
@@ -77,9 +93,11 @@ class TestVersionBisector:
 
         bisector.cleanup()
 
+    @patch('version_bisector.VersionBisector._compile_local', mock_compile_success)
+    @patch('version_bisector.VersionBisector._compile_with_docker', mock_compile_success)
     def test_all_fail_scenario(self, temp_source, simple_versions):
         """Test scenario where all versions fail."""
-        bisector = VersionBisector(versions=simple_versions)
+        bisector = VersionBisector(versions=simple_versions, use_docker=False)
 
         # Test function that always fails
         def always_fail(version: str, binary_path: str) -> bool:
@@ -94,9 +112,11 @@ class TestVersionBisector:
 
         bisector.cleanup()
 
+    @patch('version_bisector.VersionBisector._compile_local', mock_compile_success)
+    @patch('version_bisector.VersionBisector._compile_with_docker', mock_compile_success)
     def test_bug_introduced_at_version(self, temp_source, simple_versions):
         """Test bisection when bug is introduced at specific version."""
-        bisector = VersionBisector(versions=simple_versions)
+        bisector = VersionBisector(versions=simple_versions, use_docker=False)
 
         # Bug introduced at version 3.0.0
         broken_version = "3.0.0"
@@ -117,9 +137,11 @@ class TestVersionBisector:
 
         bisector.cleanup()
 
+    @patch('version_bisector.VersionBisector._compile_local', mock_compile_success)
+    @patch('version_bisector.VersionBisector._compile_with_docker', mock_compile_success)
     def test_bug_at_first_version(self, temp_source, simple_versions):
         """Test when bug exists from first version."""
-        bisector = VersionBisector(versions=simple_versions)
+        bisector = VersionBisector(versions=simple_versions, use_docker=False)
 
         # All versions fail (bug from start)
         def test_func(version: str, binary_path: str) -> bool:
@@ -133,9 +155,11 @@ class TestVersionBisector:
 
         bisector.cleanup()
 
+    @patch('version_bisector.VersionBisector._compile_local', mock_compile_success)
+    @patch('version_bisector.VersionBisector._compile_with_docker', mock_compile_success)
     def test_bug_at_last_version(self, temp_source, simple_versions):
         """Test when bug is only in last version."""
-        bisector = VersionBisector(versions=simple_versions)
+        bisector = VersionBisector(versions=simple_versions, use_docker=False)
 
         # Only last version fails
         def test_func(version: str, binary_path: str) -> bool:
@@ -149,11 +173,13 @@ class TestVersionBisector:
 
         bisector.cleanup()
 
+    @patch('version_bisector.VersionBisector._compile_local', mock_compile_success)
+    @patch('version_bisector.VersionBisector._compile_with_docker', mock_compile_success)
     def test_binary_search_efficiency(self, temp_source):
         """Test that binary search is efficient."""
         # Use large version list
         versions = [f"{i}.0.0" for i in range(1, 101)]  # 100 versions
-        bisector = VersionBisector(versions=versions)
+        bisector = VersionBisector(versions=versions, use_docker=False)
 
         # Bug at version 50
         def test_func(version: str, binary_path: str) -> bool:
@@ -170,9 +196,11 @@ class TestVersionBisector:
 
         bisector.cleanup()
 
+    @patch('version_bisector.VersionBisector._compile_local', mock_compile_success)
+    @patch('version_bisector.VersionBisector._compile_with_docker', mock_compile_success)
     def test_tested_versions_tracking(self, temp_source, simple_versions):
         """Test that tested versions are tracked correctly."""
-        bisector = VersionBisector(versions=simple_versions)
+        bisector = VersionBisector(versions=simple_versions, use_docker=False)
 
         def test_func(version: str, binary_path: str) -> bool:
             return version < "3.0.0"
@@ -190,9 +218,11 @@ class TestVersionBisector:
 
         bisector.cleanup()
 
+    @patch('version_bisector.VersionBisector._compile_local', mock_compile_success)
+    @patch('version_bisector.VersionBisector._compile_with_docker', mock_compile_success)
     def test_details_populated(self, temp_source, simple_versions):
         """Test that result details are populated."""
-        bisector = VersionBisector(versions=simple_versions)
+        bisector = VersionBisector(versions=simple_versions, use_docker=False)
 
         def test_func(version: str, binary_path: str) -> bool:
             return version < "3.0.0"
@@ -209,6 +239,8 @@ class TestVersionBisector:
 
         bisector.cleanup()
 
+    @patch('version_bisector.VersionBisector._compile_local', mock_compile_success)
+    @patch('version_bisector.VersionBisector._compile_with_docker', mock_compile_success)
     def test_missing_source_file(self):
         """Test handling of missing source file."""
         bisector = VersionBisector()
@@ -221,6 +253,8 @@ class TestVersionBisector:
 
         bisector.cleanup()
 
+    @patch('version_bisector.VersionBisector._compile_local', mock_compile_success)
+    @patch('version_bisector.VersionBisector._compile_with_docker', mock_compile_success)
     def test_cleanup(self):
         """Test cleanup removes temp directory."""
         bisector = VersionBisector()
@@ -232,9 +266,11 @@ class TestVersionBisector:
 
         assert not os.path.exists(work_dir)
 
+    @patch('version_bisector.VersionBisector._compile_local', mock_compile_success)
+    @patch('version_bisector.VersionBisector._compile_with_docker', mock_compile_success)
     def test_total_tests_count(self, temp_source, simple_versions):
         """Test that total_tests matches tested_versions length."""
-        bisector = VersionBisector(versions=simple_versions)
+        bisector = VersionBisector(versions=simple_versions, use_docker=False)
 
         def test_func(version: str, binary_path: str) -> bool:
             return version < "3.0.0"
@@ -249,6 +285,8 @@ class TestVersionBisector:
 class TestCreateTestFunction:
     """Test the create_test_function helper."""
 
+    @patch('version_bisector.VersionBisector._compile_local', mock_compile_success)
+    @patch('version_bisector.VersionBisector._compile_with_docker', mock_compile_success)
     def test_create_test_function_basic(self):
         """Test creating a basic test function."""
         test_func = create_test_function("Hello\n")
@@ -256,6 +294,8 @@ class TestCreateTestFunction:
         assert test_func is not None
         assert callable(test_func)
 
+    @patch('version_bisector.VersionBisector._compile_local', mock_compile_success)
+    @patch('version_bisector.VersionBisector._compile_with_docker', mock_compile_success)
     def test_test_function_with_input(self):
         """Test function with stdin input."""
         test_func = create_test_function("output\n", test_input="input\n")
@@ -276,10 +316,12 @@ class TestBisectionScenarios:
         if os.path.exists(path):
             os.remove(path)
 
+    @patch('version_bisector.VersionBisector._compile_local', mock_compile_success)
+    @patch('version_bisector.VersionBisector._compile_with_docker', mock_compile_success)
     def test_regression_in_middle(self, temp_source):
         """Test regression introduced in middle of version range."""
         versions = ["14.0.0", "15.0.0", "16.0.0", "17.0.0", "18.0.0"]
-        bisector = VersionBisector(versions=versions)
+        bisector = VersionBisector(versions=versions, use_docker=False)
 
         # Regression at 16.0.0
         def test_func(version: str, binary_path: str) -> bool:
@@ -294,10 +336,12 @@ class TestBisectionScenarios:
 
         bisector.cleanup()
 
+    @patch('version_bisector.VersionBisector._compile_local', mock_compile_success)
+    @patch('version_bisector.VersionBisector._compile_with_docker', mock_compile_success)
     def test_multiple_regressions(self, temp_source):
         """Test handling of multiple regressions (finds first one)."""
         versions = ["1.0", "2.0", "3.0", "4.0", "5.0", "6.0"]
-        bisector = VersionBisector(versions=versions)
+        bisector = VersionBisector(versions=versions, use_docker=False)
 
         # Regressions at 3.0 and 5.0 (should find 3.0)
         def test_func(version: str, binary_path: str) -> bool:
@@ -312,10 +356,12 @@ class TestBisectionScenarios:
 
         bisector.cleanup()
 
+    @patch('version_bisector.VersionBisector._compile_local', mock_compile_success)
+    @patch('version_bisector.VersionBisector._compile_with_docker', mock_compile_success)
     def test_intermittent_failure_handling(self, temp_source):
         """Test consistent test function behavior."""
         versions = ["1.0", "2.0", "3.0", "4.0", "5.0"]
-        bisector = VersionBisector(versions=versions)
+        bisector = VersionBisector(versions=versions, use_docker=False)
 
         call_count = [0]
 
