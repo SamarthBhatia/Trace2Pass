@@ -138,9 +138,9 @@ class PipelineRunner:
         except Exception as e:
             return (False, time.time() - start_time, '', str(e))
 
-    def _diagnose(self, source_file: str, bug_id: str, binary_path: str) -> tuple:
+    def _diagnose(self, source_file: str, bug_id: str, binary_path: str, opt_level: str = "-O2") -> tuple:
         """
-        Run diagnoser on test case.
+        Run diagnoser on test case using full pipeline (UB detection + version/pass bisection).
 
         Returns: (success: bool, diagnosis_time: float, diagnosis: dict, error: str)
         """
@@ -157,24 +157,110 @@ class PipelineRunner:
             return (False, 0.0, diagnosis, "Diagnoser not available")
 
         try:
-            # Use ub_detect_cmd for now (simpler than full pipeline)
-            # Full pipeline requires a test command which we'd need to construct
-            diagnosis = ub_detect_cmd(source_file)
+            # Generate test command - for these bugs, just run the binary
+            # If the compiler generates correct code, it returns 0
+            # If the bug manifests, __builtin_trap() is called, returns non-zero
+            test_command = "{binary}"
 
-            # If it's a compiler bug, we could run full pipeline for pass bisection
-            # but for now, just return the UB detection result
-            if diagnosis['verdict'] == 'compiler_bug':
-                # Add placeholder fields that reporter expects
-                diagnosis['culprit_pass'] = 'Unknown'
-                diagnosis['compiler_versions'] = {'broken': 'current', 'working': 'unknown'}
-                diagnosis['recommendation'] = 'Potential compiler bug detected'
+            # Try full pipeline first: UB detection → Version bisection → Pass bisection
+            # NOTE: Version bisection requires multiple compiler versions installed
+            # If only one version available, it will fall back to pass bisection only
+            full_result = full_pipeline_cmd(
+                source_file=source_file,
+                test_command=test_command,
+                test_input=None,
+                expected_output=None,
+                optimization_level=opt_level
+            )
+
+            # Check if full pipeline completed or needs fallback
+            verdict = full_result.get('verdict', 'error')
+
+            # If version bisection failed due to insufficient compilers,
+            # fall back to UB detection + pass bisection only
+            if verdict in ['incomplete', 'error']:
+                error_msg = full_result.get('error', full_result.get('reason', ''))
+                if 'insufficient compilers' in error_msg.lower() or 'version bisection' in error_msg.lower():
+                    print(f"  Note: Version bisection skipped (only one compiler version available)")
+                    print(f"  Running: UB detection + Pass bisection with current compiler")
+
+                    # Run UB detection
+                    ub_result = ub_detect_cmd(source_file)
+
+                    # If it's a compiler bug, run pass bisection (without version bisection)
+                    if ub_result['verdict'] == 'compiler_bug':
+                        from diagnose import pass_bisect_cmd
+                        pass_result = pass_bisect_cmd(
+                            source_file=source_file,
+                            test_command=test_command,
+                            optimization_level=opt_level,
+                            compiler_version=None  # Use system default
+                        )
+
+                        # Reconstruct result structure
+                        full_result = {
+                            'verdict': 'compiler_bug',
+                            'ub_detection': ub_result,
+                            'version_bisection': {
+                                'verdict': 'skipped',
+                                'first_bad_version': None,
+                                'last_good_version': None,
+                                'total_tests': 0
+                            },
+                            'pass_bisection': pass_result,
+                            'recommendation': f"Compiler bug in {pass_result.get('culprit_pass', 'unknown pass')}"
+                        }
+                    else:
+                        # Not a compiler bug - return UB detection result
+                        full_result = {
+                            'verdict': ub_result['verdict'],
+                            'ub_detection': ub_result,
+                            'recommendation': 'UB detected in user code or inconclusive'
+                        }
+
+            # Extract diagnosis information from nested structure
+            diagnosis = {
+                "verdict": full_result.get('verdict', 'error'),
+                "confidence": 0.0,
+                "culprit_pass": "Unknown",
+                "compiler_versions": {},
+                "recommendation": full_result.get('recommendation', ''),
+            }
+
+            # Extract UB detection confidence
+            if 'ub_detection' in full_result:
+                diagnosis['confidence'] = full_result['ub_detection'].get('confidence', 0.0)
+                diagnosis['ubsan_clean'] = full_result['ub_detection'].get('ubsan_clean', False)
+                diagnosis['optimization_sensitive'] = full_result['ub_detection'].get('optimization_sensitive', False)
+                diagnosis['multi_compiler_differs'] = full_result['ub_detection'].get('multi_compiler_differs', False)
+
+            # Extract version bisection results
+            if 'version_bisection' in full_result:
+                version_result = full_result['version_bisection']
+                diagnosis['compiler_versions'] = {
+                    'broken': version_result.get('first_bad_version', 'unknown'),
+                    'working': version_result.get('last_good_version', 'unknown')
+                }
+
+            # Extract pass bisection results
+            if 'pass_bisection' in full_result:
+                pass_result = full_result['pass_bisection']
+                culprit = pass_result.get('culprit_pass', None)
+                if culprit:
+                    diagnosis['culprit_pass'] = culprit
+                diagnosis['pass_bisection_verdict'] = pass_result.get('verdict', 'unknown')
+
+            # Store the full nested result for detailed analysis
+            diagnosis['full_pipeline_result'] = full_result
 
             diagnosis_time = time.time() - start_time
             return (True, diagnosis_time, diagnosis, '')
 
         except Exception as e:
             diagnosis_time = time.time() - start_time
-            return (False, diagnosis_time, None, str(e))
+            import traceback
+            error_details = f"{str(e)}\n{traceback.format_exc()}"
+            return (False, diagnosis_time, None, error_details)
 
     def _generate_report(self, diagnosis: Dict, source_file: str, output_file: str) -> tuple:
         """
@@ -285,9 +371,11 @@ class PipelineRunner:
             if output:
                 logs.append(f"Output:\n{output}")
 
-        # Step 3: Diagnose
+        # Step 3: Diagnose with full pipeline (UB + version/pass bisection)
         logs.append("\n=== DIAGNOSIS ===")
-        success, diag_time, diagnosis, error = self._diagnose(source_file, bug_id, str(binary))
+        success, diag_time, diagnosis, error = self._diagnose(
+            source_file, bug_id, str(binary), testcase['optimization_level']
+        )
         timing['diagnosis'] = diag_time
 
         if not success:
