@@ -6,7 +6,7 @@ Trace2Pass is a compiler bug detection system that injects lightweight runtime c
 
 [![Status](https://img.shields.io/badge/status-active%20development-blue)]()
 [![Phase](https://img.shields.io/badge/phase-4%20evaluation-orange)]()
-[![Progress](https://img.shields.io/badge/progress-92%25-green)]()
+[![Progress](https://img.shields.io/badge/progress-93%25-green)]()
 
 ---
 
@@ -80,7 +80,7 @@ Trace2Pass is a compiler bug detection system that injects lightweight runtime c
   - 18/18 integration tests passing
   - Full pipeline: Runtime → Collector → Diagnoser → Reporter
 
-**Phase 4: Reporter + Evaluation (80% Complete)** ⚠️
+**Phase 4: Reporter + Evaluation (85% Complete)** ⚠️
 - ✅ **Report Generation** (100%)
   - Multiple output formats (Text, Markdown, LLVM Bugzilla)
   - Automatic workaround generation (pass disable flags, version downgrade)
@@ -106,10 +106,14 @@ Trace2Pass is a compiler bug detection system that injects lightweight runtime c
   - Reporter fully integrated with evaluation framework
   - End-to-end: Compile → Execute → Diagnose → Report working
   - **100% success rate on 3 sample bugs** (avg 4.7s per bug)
-- ⚠️ **Historical Bug Evaluation** (0% - ready to run)
-  - Framework ready for 54 historical bugs
-  - Evaluate on Phase 1 dataset
-  - Generate thesis-ready results
+- ⚠️ **Historical Bug Evaluation** (15% - in progress)
+  - **6 real bugs evaluated** (InstCombine, GVN, LICM, 3× GCC Tree Optimization)
+  - **100% detection rate** (6/6 bugs detected)
+  - **3/4 target metrics achieved** (Detection 100%, Time 5.2s avg, FP 0%)
+  - **Diagnosis accuracy**: 0% (expected - requires full pass bisection)
+  - Average time per bug: 5.18s (compile 0.29s + runtime 0.55s + diagnosis 4.35s)
+  - Reports generated: Markdown, LaTeX tables, CSV data
+  - Remaining: 48 bugs from Phase 1 dataset
 
 **Total Tests**: 117/117 passing (100%)
 
@@ -593,8 +597,8 @@ The integration layer is complete and functional, but runtime reports contain pl
 - **Phase 1**: 100% complete
 - **Phase 2**: 100% complete (instrumentation)
 - **Phase 3**: 100% complete (all integration tests passing)
-- **Phase 4**: 80% complete (reporter + evaluation + integration done, historical evaluation pending)
-- **Overall Project**: 92% complete
+- **Phase 4**: 85% complete (reporter + evaluation + integration done, 6/54 historical bugs evaluated)
+- **Overall Project**: 93% complete
 
 ### What Works Now
 - 8 types of anomaly detection (5 enabled by default)
