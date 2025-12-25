@@ -109,12 +109,13 @@ Trace2Pass is a compiler bug detection system that injects lightweight runtime c
 - ⚠️ **Historical Bug Evaluation** (15% - in progress)
   - **6 real bugs evaluated** (InstCombine, GVN, LICM, 3× GCC Tree Optimization)
   - **Full bisection pipeline enabled**: UB detection → Version bisection → Pass bisection
+  - **Docker-based version bisection**: Tests LLVM 14-20 (45 versions) using pre-built images
   - **100% detection rate** (6/6 bugs detected)
-  - **3/4 target metrics achieved** (Detection 100%, Time 10.2s avg, FP 0%)
-  - **Diagnosis accuracy**: 0% (expected - all bugs fixed in current compiler)
-  - Average time per bug: 10.22s (compile 0.25s + runtime 0.53s + diagnosis 9.44s)
-  - **Pass bisection verdict**: "full_passes" (bugs don't manifest in LLVM 21.1.2)
-  - Single-compiler fallback: Skips version bisection, runs UB + pass bisection
+  - **Architecture support**: Works on ARM64 (Apple Silicon) and x86_64 via Docker
+  - **3/4 target metrics achieved** (Detection 100%, Time varies with Docker, FP 0%)
+  - **Diagnosis accuracy**: 0% (expected - all bugs fixed in tested versions)
+  - Version bisection: 45 LLVM versions tested per bug (~3-4 min/bug)
+  - Platform: Uses `--platform linux/amd64` for cross-architecture compatibility
   - Reports generated: Markdown, LaTeX tables, CSV data
   - Remaining: 48 bugs from Phase 1 dataset
 
