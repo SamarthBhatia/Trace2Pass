@@ -426,9 +426,10 @@ class TestDiagnosticErrorHandling:
 
         result = bisector.bisect(temp_source, test_func)
 
-        # Should return insufficient_compilers since no versions could be tested
-        assert result.verdict == "insufficient_compilers"
-        
+        # Should return diagnostic_errors (not insufficient_compilers) to distinguish
+        # user code issues from tooling failures
+        assert result.verdict == "diagnostic_errors"
+
         # All versions should be in details with diagnostic error type
         for ver in versions:
             assert ver in result.details
@@ -450,12 +451,14 @@ class TestDiagnosticErrorHandling:
 
         result = bisector.bisect(temp_source, test_func)
 
-        assert result.verdict == "insufficient_compilers"
-        
+        # When there's a mix, diagnostic_errors takes precedence since
+        # it's an actionable user code issue
+        assert result.verdict == "diagnostic_errors"
+
         # Check diagnostic errors are recorded
         assert result.details["14.0.0"]['compile_error_type'] == 'diagnostic'
         assert result.details["15.0.0"]['compile_error_type'] == 'diagnostic'
-        
+
         # Check missing compilers are recorded
         assert result.details["16.0.0"]['skipped'] == True
         assert result.details["17.0.0"]['skipped'] == True

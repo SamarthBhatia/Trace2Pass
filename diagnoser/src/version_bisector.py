@@ -194,19 +194,29 @@ class VersionBisector:
                 for ver in sorted(diagnostic_errors):
                     stderr_preview = details[ver].get('stderr', '')[:80]
                     print(f"   - {ver}: {stderr_preview}")
+
+                # Use dedicated verdict to distinguish from tooling failures
+                return VersionBisectionResult(
+                    first_bad_version=None,
+                    last_good_version=None,
+                    tested_versions=self.tested_versions,
+                    total_tests=len(self.tested_versions),
+                    verdict="diagnostic_errors",  # Dedicated verdict for user code issues
+                    details={'error': error_msg, 'diagnostic_errors': diagnostic_errors, **details}
+                )
             else:
                 error_msg = f"No installed compilers found in range {self.versions[0]} to {self.versions[-1]}. "\
                            f"Cannot bisect without at least two installed compiler versions."
                 print(f"ERROR: {error_msg}")
 
-            return VersionBisectionResult(
-                first_bad_version=None,
-                last_good_version=None,
-                tested_versions=self.tested_versions,
-                total_tests=len(self.tested_versions),
-                verdict="insufficient_compilers",
-                details={'error': error_msg, **details}
-            )
+                return VersionBisectionResult(
+                    first_bad_version=None,
+                    last_good_version=None,
+                    tested_versions=self.tested_versions,
+                    total_tests=len(self.tested_versions),
+                    verdict="insufficient_compilers",  # Tooling failure
+                    details={'error': error_msg, **details}
+                )
 
         elif passing_idx is not None and failing_idx is None:
             # All installed compilers pass - no regression found

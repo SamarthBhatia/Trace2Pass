@@ -440,7 +440,20 @@ def full_pipeline_cmd(source_file: str, test_command: str,
     if not version_result.get('first_bad_version'):
         verdict = version_result.get('verdict', 'unknown')
 
-        # "insufficient_compilers" is a tool failure - propagate as error
+        # "diagnostic_errors" means source requires features not available in tested compilers
+        # This is a user code issue, not a tooling failure
+        if verdict == "diagnostic_errors":
+            print("✗ Version bisection failed: source code has diagnostic compile errors")
+            print("   (Your code may require C23 features or have syntax errors)")
+            return {
+                "verdict": "user_code_issue",
+                "error": "Source has diagnostic compile errors in tested compiler versions",
+                "ub_detection": ub_result,
+                "version_bisection": version_result,
+                "recommendation": "Fix diagnostic errors or test with compatible compiler versions"
+            }
+
+        # "insufficient_compilers" is a tooling failure - missing installations
         if verdict == "insufficient_compilers":
             print("✗ Version bisection failed: insufficient compilers installed")
             return {
