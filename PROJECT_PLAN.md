@@ -619,17 +619,20 @@ python diagnoser/diagnose.py full-pipeline test.c --test-input "5"
   - All artifacts generated: diagnosis.json, bug_report.md, metrics.json
 - ⚠️ **Historical Evaluation** (15% - in progress)
   - **6 real bugs evaluated** (InstCombine, GVN, LICM, 3× GCC Tree Optimization)
+  - **Full bisection pipeline enabled**: UB detection → Version bisection → Pass bisection
   - **100% detection rate** (6/6 bugs detected)
   - **3/4 target metrics achieved:**
     - Detection Rate: 100% ✅ (target ≥70%)
-    - Avg Time to Diagnosis: 5.2s ✅ (target ≤2min)
+    - Avg Time to Diagnosis: 10.2s ✅ (target ≤2min)
     - False Positive Rate: 0% ✅ (target ≤5%)
-    - Diagnosis Accuracy: 0% ❌ (target ≥60%) - expected without full bisection
+    - Diagnosis Accuracy: 0% ❌ (target ≥60%) - expected (bugs fixed in current compiler)
   - Average timing breakdown:
-    - Compilation: 0.29s
-    - Runtime: 0.55s
-    - Diagnosis: 4.35s (UB detection only)
-    - Total: 5.18s per bug
+    - Compilation: 0.25s
+    - Runtime: 0.53s
+    - Diagnosis: 9.44s (UB + version + pass bisection)
+    - Total: 10.22s per bug
+  - **Pass bisection results**: All bugs return "full_passes" verdict (don't manifest in LLVM 21.1.2)
+  - **Single-compiler fallback**: Automatically skips version bisection when only 1 compiler available
   - Reports generated: Markdown, LaTeX tables, CSV data
   - Remaining: 48 bugs from Phase 1 dataset
 
