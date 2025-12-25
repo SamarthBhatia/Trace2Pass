@@ -139,7 +139,7 @@ class UBDetector:
 
         # Compute confidence score
         confidence = self._compute_confidence(
-            ubsan_clean, optimization_sensitive, multi_compiler_differs
+            ubsan_clean, optimization_sensitive, multi_compiler_differs, details
         )
 
         # Determine verdict
@@ -428,7 +428,8 @@ class UBDetector:
         self,
         ubsan_clean: bool,
         optimization_sensitive: bool,
-        multi_compiler_differs: bool
+        multi_compiler_differs: bool,
+        details: Dict[str, Any] = None
     ) -> float:
         """
         Compute confidence score that anomaly is a compiler bug.
@@ -438,7 +439,8 @@ class UBDetector:
         - UBSan clean: +0.3
         - UBSan triggers: -0.4 (likely UB)
         - Optimization sensitive (O0 works, O2 fails): +0.2
-        - Multi-compiler differs: +0.15
+        - Multi-compiler differs (output): +0.15
+        - Multi-compiler differs (crash): +0.25 (stronger signal)
 
         Returns:
             Confidence in range [0.0, 1.0]
@@ -457,7 +459,22 @@ class UBDetector:
 
         # Multi-compiler differential
         if multi_compiler_differs:
-            confidence += 0.15
+            # Check if difference is due to crash (stronger signal)
+            is_crash_signal = False
+            if details and 'multi_compiler' in details:
+                mc = details['multi_compiler']
+                if isinstance(mc, dict):
+                    # Check for runtime_crash_signal flag set by _check_multi_compiler
+                    for compiler in ['clang', 'gcc']:
+                        if compiler in mc and isinstance(mc[compiler], dict):
+                            if mc[compiler].get('runtime_crash_signal'):
+                                is_crash_signal = True
+                                break
+
+            if is_crash_signal:
+                confidence += 0.25  # Crash = stronger signal
+            else:
+                confidence += 0.15  # Output difference = weaker signal
 
         # Clamp to [0.0, 1.0]
         return max(0.0, min(1.0, confidence))
