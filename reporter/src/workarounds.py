@@ -45,8 +45,12 @@ class WorkaroundGenerator:
         last_good_version = version_bisection.get("last_good_version")
 
         # 1. Pass-specific workaround
-        # Only generate if we have a real pass name (not "Unknown" or None)
-        if culprit_pass and culprit_pass.lower() not in ["unknown", "none"]:
+        # Only generate if we have a real, actionable pass name
+        # Filter out: None, empty strings, whitespace, and strings containing "unknown"
+        if (culprit_pass and
+            isinstance(culprit_pass, str) and
+            culprit_pass.strip() and
+            "unknown" not in culprit_pass.lower()):
             pass_workaround = self._generate_pass_workaround(culprit_pass)
             if pass_workaround:
                 workarounds["Disable Pass"] = pass_workaround
