@@ -119,7 +119,8 @@ def ub_detect_cmd(source_file: str, test_input: Optional[str] = None,
 
 
 def version_bisect_cmd(source_file: str, test_command: str,
-                       optimization_level: str = "-O2") -> Dict[str, Any]:
+                       optimization_level: str = "-O2",
+                       use_docker: bool = True) -> Dict[str, Any]:
     """
     Run version bisection to find which compiler version introduced the bug.
 
@@ -133,6 +134,8 @@ def version_bisect_cmd(source_file: str, test_command: str,
                      Do NOT pass untrusted input directly. For automated use,
                      consider validating or sanitizing test_command.
         optimization_level: Optimization level (default: -O2)
+        use_docker: Use Docker for version bisection (default: True)
+                   Enables testing LLVM 14-21 using pre-built silkeh/clang images
 
     Returns:
         Version bisection result dictionary
@@ -171,7 +174,7 @@ def version_bisect_cmd(source_file: str, test_command: str,
             print(f"Error running test: {e}")
             return False
 
-    bisector = VersionBisector()
+    bisector = VersionBisector(use_docker=use_docker)
     result = bisector.bisect(source_file, test_func, optimization_level)
 
     print("=== Version Bisection Result ===")
@@ -385,7 +388,8 @@ def pass_bisect_cmd(source_file: str, test_command: str,
 def full_pipeline_cmd(source_file: str, test_command: str,
                       test_input: Optional[str] = None,
                       expected_output: Optional[str] = None,
-                      optimization_level: str = "-O2") -> Dict[str, Any]:
+                      optimization_level: str = "-O2",
+                      use_docker: bool = True) -> Dict[str, Any]:
     """
     Run the full diagnosis pipeline: UB detection → Version bisection → Pass bisection.
 
@@ -414,9 +418,9 @@ def full_pipeline_cmd(source_file: str, test_command: str,
             "recommendation": "Fix undefined behavior in user code"
         }
 
-    # Stage 2: Version Bisection
+    # Stage 2: Version Bisection (with Docker for LLVM 14-21)
     print("Stage 2/3: Version Bisection...")
-    version_result = version_bisect_cmd(source_file, test_command, optimization_level)
+    version_result = version_bisect_cmd(source_file, test_command, optimization_level, use_docker)
 
     # Check if version bisection failed (no first_bad_version found)
     if not version_result.get('first_bad_version'):

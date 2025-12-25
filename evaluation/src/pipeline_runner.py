@@ -163,14 +163,15 @@ class PipelineRunner:
             test_command = "{binary}"
 
             # Try full pipeline first: UB detection → Version bisection → Pass bisection
-            # NOTE: Version bisection requires multiple compiler versions installed
-            # If only one version available, it will fall back to pass bisection only
+            # NOTE: Version bisection uses Docker (LLVM 14-21) for comprehensive testing
+            # Falls back to pass bisection only if Docker unavailable
             full_result = full_pipeline_cmd(
                 source_file=source_file,
                 test_command=test_command,
                 test_input=None,
                 expected_output=None,
-                optimization_level=opt_level
+                optimization_level=opt_level,
+                use_docker=True  # Enable Docker for version bisection (LLVM 14-21)
             )
 
             # Check if full pipeline completed or needs fallback
