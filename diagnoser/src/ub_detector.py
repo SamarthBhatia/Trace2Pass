@@ -311,8 +311,24 @@ class UBDetector:
         else:
             # Fallback: Check if -O0/-O1 agree but -O2/-O3 differ
             if '-O0' in outputs and '-O2' in outputs:
-                o0_output = outputs['-O0'].get('stdout', '')
-                o2_output = outputs['-O2'].get('stdout', '')
+                o0_result = outputs['-O0']
+                o2_result = outputs['-O2']
+
+                # Check for compile failures first (same logic as expected_output path)
+                o0_failed = o0_result.get('compile_failed') or o0_result.get('timeout')
+                o2_failed = o2_result.get('compile_failed') or o2_result.get('timeout')
+
+                # If -O0 compiles but -O2 fails → optimizer crash (compiler bug)
+                if not o0_failed and o2_failed:
+                    return True  # Optimization-sensitive compiler bug
+
+                # If -O0 fails → can't determine baseline
+                if o0_failed:
+                    return None  # Couldn't determine (baseline unusable)
+
+                # Both compiled - compare outputs
+                o0_output = o0_result.get('stdout', '')
+                o2_output = o2_result.get('stdout', '')
 
                 # If outputs differ, this is optimization-sensitive
                 if o0_output != o2_output:

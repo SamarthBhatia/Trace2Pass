@@ -758,8 +758,10 @@ class VersionBisector:
             return (binary_path, True, True, None)
 
         # Compilation succeeded but no output file?
+        # This is a Docker infrastructure issue (volume permissions, etc.), not a compiler bug
         print(f"  Warning: Docker compilation succeeded but no output file found")
-        return (None, True, False, "No output file generated")
+        error_msg = "DOCKER_ERROR: No output file generated (check volume permissions)"
+        return (None, False, False, error_msg)
 
     def _run_test_in_docker(
         self,
