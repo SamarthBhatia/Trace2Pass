@@ -90,13 +90,17 @@ class VersionBisector:
         if self.use_docker:
             docker_available = self._check_docker_available()
             if not docker_available:
-                print("⚠️  WARNING: Docker is not available but --use-docker=True is set")
-                print("   Options:")
-                print("   1. Install Docker: https://docs.docker.com/get-docker/")
-                print("   2. Use local compilers: Set --use-docker=False")
-                print("   3. Install specific compiler versions locally (e.g., clang-17)")
+                print("⚠️  WARNING: Docker is not available")
+                print("   Automatically falling back to local compiler installations")
                 print()
-                print("   Proceeding with Docker mode (will skip unavailable versions)...")
+                print("   If you want to use Docker:")
+                print("   1. Install Docker: https://docs.docker.com/get-docker/")
+                print("   2. Rerun with --use-docker=True")
+                print()
+                print("   Continuing with local compilers (clang-14 through clang-21)...")
+                print()
+                # Disable Docker mode and fall back to local compilers
+                self.use_docker = False
 
         self.tested_versions = []
         details = {}
