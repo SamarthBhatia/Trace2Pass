@@ -512,43 +512,51 @@ void trace2pass_report_unreachable(void* pc, const char* message) {
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
 
+    char callsite_id[32];
+    generate_callsite_id(pc, "unreachable", callsite_id, sizeof(callsite_id));
+
+    char report_id[64];
+    generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+    char msg_escaped[256];
+    json_escape_string(message, msg_escaped, sizeof(msg_escaped));
+
+    char json[2048];
+    snprintf(json, sizeof(json),
+        "{"
+        "\"report_id\":\"%s\","
+        "\"timestamp\":\"%s\","
+        "\"check_type\":\"unreachable_code_executed\","
+        "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
+        "\"pc\":\"0x%llx\","
+        "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
+        "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
+        "\"check_details\":{\"message\":\"%s\"}"
+        "}",
+        report_id, timestamp, callsite_id, (unsigned long long)pc, msg_escaped);
+
     // Send to Collector if configured
     if (collector_url) {
-        char callsite_id[32];
-        generate_callsite_id(pc, "unreachable", callsite_id, sizeof(callsite_id));
-
-        char report_id[64];
-        generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
-
-        char msg_escaped[256];
-        json_escape_string(message, msg_escaped, sizeof(msg_escaped));
-
-        char json[2048];
-        snprintf(json, sizeof(json),
-            "{"
-            "\"report_id\":\"%s\","
-            "\"timestamp\":\"%s\","
-            "\"check_type\":\"unreachable_code_executed\","
-            "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
-            "\"pc\":\"0x%llx\","
-            "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
-            "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
-            "\"check_details\":{\"message\":\"%s\"}"
-            "}",
-            report_id, timestamp, callsite_id, (unsigned long long)pc, msg_escaped);
-
         http_post_json(collector_url, json);
     }
 
-    // Also log to stderr/file for debugging
+    // Log to stderr/file
     pthread_mutex_lock(&output_mutex);
     FILE* out = get_output_file();
-    fprintf(out, "\n=== Trace2Pass Report ===\n");
-    fprintf(out, "Timestamp: %s\n", timestamp);
-    fprintf(out, "Type: unreachable_code_executed\n");
-    fprintf(out, "PC: %p\n", pc);
-    fprintf(out, "Message: %s\n", message);
-    fprintf(out, "========================\n\n");
+
+    if (json_output) {
+        // Output JSON format when TRACE2PASS_JSON_OUTPUT=1
+        fprintf(out, "%s\n", json);
+    } else {
+        // Output plain text format for human readability
+        fprintf(out, "\n=== Trace2Pass Report ===\n");
+        fprintf(out, "Timestamp: %s\n", timestamp);
+        fprintf(out, "Type: unreachable_code_executed\n");
+        fprintf(out, "PC: %p\n", pc);
+        fprintf(out, "Message: %s\n", message);
+        fprintf(out, "========================\n\n");
+    }
+
     fflush(out);
     pthread_mutex_unlock(&output_mutex);
 }
@@ -564,43 +572,51 @@ void trace2pass_report_bounds_violation(void* pc, void* ptr,
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
 
+    char callsite_id[32];
+    generate_callsite_id(pc, "bounds", callsite_id, sizeof(callsite_id));
+
+    char report_id[64];
+    generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+    char json[2048];
+    snprintf(json, sizeof(json),
+        "{"
+        "\"report_id\":\"%s\","
+        "\"timestamp\":\"%s\","
+        "\"check_type\":\"bounds_violation\","
+        "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
+        "\"pc\":\"0x%llx\","
+        "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
+        "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
+        "\"check_details\":{\"ptr\":\"0x%llx\",\"offset\":%zu,\"size\":%zu}"
+        "}",
+        report_id, timestamp, callsite_id, (unsigned long long)pc,
+        (unsigned long long)ptr, offset, size);
+
     // Send to Collector if configured
     if (collector_url) {
-        char callsite_id[32];
-        generate_callsite_id(pc, "bounds", callsite_id, sizeof(callsite_id));
-
-        char report_id[64];
-        generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
-
-        char json[2048];
-        snprintf(json, sizeof(json),
-            "{"
-            "\"report_id\":\"%s\","
-            "\"timestamp\":\"%s\","
-            "\"check_type\":\"bounds_violation\","
-            "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
-            "\"pc\":\"0x%llx\","
-            "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
-            "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
-            "\"check_details\":{\"ptr\":\"0x%llx\",\"offset\":%zu,\"size\":%zu}"
-            "}",
-            report_id, timestamp, callsite_id, (unsigned long long)pc,
-            (unsigned long long)ptr, offset, size);
-
         http_post_json(collector_url, json);
     }
 
-    // Also log to stderr/file for debugging
+    // Log to stderr/file
     pthread_mutex_lock(&output_mutex);
     FILE* out = get_output_file();
-    fprintf(out, "\n=== Trace2Pass Report ===\n");
-    fprintf(out, "Timestamp: %s\n", timestamp);
-    fprintf(out, "Type: bounds_violation\n");
-    fprintf(out, "PC: %p\n", pc);
-    fprintf(out, "Pointer: %p\n", ptr);
-    fprintf(out, "Offset: %zu\n", offset);
-    fprintf(out, "Size: %zu\n", size);
-    fprintf(out, "========================\n\n");
+
+    if (json_output) {
+        // Output JSON format when TRACE2PASS_JSON_OUTPUT=1
+        fprintf(out, "%s\n", json);
+    } else {
+        // Output plain text format for human readability
+        fprintf(out, "\n=== Trace2Pass Report ===\n");
+        fprintf(out, "Timestamp: %s\n", timestamp);
+        fprintf(out, "Type: bounds_violation\n");
+        fprintf(out, "PC: %p\n", pc);
+        fprintf(out, "Pointer: %p\n", ptr);
+        fprintf(out, "Offset: %zu\n", offset);
+        fprintf(out, "Size: %zu\n", size);
+        fprintf(out, "========================\n\n");
+    }
+
     fflush(out);
     pthread_mutex_unlock(&output_mutex);
 }
@@ -614,44 +630,52 @@ void trace2pass_report_sign_conversion(void* pc, int64_t original_value,
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
 
+    char callsite_id[32];
+    generate_callsite_id(pc, "sign", callsite_id, sizeof(callsite_id));
+
+    char report_id[64];
+    generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+    char json[2048];
+    snprintf(json, sizeof(json),
+        "{"
+        "\"report_id\":\"%s\","
+        "\"timestamp\":\"%s\","
+        "\"check_type\":\"sign_conversion\","
+        "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
+        "\"pc\":\"0x%llx\","
+        "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
+        "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
+        "\"check_details\":{\"original_value\":%lld,\"cast_value\":%llu,\"src_bits\":%u,\"dest_bits\":%u}"
+        "}",
+        report_id, timestamp, callsite_id, (unsigned long long)pc,
+        (long long)original_value, (unsigned long long)cast_value, src_bits, dest_bits);
+
     // Send to Collector if configured
     if (collector_url) {
-        char callsite_id[32];
-        generate_callsite_id(pc, "sign", callsite_id, sizeof(callsite_id));
-
-        char report_id[64];
-        generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
-
-        char json[2048];
-        snprintf(json, sizeof(json),
-            "{"
-            "\"report_id\":\"%s\","
-            "\"timestamp\":\"%s\","
-            "\"check_type\":\"sign_conversion\","
-            "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
-            "\"pc\":\"0x%llx\","
-            "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
-            "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
-            "\"check_details\":{\"original_value\":%lld,\"cast_value\":%llu,\"src_bits\":%u,\"dest_bits\":%u}"
-            "}",
-            report_id, timestamp, callsite_id, (unsigned long long)pc,
-            (long long)original_value, (unsigned long long)cast_value, src_bits, dest_bits);
-
         http_post_json(collector_url, json);
     }
 
-    // Also log to stderr/file for debugging
+    // Log to stderr/file
     pthread_mutex_lock(&output_mutex);
     FILE* out = get_output_file();
-    fprintf(out, "\n=== Trace2Pass Report ===\n");
-    fprintf(out, "Timestamp: %s\n", timestamp);
-    fprintf(out, "Type: sign_conversion\n");
-    fprintf(out, "PC: %p\n", pc);
-    fprintf(out, "Original Value (signed i%u): %lld\n", src_bits, (long long)original_value);
-    fprintf(out, "Cast Value (unsigned i%u): %llu (0x%llx)\n", dest_bits,
-            (unsigned long long)cast_value, (unsigned long long)cast_value);
-    fprintf(out, "Note: Negative signed value converted to unsigned\n");
-    fprintf(out, "========================\n\n");
+
+    if (json_output) {
+        // Output JSON format when TRACE2PASS_JSON_OUTPUT=1
+        fprintf(out, "%s\n", json);
+    } else {
+        // Output plain text format for human readability
+        fprintf(out, "\n=== Trace2Pass Report ===\n");
+        fprintf(out, "Timestamp: %s\n", timestamp);
+        fprintf(out, "Type: sign_conversion\n");
+        fprintf(out, "PC: %p\n", pc);
+        fprintf(out, "Original Value (signed i%u): %lld\n", src_bits, (long long)original_value);
+        fprintf(out, "Cast Value (unsigned i%u): %llu (0x%llx)\n", dest_bits,
+                (unsigned long long)cast_value, (unsigned long long)cast_value);
+        fprintf(out, "Note: Negative signed value converted to unsigned\n");
+        fprintf(out, "========================\n\n");
+    }
+
     fflush(out);
     pthread_mutex_unlock(&output_mutex);
 }
@@ -665,47 +689,55 @@ void trace2pass_report_division_by_zero(void* pc, const char* op_name,
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
 
+    char callsite_id[32];
+    generate_callsite_id(pc, "divzero", callsite_id, sizeof(callsite_id));
+
+    char report_id[64];
+    generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+    char op_escaped[64];
+    json_escape_string(op_name, op_escaped, sizeof(op_escaped));
+
+    char json[2048];
+    snprintf(json, sizeof(json),
+        "{"
+        "\"report_id\":\"%s\","
+        "\"timestamp\":\"%s\","
+        "\"check_type\":\"division_by_zero\","
+        "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
+        "\"pc\":\"0x%llx\","
+        "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
+        "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
+        "\"check_details\":{\"operation\":\"%s\",\"dividend\":%lld,\"divisor\":%lld}"
+        "}",
+        report_id, timestamp, callsite_id, (unsigned long long)pc,
+        op_escaped, (long long)dividend, (long long)divisor);
+
     // Send to Collector if configured
     if (collector_url) {
-        char callsite_id[32];
-        generate_callsite_id(pc, "divzero", callsite_id, sizeof(callsite_id));
-
-        char report_id[64];
-        generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
-
-        char op_escaped[64];
-        json_escape_string(op_name, op_escaped, sizeof(op_escaped));
-
-        char json[2048];
-        snprintf(json, sizeof(json),
-            "{"
-            "\"report_id\":\"%s\","
-            "\"timestamp\":\"%s\","
-            "\"check_type\":\"division_by_zero\","
-            "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
-            "\"pc\":\"0x%llx\","
-            "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
-            "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
-            "\"check_details\":{\"operation\":\"%s\",\"dividend\":%lld,\"divisor\":%lld}"
-            "}",
-            report_id, timestamp, callsite_id, (unsigned long long)pc,
-            op_escaped, (long long)dividend, (long long)divisor);
-
         http_post_json(collector_url, json);
     }
 
-    // Also log to stderr/file for debugging
+    // Log to stderr/file
     pthread_mutex_lock(&output_mutex);
     FILE* out = get_output_file();
-    fprintf(out, "\n=== Trace2Pass Report ===\n");
-    fprintf(out, "Timestamp: %s\n", timestamp);
-    fprintf(out, "Type: division_by_zero\n");
-    fprintf(out, "PC: %p\n", pc);
-    fprintf(out, "Operation: %s\n", op_name);
-    fprintf(out, "Dividend: %lld\n", (long long)dividend);
-    fprintf(out, "Divisor: %lld\n", (long long)divisor);
-    fprintf(out, "Note: Division or modulo by zero detected\n");
-    fprintf(out, "========================\n\n");
+
+    if (json_output) {
+        // Output JSON format when TRACE2PASS_JSON_OUTPUT=1
+        fprintf(out, "%s\n", json);
+    } else {
+        // Output plain text format for human readability
+        fprintf(out, "\n=== Trace2Pass Report ===\n");
+        fprintf(out, "Timestamp: %s\n", timestamp);
+        fprintf(out, "Type: division_by_zero\n");
+        fprintf(out, "PC: %p\n", pc);
+        fprintf(out, "Operation: %s\n", op_name);
+        fprintf(out, "Dividend: %lld\n", (long long)dividend);
+        fprintf(out, "Divisor: %lld\n", (long long)divisor);
+        fprintf(out, "Note: Division or modulo by zero detected\n");
+        fprintf(out, "========================\n\n");
+    }
+
     fflush(out);
     pthread_mutex_unlock(&output_mutex);
 }
@@ -760,51 +792,59 @@ void trace2pass_check_pure_consistency(void* pc, const char* func_name,
             char timestamp[32];
             get_timestamp(timestamp, sizeof(timestamp));
 
+            char callsite_id[32];
+            generate_callsite_id(pc, "pure", callsite_id, sizeof(callsite_id));
+
+            char report_id[64];
+            generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+            char func_escaped[128];
+            json_escape_string(func_name, func_escaped, sizeof(func_escaped));
+
+            char json[2048];
+            snprintf(json, sizeof(json),
+                "{"
+                "\"report_id\":\"%s\","
+                "\"timestamp\":\"%s\","
+                "\"check_type\":\"pure_function_inconsistency\","
+                "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
+                "\"pc\":\"0x%llx\","
+                "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
+                "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
+                "\"check_details\":{\"function\":\"%s\",\"arg0\":%lld,\"arg1\":%lld,\"previous_result\":%lld,\"current_result\":%lld}"
+                "}",
+                report_id, timestamp, callsite_id, (unsigned long long)pc,
+                func_escaped, (long long)arg0, (long long)arg1,
+                (long long)entry->result, (long long)result);
+
             // Send to Collector if configured
             if (collector_url) {
-                char callsite_id[32];
-                generate_callsite_id(pc, "pure", callsite_id, sizeof(callsite_id));
-
-                char report_id[64];
-                generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
-
-                char func_escaped[128];
-                json_escape_string(func_name, func_escaped, sizeof(func_escaped));
-
-                char json[2048];
-                snprintf(json, sizeof(json),
-                    "{"
-                    "\"report_id\":\"%s\","
-                    "\"timestamp\":\"%s\","
-                    "\"check_type\":\"pure_function_inconsistency\","
-                    "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
-                    "\"pc\":\"0x%llx\","
-                    "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
-                    "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
-                    "\"check_details\":{\"function\":\"%s\",\"arg0\":%lld,\"arg1\":%lld,\"previous_result\":%lld,\"current_result\":%lld}"
-                    "}",
-                    report_id, timestamp, callsite_id, (unsigned long long)pc,
-                    func_escaped, (long long)arg0, (long long)arg1,
-                    (long long)entry->result, (long long)result);
-
                 http_post_json(collector_url, json);
             }
 
-            // Also log to stderr/file for debugging
+            // Log to stderr/file
             pthread_mutex_lock(&output_mutex);
             FILE* out = get_output_file();
-            fprintf(out, "\n=== Trace2Pass Report ===\n");
-            fprintf(out, "Timestamp: %s\n", timestamp);
-            fprintf(out, "Type: pure_function_inconsistency\n");
-            fprintf(out, "PC: %p\n", pc);
-            fprintf(out, "Function: %s\n", func_name);
-            fprintf(out, "Arg0: %lld\n", (long long)arg0);
-            fprintf(out, "Arg1: %lld\n", (long long)arg1);
-            fprintf(out, "Previous Result: %lld\n", (long long)entry->result);
-            fprintf(out, "Current Result: %lld\n", (long long)result);
-            fprintf(out, "Note: Pure function returned different results for same inputs\n");
-            fprintf(out, "      This may indicate a compiler optimization bug\n");
-            fprintf(out, "========================\n\n");
+
+            if (json_output) {
+                // Output JSON format when TRACE2PASS_JSON_OUTPUT=1
+                fprintf(out, "%s\n", json);
+            } else {
+                // Output plain text format for human readability
+                fprintf(out, "\n=== Trace2Pass Report ===\n");
+                fprintf(out, "Timestamp: %s\n", timestamp);
+                fprintf(out, "Type: pure_function_inconsistency\n");
+                fprintf(out, "PC: %p\n", pc);
+                fprintf(out, "Function: %s\n", func_name);
+                fprintf(out, "Arg0: %lld\n", (long long)arg0);
+                fprintf(out, "Arg1: %lld\n", (long long)arg1);
+                fprintf(out, "Previous Result: %lld\n", (long long)entry->result);
+                fprintf(out, "Current Result: %lld\n", (long long)result);
+                fprintf(out, "Note: Pure function returned different results for same inputs\n");
+                fprintf(out, "      This may indicate a compiler optimization bug\n");
+                fprintf(out, "========================\n\n");
+            }
+
             fflush(out);
             pthread_mutex_unlock(&output_mutex);
         }
@@ -828,51 +868,59 @@ void trace2pass_report_loop_bound_exceeded(void* pc, const char* loop_name,
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
 
+    char callsite_id[32];
+    generate_callsite_id(pc, "loop", callsite_id, sizeof(callsite_id));
+
+    char report_id[64];
+    generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+    char loop_escaped[128];
+    json_escape_string(loop_name, loop_escaped, sizeof(loop_escaped));
+
+    char json[2048];
+    snprintf(json, sizeof(json),
+        "{"
+        "\"report_id\":\"%s\","
+        "\"timestamp\":\"%s\","
+        "\"check_type\":\"loop_bound_exceeded\","
+        "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
+        "\"pc\":\"0x%llx\","
+        "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
+        "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
+        "\"check_details\":{\"loop_name\":\"%s\",\"iteration_count\":%llu,\"threshold\":%llu}"
+        "}",
+        report_id, timestamp, callsite_id, (unsigned long long)pc,
+        loop_escaped, (unsigned long long)iteration_count, (unsigned long long)threshold);
+
     // Send to Collector if configured
     if (collector_url) {
-        char callsite_id[32];
-        generate_callsite_id(pc, "loop", callsite_id, sizeof(callsite_id));
-
-        char report_id[64];
-        generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
-
-        char loop_escaped[128];
-        json_escape_string(loop_name, loop_escaped, sizeof(loop_escaped));
-
-        char json[2048];
-        snprintf(json, sizeof(json),
-            "{"
-            "\"report_id\":\"%s\","
-            "\"timestamp\":\"%s\","
-            "\"check_type\":\"loop_bound_exceeded\","
-            "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
-            "\"pc\":\"0x%llx\","
-            "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
-            "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
-            "\"check_details\":{\"loop_name\":\"%s\",\"iteration_count\":%llu,\"threshold\":%llu}"
-            "}",
-            report_id, timestamp, callsite_id, (unsigned long long)pc,
-            loop_escaped, (unsigned long long)iteration_count, (unsigned long long)threshold);
-
         http_post_json(collector_url, json);
     }
 
-    // Also log to stderr/file for debugging
+    // Log to stderr/file
     pthread_mutex_lock(&output_mutex);
     FILE* out = get_output_file();
-    fprintf(out, "\n=== Trace2Pass Report ===\n");
-    fprintf(out, "Timestamp: %s\n", timestamp);
-    fprintf(out, "Type: loop_bound_exceeded\n");
-    fprintf(out, "PC: %p\n", pc);
-    fprintf(out, "Loop: %s\n", loop_name);
-    fprintf(out, "Iteration Count: %llu\n", (unsigned long long)iteration_count);
-    fprintf(out, "Threshold: %llu\n", (unsigned long long)threshold);
-    fprintf(out, "Note: Loop iterated more than expected maximum\n");
-    fprintf(out, "      This may indicate:\n");
-    fprintf(out, "      - Incorrect loop bound analysis by optimizer\n");
-    fprintf(out, "      - Infinite loop that should have terminated\n");
-    fprintf(out, "      - Off-by-one error introduced by optimization\n");
-    fprintf(out, "========================\n\n");
+
+    if (json_output) {
+        // Output JSON format when TRACE2PASS_JSON_OUTPUT=1
+        fprintf(out, "%s\n", json);
+    } else {
+        // Output plain text format for human readability
+        fprintf(out, "\n=== Trace2Pass Report ===\n");
+        fprintf(out, "Timestamp: %s\n", timestamp);
+        fprintf(out, "Type: loop_bound_exceeded\n");
+        fprintf(out, "PC: %p\n", pc);
+        fprintf(out, "Loop: %s\n", loop_name);
+        fprintf(out, "Iteration Count: %llu\n", (unsigned long long)iteration_count);
+        fprintf(out, "Threshold: %llu\n", (unsigned long long)threshold);
+        fprintf(out, "Note: Loop iterated more than expected maximum\n");
+        fprintf(out, "      This may indicate:\n");
+        fprintf(out, "      - Incorrect loop bound analysis by optimizer\n");
+        fprintf(out, "      - Infinite loop that should have terminated\n");
+        fprintf(out, "      - Off-by-one error introduced by optimization\n");
+        fprintf(out, "========================\n\n");
+    }
+
     fflush(out);
     pthread_mutex_unlock(&output_mutex);
 }
