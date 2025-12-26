@@ -827,7 +827,13 @@ class VersionBisector:
 # Wrapper script for Docker execution
 # Passes stdin, stdout, stderr, arguments, and exitcode through Docker container
 # Uses same image as compilation to ensure runtime library compatibility
+#
+# NOTE: The -i flag keeps stdin open, allowing the calling process to pipe input.
+# If your test uses file redirection ({binary_name} < input.txt), the input file must be
+# in the same directory as the binary to be accessible via the mounted volume.
+# For programmatic input, prefer: subprocess.run([binary], stdin=open('file'))
 
+# Use -i to keep stdin open (works whether stdin is provided or not)
 docker run --rm \\
     --platform linux/amd64 \\
     -i \\
