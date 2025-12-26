@@ -137,9 +137,21 @@ class UBDetector:
                 details=details
             )
 
-        # If optimization_sensitive is None (baseline unusable), override to False
-        # This ensures we don't pass None to _compute_confidence
+        # If optimization_sensitive is None (baseline unusable), print precise warning
+        # and override to False to ensure we don't pass None to _compute_confidence
         if optimization_sensitive is None:
+            # Determine which optimization level failed
+            failure_level = details.get('optimization_failure_level', '-O0')
+            failure_reason = details.get('optimization_failure_reason', 'unknown')
+
+            print(f"⚠️  WARNING: {failure_level} execution failed ({failure_reason})")
+            if failure_reason == 'compile_failed' or failure_reason is True:
+                print(f"   {failure_level} compilation failed - cannot establish baseline behavior")
+            elif failure_reason == 'timeout':
+                print(f"   {failure_level} timed out - program may have infinite loop")
+            else:
+                print(f"   {failure_level} crashed during execution")
+
             optimization_sensitive = False
 
         # Compute confidence score
@@ -322,6 +334,8 @@ class UBDetector:
                 # If -O0 compiles but -O2 fails → optimizer crash (compiler bug)
                 # CRITICAL: This must be caught BEFORE stdout comparison
                 if not o0_failed and o2_failed:
+                    details['optimization_failure_level'] = '-O2'
+                    details['optimization_failure_reason'] = o2_result.get('compile_failed', 'timeout' if o2_result.get('timeout') else 'crash')
                     return True  # Optimization-sensitive compiler bug
 
                 # If -O0 fails → can't determine baseline
@@ -329,6 +343,8 @@ class UBDetector:
                 if o0_failed:
                     details['baseline_failed'] = True
                     details['baseline_failure_reason'] = 'fallback_path'
+                    details['optimization_failure_level'] = '-O0'
+                    details['optimization_failure_reason'] = o0_result.get('compile_failed', 'timeout' if o0_result.get('timeout') else 'crash')
                     return None  # Couldn't determine (baseline unusable)
 
                 # Both compiled successfully - compare outputs
