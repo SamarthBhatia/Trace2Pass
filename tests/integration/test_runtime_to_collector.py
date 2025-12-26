@@ -192,61 +192,34 @@ def test_e2e_instrumented_binary_to_collector(instrumented_binary, collector_ser
             except json.JSONDecodeError:
                 partial_json = ""
 
-    # If runtime produced JSON but with missing fields, preserve what we got
-    # Only fill in minimal fields if absolutely no JSON was produced
+    # CRITICAL: If runtime did not output JSON, FAIL the test
+    # Fabricating placeholder reports hides regressions in runtime→collector serialization
     if not reports:
-        # Runtime didn't output JSON at all - this indicates the runtime needs work
-        # but we'll create a minimal report to test collector acceptance
+        pytest.fail(
+            f"Runtime did not emit any JSON output despite TRACE2PASS_JSON_OUTPUT=1.\n"
+            f"This is a regression in runtime→collector serialization.\n"
+            f"Return code: {result.returncode}\n"
+            f"Stdout: {result.stdout[:200]}\n"
+            f"Stderr: {result.stderr[:200]}\n"
+            f"Expected: At least one JSON object with 'report_id' or 'check_type' field"
+        )
 
-        # Try to extract any information from runtime output
-        check_type = "unknown"
-        if "overflow" in result.stderr.lower():
-            check_type = "arithmetic_overflow"
-        elif "division" in result.stderr.lower() and "zero" in result.stderr.lower():
-            check_type = "division_by_zero"
+    # We got JSON from runtime - validate it has expected fields
+    for i, report in enumerate(reports):
+        # Check for required fields, log what's missing
+        required = ["check_type", "location"]
+        missing = [f for f in required if f not in report]
+        if missing:
+            print(f"\n⚠️  Report {i}: Missing fields {missing} (acceptable per KNOWN_ISSUES.md)")
 
-        # Build minimal report with whatever we can infer
-        report = {
-            "report_id": f"runtime-test-{int(time.time())}",
-            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "check_type": check_type,
-            "location": {
-                "file": "unknown",  # DILocation missing (KNOWN_ISSUES.md)
-                "line": 0,
-                "function": "unknown"
-            },
-            "compiler": {
-                "name": "clang",
-                "version": "unknown"  # Runtime should provide this
-            },
-            "build_info": {
-                "optimization_level": "-O2",
-                "flags": ["-O2"]
-            }
-        }
-        reports = [report]
+        # Ensure minimal structure for collector
+        report.setdefault("report_id", f"runtime-test-{int(time.time())}-{i}")
+        report.setdefault("timestamp", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
 
-        # Log that we had to fabricate the report
-        print("\n⚠️  WARNING: Runtime did not output JSON, fabricated minimal report")
-        print("   This indicates the runtime needs to emit proper JSON payloads")
-        print(f"   Runtime stderr: {result.stderr[:200]}")
-    else:
-        # We got JSON from runtime - validate it has expected fields
-        for i, report in enumerate(reports):
-            # Check for required fields, log what's missing
-            required = ["check_type", "location"]
-            missing = [f for f in required if f not in report]
-            if missing:
-                print(f"\n⚠️  Report {i}: Missing fields {missing} (acceptable per KNOWN_ISSUES.md)")
-
-            # Ensure minimal structure for collector
-            report.setdefault("report_id", f"runtime-test-{int(time.time())}-{i}")
-            report.setdefault("timestamp", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
-
-            if "location" in report and isinstance(report["location"], dict):
-                report["location"].setdefault("file", "unknown")
-                report["location"].setdefault("line", 0)
-                report["location"].setdefault("function", "unknown")
+        if "location" in report and isinstance(report["location"], dict):
+            report["location"].setdefault("file", "unknown")
+            report["location"].setdefault("line", 0)
+            report["location"].setdefault("function", "unknown")
 
     # Submit actual runtime report(s) to collector
     for report in reports:
