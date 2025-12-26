@@ -86,6 +86,18 @@ class VersionBisector:
         if not os.path.exists(source_file):
             raise FileNotFoundError(f"Source file not found: {source_file}")
 
+        # Check Docker availability if use_docker is enabled
+        if self.use_docker:
+            docker_available = self._check_docker_available()
+            if not docker_available:
+                print("⚠️  WARNING: Docker is not available but --use-docker=True is set")
+                print("   Options:")
+                print("   1. Install Docker: https://docs.docker.com/get-docker/")
+                print("   2. Use local compilers: Set --use-docker=False")
+                print("   3. Install specific compiler versions locally (e.g., clang-17)")
+                print()
+                print("   Proceeding with Docker mode (will skip unavailable versions)...")
+
         self.tested_versions = []
         details = {}
 
@@ -834,6 +846,23 @@ exit $?
             return test_func(version, wrapper_path)
         except Exception as e:
             print(f"Error running test_func with Docker wrapper: {e}")
+            return False
+
+    def _check_docker_available(self) -> bool:
+        """
+        Check if Docker is available on the system.
+
+        Returns:
+            True if Docker is installed and accessible, False otherwise
+        """
+        try:
+            result = subprocess.run(
+                ["docker", "--version"],
+                capture_output=True,
+                timeout=5
+            )
+            return result.returncode == 0
+        except (FileNotFoundError, subprocess.TimeoutExpired):
             return False
 
     def cleanup(self):
