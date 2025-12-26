@@ -218,16 +218,28 @@ def test_e2e_instrumented_binary_to_collector(instrumented_binary, collector_ser
     assert response.status_code == 200
     queue = response.json()
 
-    # Verify that the collector actually received reports from the runtime
-    # We expect at least as many reports as we parsed from stderr JSON
-    if len(queue["queue"]) < len(reports):
+    # CRITICAL: Do NOT compare counts - collector deduplicates by report_id
+    # If runtime emits duplicate JSON (e.g., bloom filter thread-local issues),
+    # stderr may have more JSON objects than collector has unique reports.
+    # Instead, verify that specific report_ids from stderr exist in collector.
+
+    # Extract report_ids from collector queue
+    collector_report_ids = {r.get('report_id') for r in queue['queue']}
+
+    # Verify that each parsed report was actually delivered to collector
+    missing_reports = []
+    for report in reports:
+        report_id = report.get('report_id')
+        if report_id not in collector_report_ids:
+            missing_reports.append(report_id)
+
+    if missing_reports:
         pytest.fail(
             f"Runtime→collector HTTP POST failed!\n"
-            f"Expected: {len(reports)} reports in collector\n"
-            f"Actual: {len(queue['queue'])} reports in collector\n"
-            f"This means the runtime's http_post_json() is not working.\n"
+            f"Expected reports not found in collector: {missing_reports}\n"
             f"Parsed from stderr: {[r.get('report_id', 'no-id') for r in reports]}\n"
-            f"In collector queue: {[r.get('report_id', 'no-id') for r in queue['queue']]}"
+            f"In collector queue: {list(collector_report_ids)}\n"
+            f"This means the runtime's http_post_json() failed for some reports."
         )
 
     # Verify reports have expected check_types
@@ -237,7 +249,7 @@ def test_e2e_instrumented_binary_to_collector(instrumented_binary, collector_ser
         assert check_type in collector_check_types, \
             f"Runtime sent check_type={check_type} but collector didn't receive it"
 
-    print(f"\n✓ Runtime→collector HTTP POST verified: {len(queue['queue'])} reports delivered")
+    print(f"\n✓ Runtime→collector HTTP POST verified: {len(reports)} report(s) parsed, {len(collector_report_ids)} unique in collector")
     print(f"  Check types: {collector_check_types}")
 
 
