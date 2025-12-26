@@ -479,16 +479,19 @@ class TestDockerFailureHandling:
         if os.path.exists(path):
             os.remove(path)
 
-    def mock_compile_docker_not_found(self, version, source_file, optimization_level):
-        """Mock _compile_with_docker when Docker is not installed."""
-        # Simulate FileNotFoundError being caught and returning compiler_found=False
-        return (None, False, False, None)
+    @patch('version_bisector.VersionBisector._check_docker_available')
+    @patch('version_bisector.VersionBisector._compile_local')
+    def test_docker_not_installed(self, mock_local, mock_docker_check, temp_source):
+        """
+        Test that when Docker is unavailable, the bisector automatically
+        falls back to local compiler installations.
+        """
+        # Mock Docker as unavailable
+        mock_docker_check.return_value = False
 
-    @patch('version_bisector.VersionBisector._compile_with_docker')
-    def test_docker_not_installed(self, mock_docker, temp_source):
-        """Test graceful handling when Docker is not installed."""
-        mock_docker.side_effect = self.mock_compile_docker_not_found
-        
+        # Mock local compilation as also unavailable (no local clang-14, clang-15)
+        mock_local.return_value = (None, False, False, None)
+
         versions = ["14.0.0", "15.0.0"]
         bisector = VersionBisector(versions=versions, use_docker=True)
 
@@ -497,7 +500,15 @@ class TestDockerFailureHandling:
 
         result = bisector.bisect(temp_source, test_func)
 
-        # Should return insufficient_compilers since Docker isn't available
+        # Verify Docker mode was disabled after detecting Docker is unavailable
+        assert bisector.use_docker == False, \
+            "use_docker should be False after detecting Docker is unavailable"
+
+        # Verify local compilation was attempted (fallback kicked in)
+        assert mock_local.called, \
+            "Local compilation should be attempted after Docker fallback"
+
+        # Should return insufficient_compilers since neither Docker nor local compilers available
         assert result.verdict == "insufficient_compilers"
         assert "error" in result.details
 

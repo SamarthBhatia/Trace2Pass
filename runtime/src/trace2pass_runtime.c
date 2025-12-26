@@ -20,6 +20,7 @@
 static double sample_rate = 0.01;  // Default: 1%
 static FILE* output_file = NULL;
 static char* collector_url = NULL;  // Collector API endpoint (optional)
+static int json_output = 0;  // If 1, output JSON to stderr instead of plain text
 static pthread_mutex_t output_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Bloom filter for deduplication
@@ -84,6 +85,11 @@ void trace2pass_init(void) {
     const char* collector_env = getenv("TRACE2PASS_COLLECTOR_URL");
     if (collector_env) {
         trace2pass_set_collector_url(collector_env);
+    }
+
+    const char* json_env = getenv("TRACE2PASS_JSON_OUTPUT");
+    if (json_env && (strcmp(json_env, "1") == 0 || strcmp(json_env, "true") == 0)) {
+        json_output = 1;
     }
 
     fprintf(get_output_file(), "Trace2Pass: Runtime initialized (sample_rate=%.3f", sample_rate);
@@ -445,45 +451,53 @@ void trace2pass_report_overflow(void* pc, const char* expr,
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
 
+    char callsite_id[32];
+    generate_callsite_id(pc, "overflow", callsite_id, sizeof(callsite_id));
+
+    char report_id[64];
+    generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+    char expr_escaped[256];
+    json_escape_string(expr, expr_escaped, sizeof(expr_escaped));
+
+    char json[2048];
+    snprintf(json, sizeof(json),
+        "{"
+        "\"report_id\":\"%s\","
+        "\"timestamp\":\"%s\","
+        "\"check_type\":\"arithmetic_overflow\","
+        "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
+        "\"pc\":\"0x%llx\","
+        "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
+        "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
+        "\"check_details\":{\"expr\":\"%s\",\"operands\":[%lld,%lld]}"
+        "}",
+        report_id, timestamp, callsite_id, (unsigned long long)pc,
+        expr_escaped, (long long)a, (long long)b);
+
     // Send to Collector if configured
     if (collector_url) {
-        char callsite_id[32];
-        generate_callsite_id(pc, "overflow", callsite_id, sizeof(callsite_id));
-
-        char report_id[64];
-        generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
-
-        char expr_escaped[256];
-        json_escape_string(expr, expr_escaped, sizeof(expr_escaped));
-
-        char json[2048];
-        snprintf(json, sizeof(json),
-            "{"
-            "\"report_id\":\"%s\","
-            "\"timestamp\":\"%s\","
-            "\"check_type\":\"arithmetic_overflow\","
-            "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
-            "\"pc\":\"0x%llx\","
-            "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
-            "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
-            "\"check_details\":{\"expr\":\"%s\",\"operands\":[%lld,%lld]}"
-            "}",
-            report_id, timestamp, callsite_id, (unsigned long long)pc,
-            expr_escaped, (long long)a, (long long)b);
-
         http_post_json(collector_url, json);
     }
 
-    // Also log to stderr/file for debugging
+    // Log to stderr/file
     pthread_mutex_lock(&output_mutex);
     FILE* out = get_output_file();
-    fprintf(out, "\n=== Trace2Pass Report ===\n");
-    fprintf(out, "Timestamp: %s\n", timestamp);
-    fprintf(out, "Type: arithmetic_overflow\n");
-    fprintf(out, "PC: %p\n", pc);
-    fprintf(out, "Expression: %s\n", expr);
-    fprintf(out, "Operands: %lld, %lld\n", a, b);
-    fprintf(out, "========================\n\n");
+
+    if (json_output) {
+        // Output JSON format when TRACE2PASS_JSON_OUTPUT=1
+        fprintf(out, "%s\n", json);
+    } else {
+        // Output plain text format for human readability
+        fprintf(out, "\n=== Trace2Pass Report ===\n");
+        fprintf(out, "Timestamp: %s\n", timestamp);
+        fprintf(out, "Type: arithmetic_overflow\n");
+        fprintf(out, "PC: %p\n", pc);
+        fprintf(out, "Expression: %s\n", expr);
+        fprintf(out, "Operands: %lld, %lld\n", a, b);
+        fprintf(out, "========================\n\n");
+    }
+
     fflush(out);
     pthread_mutex_unlock(&output_mutex);
 }
