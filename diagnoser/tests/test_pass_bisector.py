@@ -9,7 +9,12 @@ import pytest
 import tempfile
 import os
 import subprocess
-from diagnoser.src.pass_bisector import PassBisector, PassBisectionResult
+import sys
+
+# Add src directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+
+from pass_bisector import PassBisector, PassBisectionResult
 
 
 # ============================================================================
