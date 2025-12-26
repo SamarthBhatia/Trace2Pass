@@ -289,8 +289,10 @@ def pass_bisect_cmd(source_file: str, test_command: str,
             return {
                 'verdict': 'error',
                 'error': f'Compiler {clang_versioned} not found. Install it or use unversioned bisection.',
-                'first_bad_pass': None,
-                'last_good_pass': None
+                'culprit_pass': None,
+                'culprit_index': -1,
+                'total_passes': 0,
+                'total_tests': 0
             }
 
         # For opt and llc, we MUST use the same version as clang
@@ -307,8 +309,10 @@ def pass_bisect_cmd(source_file: str, test_command: str,
             return {
                 'verdict': 'error',
                 'error': f'{opt_versioned} not found. Install complete LLVM {major_version} toolchain.',
-                'first_bad_pass': None,
-                'last_good_pass': None
+                'culprit_pass': None,
+                'culprit_index': -1,
+                'total_passes': 0,
+                'total_tests': 0
             }
 
         if not shutil.which(llc_versioned):
@@ -318,8 +322,10 @@ def pass_bisect_cmd(source_file: str, test_command: str,
             return {
                 'verdict': 'error',
                 'error': f'{llc_versioned} not found. Install complete LLVM {major_version} toolchain.',
-                'first_bad_pass': None,
-                'last_good_pass': None
+                'culprit_pass': None,
+                'culprit_index': -1,
+                'total_passes': 0,
+                'total_tests': 0
             }
 
         # CRITICAL: Verify that opt and clang have matching versions
@@ -372,31 +378,61 @@ def pass_bisect_cmd(source_file: str, test_command: str,
         llc_path = "llc"
         print("Using system default compiler")
 
-    bisector = PassBisector(
-        clang_path=clang_path,
-        opt_path=opt_path,
-        llc_path=llc_path,
-        opt_level=optimization_level
-    )
-    result = bisector.bisect(source_file, test_func)
+    # Wrap PassBisector creation and bisection in try/except to catch tool errors
+    # (e.g., LLVM tool version mismatches, missing binaries, etc.)
+    try:
+        bisector = PassBisector(
+            clang_path=clang_path,
+            opt_path=opt_path,
+            llc_path=llc_path,
+            opt_level=optimization_level
+        )
+        result = bisector.bisect(source_file, test_func)
 
-    print("=== Pass Bisection Result ===")
-    print(f"Verdict: {result.verdict}")
-    print(f"Culprit pass: {result.culprit_pass or 'Not found'}")
-    print(f"Culprit index: {result.culprit_index}")
-    print(f"Total passes: {len(result.pass_pipeline)}")
-    print(f"Total tests: {result.total_tests}")
-    print()
+        print("=== Pass Bisection Result ===")
+        print(f"Verdict: {result.verdict}")
+        print(f"Culprit pass: {result.culprit_pass or 'Not found'}")
+        print(f"Culprit index: {result.culprit_index}")
+        print(f"Total passes: {len(result.pass_pipeline)}")
+        print(f"Total tests: {result.total_tests}")
+        print()
 
-    bisector.cleanup()
+        bisector.cleanup()
 
-    return {
-        "verdict": result.verdict,
-        "culprit_pass": result.culprit_pass,
-        "culprit_index": result.culprit_index,
-        "total_passes": len(result.pass_pipeline),
-        "total_tests": result.total_tests
-    }
+        return {
+            "verdict": result.verdict,
+            "culprit_pass": result.culprit_pass,
+            "culprit_index": result.culprit_index,
+            "total_passes": len(result.pass_pipeline),
+            "total_tests": result.total_tests
+        }
+
+    except RuntimeError as e:
+        # PassBisector initialization failed (e.g., LLVM tool version mismatch)
+        error_msg = str(e)
+        print(f"✗ Pass bisection failed: {error_msg}")
+        print()
+        return {
+            "verdict": "error",
+            "error": error_msg,
+            "culprit_pass": None,
+            "culprit_index": -1,
+            "total_passes": 0,
+            "total_tests": 0
+        }
+    except Exception as e:
+        # Unexpected error during bisection
+        error_msg = f"Unexpected error: {str(e)}"
+        print(f"✗ Pass bisection failed: {error_msg}")
+        print()
+        return {
+            "verdict": "error",
+            "error": error_msg,
+            "culprit_pass": None,
+            "culprit_index": -1,
+            "total_passes": 0,
+            "total_tests": 0
+        }
 
 
 def full_pipeline_cmd(source_file: str, test_command: str,
@@ -480,8 +516,25 @@ def full_pipeline_cmd(source_file: str, test_command: str,
     # CRITICAL: Pass the first_bad_version to pass bisection so it analyzes
     # the correct compiler version's pass pipeline, not the system default
     first_bad_version = version_result.get('first_bad_version')
-    pass_result = pass_bisect_cmd(source_file, test_command, optimization_level,
-                                  compiler_version=first_bad_version)
+
+    # Wrap pass_bisect_cmd call to catch any unexpected exceptions
+    try:
+        pass_result = pass_bisect_cmd(source_file, test_command, optimization_level,
+                                      compiler_version=first_bad_version)
+    except Exception as e:
+        # Unexpected exception from pass_bisect_cmd - return structured error
+        error_msg = f"Pass bisection raised exception: {str(e)}"
+        print(f"✗ {error_msg}")
+        print()
+        return {
+            "verdict": "error",
+            "error": error_msg,
+            "ub_detection": ub_result,
+            "version_bisection": version_result,
+            "pass_bisection": {"verdict": "error", "error": error_msg},
+            "recommendation": f"Partial diagnosis: Bug in {version_result.get('first_bad_version', 'unknown version')} "
+                             f"but pass bisection failed. {error_msg}"
+        }
 
     # Check if pass bisection failed (e.g., missing LLVM tools)
     if pass_result.get('verdict') == 'error':
