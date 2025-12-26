@@ -147,7 +147,8 @@ def test_e2e_instrumented_binary_to_collector(instrumented_binary, collector_ser
     # Set environment variable to enable JSON output from runtime
     env = os.environ.copy()
     env['TRACE2PASS_JSON_OUTPUT'] = '1'
-    env['TRACE2PASS_COLLECTOR_URL'] = collector_server
+    # CRITICAL: Runtime needs the full endpoint URL, not just the base URL
+    env['TRACE2PASS_COLLECTOR_URL'] = f"{collector_server}/api/v1/report"
 
     # Run instrumented binary
     result = subprocess.run(
@@ -204,45 +205,40 @@ def test_e2e_instrumented_binary_to_collector(instrumented_binary, collector_ser
             f"Expected: At least one JSON object with 'report_id' or 'check_type' field"
         )
 
-    # We got JSON from runtime - validate it has expected fields
-    for i, report in enumerate(reports):
-        # Check for required fields, log what's missing
-        required = ["check_type", "location"]
-        missing = [f for f in required if f not in report]
-        if missing:
-            print(f"\n⚠️  Report {i}: Missing fields {missing} (acceptable per KNOWN_ISSUES.md)")
+    # CRITICAL: Runtime should have POST'd directly to collector via http_post_json()
+    # We do NOT re-submit the reports manually - that would mask HTTP failures
+    # Instead, we verify that the collector actually received the runtime's POSTs
 
-        # Ensure minimal structure for collector
-        report.setdefault("report_id", f"runtime-test-{int(time.time())}-{i}")
-        report.setdefault("timestamp", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
+    # Give the runtime's background HTTP requests time to complete
+    # (http_post_json uses system("curl ...") which may be async)
+    time.sleep(0.5)
 
-        if "location" in report and isinstance(report["location"], dict):
-            report["location"].setdefault("file", "unknown")
-            report["location"].setdefault("line", 0)
-            report["location"].setdefault("function", "unknown")
-
-    # Submit actual runtime report(s) to collector
-    for report in reports:
-        response = requests.post(
-            f"{collector_server}/api/v1/report",
-            json=report,
-            headers={"Content-Type": "application/json"}
-        )
-
-        # Collector should accept even if fields are "unknown"
-        assert response.status_code == 201, \
-            f"Collector rejected runtime report: {response.status_code} {response.text}"
-
-        data = response.json()
-        assert data["status"] == "success"
-        assert "report_id" in data
-
-    # Verify reports are stored
+    # Query the collector to verify it received the runtime's HTTP POSTs
     response = requests.get(f"{collector_server}/api/v1/queue")
     assert response.status_code == 200
     queue = response.json()
-    assert len(queue["queue"]) >= len(reports), \
-        "Collector did not store all runtime reports"
+
+    # Verify that the collector actually received reports from the runtime
+    # We expect at least as many reports as we parsed from stderr JSON
+    if len(queue["queue"]) < len(reports):
+        pytest.fail(
+            f"Runtime→collector HTTP POST failed!\n"
+            f"Expected: {len(reports)} reports in collector\n"
+            f"Actual: {len(queue['queue'])} reports in collector\n"
+            f"This means the runtime's http_post_json() is not working.\n"
+            f"Parsed from stderr: {[r.get('report_id', 'no-id') for r in reports]}\n"
+            f"In collector queue: {[r.get('report_id', 'no-id') for r in queue['queue']]}"
+        )
+
+    # Verify reports have expected check_types
+    collector_check_types = [r.get("check_type") for r in queue["queue"]]
+    for report in reports:
+        check_type = report.get("check_type")
+        assert check_type in collector_check_types, \
+            f"Runtime sent check_type={check_type} but collector didn't receive it"
+
+    print(f"\n✓ Runtime→collector HTTP POST verified: {len(queue['queue'])} reports delivered")
+    print(f"  Check types: {collector_check_types}")
 
 
 def test_manual_report_submission(collector_server):
