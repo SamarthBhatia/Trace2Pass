@@ -537,13 +537,22 @@ def full_pipeline_cmd(source_file: str, test_command: str,
         print("   1. Install matching LLVM toolchain locally for pass-level analysis")
         print("   2. Use version bisection results to narrow down the regression")
         print()
+
+        # Build recommendation based on whether we found a regression
+        first_bad_version = version_result.get('first_bad_version')
+        if first_bad_version:
+            major_version = first_bad_version.split('.')[0]
+            recommendation = (f"Version bisection identified regression in {first_bad_version}. "
+                            f"Install local LLVM {major_version} toolchain for pass-level analysis.")
+        else:
+            recommendation = "Pass bisection requires local LLVM toolchain. Install clang, opt, and llc for pass-level analysis."
+
         return {
             "verdict": "incomplete",
             "reason": "Pass bisection skipped: requires local LLVM toolchain (Docker-based pass bisection not yet implemented)",
             "ub_detection": ub_result,
             "version_bisection": version_result,
-            "recommendation": f"Version bisection identified regression in {version_result.get('first_bad_version')}. "
-                             f"Install local LLVM {version_result.get('first_bad_version').split('.')[0]} toolchain for pass-level analysis."
+            "recommendation": recommendation
         }
 
     # CRITICAL: Pass the first_bad_version to pass bisection so it analyzes

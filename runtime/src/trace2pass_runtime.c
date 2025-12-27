@@ -22,11 +22,13 @@
     #define TRACE2PASS_COMPILER_NAME "clang"
     #define TRACE2PASS_COMPILER_VERSION __clang_version__
 #elif defined(__GNUC__)
+    #define __TRACE2PASS_STRINGIFY_IMPL(x) #x
+    #define __TRACE2PASS_STRINGIFY(x) __TRACE2PASS_STRINGIFY_IMPL(x)
     #define TRACE2PASS_COMPILER_NAME "gcc"
-    #define TRACE2PASS_COMPILER_VERSION_STR \
-        __STRINGIFY(__GNUC__) "." __STRINGIFY(__GNUC_MINOR__) "." __STRINGIFY(__GNUC_PATCHLEVEL__)
-    #define __STRINGIFY(x) #x
-    #define TRACE2PASS_COMPILER_VERSION TRACE2PASS_COMPILER_VERSION_STR
+    #define TRACE2PASS_COMPILER_VERSION \
+        __TRACE2PASS_STRINGIFY(__GNUC__) "." \
+        __TRACE2PASS_STRINGIFY(__GNUC_MINOR__) "." \
+        __TRACE2PASS_STRINGIFY(__GNUC_PATCHLEVEL__)
 #else
     #define TRACE2PASS_COMPILER_NAME "unknown"
     #define TRACE2PASS_COMPILER_VERSION "unknown"
@@ -176,9 +178,9 @@ void trace2pass_set_collector_url(const char* url) {
             path_end = fragment_start - url;
         }
 
-        // Strip trailing slash from path for comparison
+        // Strip ALL trailing slashes from path for comparison
         size_t path_end_no_slash = path_end;
-        if (path_end_no_slash > 0 && url[path_end_no_slash - 1] == '/') {
+        while (path_end_no_slash > 0 && url[path_end_no_slash - 1] == '/') {
             path_end_no_slash--;
         }
 
