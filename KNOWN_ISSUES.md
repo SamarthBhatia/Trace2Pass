@@ -59,13 +59,17 @@
 - User gets partial diagnosis without pass-level root cause
 
 **Status**: OPEN
-**Current Behavior**: Pipeline now detects Docker usage and skips pass bisection with a clear warning and installation instructions
+**Current Behavior**:
+- Pipeline detects `used_docker` flag from version bisection and skips pass bisection with warnings
+- **Docker Fallback Behavior**: If user requests Docker (`--use-docker` or default) but Docker is unavailable, version bisector automatically falls back to local compilers (if available). In this case, `used_docker=False` and pass bisection will attempt to run. However, local compilers may lack the full toolchain (`opt`, `llc`) needed for pass bisection even if they work for version bisection.
+- **Test Coverage Note**: Tests that patch `_compile_with_docker` may not account for the fallback behavior, potentially causing `used_docker` to be False even when Docker was requested.
 
 **Solution**:
 1. Implement Docker-backed pass bisection (mount source, run `opt` inside container, extract IR)
-2. Or: Document that pass-level analysis requires local LLVM installation
+2. Or: Track original user request (`requested_docker`) separately from actual usage (`used_docker`)
+3. Or: Check for pass bisection toolchain availability before attempting to run
 
-**Workaround**: Install matching LLVM version locally after version bisection identifies the regression
+**Workaround**: Install matching LLVM version locally (including `opt` and `llc`) after version bisection identifies the regression
 
 ---
 
