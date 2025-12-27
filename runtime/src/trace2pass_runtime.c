@@ -56,8 +56,9 @@ static pthread_mutex_t output_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Build metadata injected by instrumentor (extern declarations)
 // These globals are created by the LLVM pass in the instrumented binary
-extern const char __trace2pass_opt_level[] __attribute__((weak));
-extern const char __trace2pass_compile_flags[] __attribute__((weak));
+// Provide weak default definitions for standalone compilation (e.g., tests)
+__attribute__((weak)) const char __trace2pass_opt_level[] = "unknown";
+__attribute__((weak)) const char __trace2pass_compile_flags[] = "";
 
 // Build metadata storage (populated in trace2pass_init)
 static const char* build_opt_level = NULL;
@@ -159,9 +160,9 @@ void trace2pass_init(void) {
     }
 
     // Read build metadata injected by instrumentor
-    // Use weak symbols so runtime doesn't fail if globals not present
-    build_opt_level = (&__trace2pass_opt_level != NULL) ? __trace2pass_opt_level : "unknown";
-    build_compile_flags = (&__trace2pass_compile_flags != NULL) ? __trace2pass_compile_flags : "";
+    // Weak symbols provide defaults ("unknown", "") for non-instrumented code
+    build_opt_level = __trace2pass_opt_level;
+    build_compile_flags = __trace2pass_compile_flags;
 
     fprintf(get_output_file(), "Trace2Pass: Runtime initialized (sample_rate=%.3f, opt_level=%s", sample_rate, build_opt_level);
     if (collector_url) {
