@@ -6,6 +6,8 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/DebugInfoMetadata.h"
+#include "llvm/IR/Metadata.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
@@ -215,14 +217,58 @@ void Trace2PassInstrumentorPass::injectBuildMetadata(Module &M) {
     return;  // Already injected
   }
 
-  // Get optimization level from environment variable (set by build system)
-  // Usage: TRACE2PASS_OPT_LEVEL=-O2 clang -fpass-plugin=...
-  const char* opt_level_env = getenv("TRACE2PASS_OPT_LEVEL");
-  std::string opt_level = opt_level_env ? opt_level_env : "-O?";
+  std::string opt_level = "unknown";
+  std::string flags = "";
 
-  // Get compiler flags from environment (set by build system)
-  const char* flags_env = getenv("TRACE2PASS_COMPILE_FLAGS");
-  std::string flags = flags_env ? flags_env : "";
+  // Extract actual compilation flags from debug info (DICompileUnit)
+  // The producer string contains compiler version and flags used
+  if (NamedMDNode *CU_Nodes = M.getNamedMetadata("llvm.dbg.cu")) {
+    for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
+      if (DICompileUnit *CU = dyn_cast<DICompileUnit>(CU_Nodes->getOperand(i))) {
+        // Producer string typically: "clang version X.Y.Z (flags)"
+        StringRef Producer = CU->getProducer();
+        if (!Producer.empty()) {
+          flags = Producer.str();
+
+          // Try to extract optimization level from flags
+          // Look for -O0, -O1, -O2, -O3, -Os, -Oz in the producer string
+          if (Producer.contains("-O3")) opt_level = "-O3";
+          else if (Producer.contains("-O2")) opt_level = "-O2";
+          else if (Producer.contains("-O1")) opt_level = "-O1";
+          else if (Producer.contains("-Os")) opt_level = "-Os";
+          else if (Producer.contains("-Oz")) opt_level = "-Oz";
+          else if (Producer.contains("-O0")) opt_level = "-O0";
+          else if (Producer.contains("-O")) opt_level = "-O?";
+        }
+        break;  // Only need first compile unit
+      }
+    }
+  }
+
+  // Fallback: Try to infer optimization level from module characteristics
+  if (opt_level == "unknown") {
+    // Check module flags for optimization hints
+    if (M.getModuleFlag("OptLevel")) {
+      if (auto *OptLevelMD = dyn_cast<ConstantAsMetadata>(M.getModuleFlag("OptLevel"))) {
+        if (auto *OptLevelInt = dyn_cast<ConstantInt>(OptLevelMD->getValue())) {
+          uint64_t Level = OptLevelInt->getZExtValue();
+          opt_level = "-O" + std::to_string(Level);
+        }
+      }
+    } else {
+      // Heuristic: Check if functions have optnone attribute (indicates -O0)
+      bool has_optnone = false;
+      for (Function &F : M) {
+        if (F.hasFnAttribute(Attribute::OptimizeNone)) {
+          has_optnone = true;
+          break;
+        }
+      }
+      if (has_optnone) {
+        opt_level = "-O0";
+      }
+    }
+  }
 
   // Create global string constants (readable by runtime via extern)
   IRBuilder<> Builder(Ctx);
@@ -239,7 +285,7 @@ void Trace2PassInstrumentorPass::injectBuildMetadata(Module &M) {
   );
   OptLevelGlobal->setVisibility(GlobalValue::DefaultVisibility);
 
-  // Compile flags global
+  // Compile flags global (producer string from debug info)
   Constant *FlagsStr = ConstantDataArray::getString(Ctx, flags, true);
   GlobalVariable *FlagsGlobal = new GlobalVariable(
       M,

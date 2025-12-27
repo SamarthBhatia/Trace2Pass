@@ -195,9 +195,6 @@ void trace2pass_set_output_file(const char* path) {
 }
 
 void trace2pass_set_collector_url(const char* url) {
-    if (collector_url) {
-        free(collector_url);
-    }
     if (url) {
         // CRITICAL: Auto-append /api/v1/report endpoint if not present in path
         // The runtime needs the full POST endpoint, not just the base URL
@@ -270,9 +267,8 @@ void trace2pass_set_collector_url(const char* url) {
                             size_t pos_after = pos_before + endpoint_len;
 
                             // Check boundaries within the path portion
-                            // Prefix: The endpoint starts with '/', so this '/' should be a valid separator.
-                            // A valid separator is either at the start OR preceded by a non-'/' (end of previous segment).
-                            // Checking for '== /' would allow '//' which is invalid.
+                            // Since endpoint starts with '/', the match includes that '/' character
+                            // Prefix: ensure no double-slash (previous char should not be '/')
                             // Suffix: must be at end OR followed by '/' (start of next segment)
                             int valid_prefix = (pos_before == 0 || path_portion[pos_before - 1] != '/');
                             int valid_suffix = (pos_after == path_portion_len || path_portion[pos_after] == '/');
@@ -295,9 +291,20 @@ void trace2pass_set_collector_url(const char* url) {
 
         if (has_endpoint) {
             // URL already contains the endpoint, use as-is
+            if (collector_url) free(collector_url);
             collector_url = strdup(url);
             fprintf(stderr, "ℹ️  Trace2Pass: Collector URL configured as: %s\n", collector_url);
         } else {
+            // Check if path contains "report" but doesn't match our endpoint
+            // This catches invalid URLs like /fooapi/v1/report or /api/v1/reporting
+            // We reject these instead of auto-appending (leave collector_url unchanged)
+            if (strstr(url, "report")) {
+                fprintf(stderr, "⚠️  Trace2Pass: Invalid collector URL - contains 'report' but not at correct path boundary: %s\n", url);
+                fprintf(stderr, "   Expected endpoint: %s\n", endpoint);
+                fprintf(stderr, "   Previous collector URL unchanged.\n");
+                return;  // Don't modify collector_url
+            }
+
             // Auto-append the endpoint before any query string or fragment
             // CRITICAL: Always allocate url_len + endpoint_len + 1 bytes
             // Adjust what we copy, not the allocation size
@@ -306,6 +313,7 @@ void trace2pass_set_collector_url(const char* url) {
             // Allocate: url without trailing slash + endpoint + query/fragment + null
             size_t total_len = url_len + endpoint_len + 1;
 
+            if (collector_url) free(collector_url);
             collector_url = (char*)malloc(total_len);
             if (collector_url) {
                 char* pos = collector_url;
@@ -335,6 +343,10 @@ void trace2pass_set_collector_url(const char* url) {
     } else {
         collector_url = NULL;
     }
+}
+
+const char* trace2pass_get_collector_url(void) {
+    return collector_url;
 }
 
 // JSON serialization helper - properly escapes all JSON control characters
