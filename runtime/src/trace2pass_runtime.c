@@ -127,34 +127,79 @@ void trace2pass_set_collector_url(const char* url) {
         free(collector_url);
     }
     if (url) {
-        // CRITICAL: Auto-append /api/v1/report endpoint if not present
+        // CRITICAL: Auto-append /api/v1/report endpoint if not present in path
         // The runtime needs the full POST endpoint, not just the base URL
+        // Must handle query strings and fragments correctly
         const char* endpoint = "/api/v1/report";
         size_t url_len = strlen(url);
         size_t endpoint_len = strlen(endpoint);
 
-        // Check if URL already ends with /api/v1/report
-        if (url_len >= endpoint_len &&
-            strcmp(url + url_len - endpoint_len, endpoint) == 0) {
-            // Already has the endpoint, use as-is
+        // Find query string or fragment start to check only the path portion
+        const char* query_start = strchr(url, '?');
+        const char* fragment_start = strchr(url, '#');
+
+        // Determine where the path ends (before query string or fragment)
+        size_t path_end = url_len;
+        if (query_start) {
+            path_end = query_start - url;
+        }
+        if (fragment_start && (size_t)(fragment_start - url) < path_end) {
+            path_end = fragment_start - url;
+        }
+
+        // Check if /api/v1/report appears anywhere in the path
+        int has_endpoint = 0;
+        if (path_end >= endpoint_len) {
+            // Create a temporary null-terminated path string for searching
+            char* path = (char*)malloc(path_end + 1);
+            if (path) {
+                memcpy(path, url, path_end);
+                path[path_end] = '\0';
+
+                // Check if endpoint appears in path
+                if (strstr(path, endpoint) != NULL) {
+                    has_endpoint = 1;
+                }
+
+                free(path);
+            }
+        }
+
+        if (has_endpoint) {
+            // URL already contains the endpoint, use as-is
             collector_url = strdup(url);
+            fprintf(stderr, "ℹ️  Trace2Pass: Collector URL configured as: %s\n", collector_url);
         } else {
-            // Auto-append the endpoint
-            // Remove trailing slash if present
-            int has_trailing_slash = (url_len > 0 && url[url_len - 1] == '/');
-            size_t total_len = url_len + endpoint_len + 1;  // +1 for null terminator
+            // Auto-append the endpoint before any query string or fragment
+            // Remove trailing slash if present in path
+            int has_trailing_slash = (path_end > 0 && url[path_end - 1] == '/');
+
+            size_t total_len = path_end + endpoint_len + (url_len - path_end) + 1;
             if (has_trailing_slash) {
                 total_len--;  // Don't need extra slash
             }
 
             collector_url = (char*)malloc(total_len);
             if (collector_url) {
-                if (has_trailing_slash) {
-                    snprintf(collector_url, total_len, "%.*s%s",
-                            (int)(url_len - 1), url, endpoint);
-                } else {
-                    snprintf(collector_url, total_len, "%s%s", url, endpoint);
+                char* pos = collector_url;
+
+                // Copy path (excluding trailing slash if present)
+                size_t copy_len = has_trailing_slash ? path_end - 1 : path_end;
+                memcpy(pos, url, copy_len);
+                pos += copy_len;
+
+                // Add endpoint
+                memcpy(pos, endpoint, endpoint_len);
+                pos += endpoint_len;
+
+                // Copy query string and/or fragment if present
+                if (path_end < url_len) {
+                    size_t suffix_len = url_len - path_end;
+                    memcpy(pos, url + path_end, suffix_len);
+                    pos += suffix_len;
                 }
+
+                *pos = '\0';
 
                 fprintf(stderr, "ℹ️  Trace2Pass: Collector URL configured as: %s\n", collector_url);
                 fprintf(stderr, "   (Auto-appended /api/v1/report endpoint)\n");
