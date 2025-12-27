@@ -198,13 +198,17 @@ def version_bisect_cmd(source_file: str, test_command: str,
 
     print()
 
+    # Track whether Docker was actually used (may have fallen back to local)
+    used_docker = bisector.use_docker
+
     bisector.cleanup()
 
     return {
         "verdict": result.verdict,
         "first_bad_version": result.first_bad_version,
         "last_good_version": result.last_good_version,
-        "total_tests": result.total_tests
+        "total_tests": result.total_tests,
+        "used_docker": used_docker  # CRITICAL: Track actual Docker usage for pass bisection decision
     }
 
 
@@ -513,6 +517,35 @@ def full_pipeline_cmd(source_file: str, test_command: str,
 
     # Stage 3: Pass Bisection
     print("Stage 3/3: Pass Bisection...")
+
+    # CRITICAL: Check if version bisection ACTUALLY used Docker
+    # Pass bisection requires local LLVM toolchain (clang-N, opt-N, llc-N)
+    # If version bisection used Docker (because local toolchains weren't available),
+    # we cannot run pass bisection without Docker support (not yet implemented)
+    actually_used_docker = version_result.get('used_docker', False)
+    if actually_used_docker:
+        print("⚠️  WARNING: Pass bisection skipped (Docker-based version bisection detected)")
+        print("   Pass bisection requires local LLVM toolchain installation:")
+        first_bad_version = version_result.get('first_bad_version')
+        if first_bad_version:
+            major_version = first_bad_version.split('.')[0]
+            print(f"   - clang-{major_version}")
+            print(f"   - opt-{major_version}")
+            print(f"   - llc-{major_version}")
+        print()
+        print("   Options:")
+        print("   1. Install matching LLVM toolchain locally for pass-level analysis")
+        print("   2. Use version bisection results to narrow down the regression")
+        print()
+        return {
+            "verdict": "incomplete",
+            "reason": "Pass bisection skipped: requires local LLVM toolchain (Docker-based pass bisection not yet implemented)",
+            "ub_detection": ub_result,
+            "version_bisection": version_result,
+            "recommendation": f"Version bisection identified regression in {version_result.get('first_bad_version')}. "
+                             f"Install local LLVM {version_result.get('first_bad_version').split('.')[0]} toolchain for pass-level analysis."
+        }
+
     # CRITICAL: Pass the first_bad_version to pass bisection so it analyzes
     # the correct compiler version's pass pipeline, not the system default
     first_bad_version = version_result.get('first_bad_version')
@@ -642,6 +675,10 @@ def main():
                                 help='Test command with {binary} placeholder (e.g., "{binary} | grep -q OK")')
     version_parser.add_argument('--optimization-level', default='-O2',
                                 help='Optimization level (default: -O2)')
+    version_parser.add_argument('--use-docker', action='store_true', default=True,
+                                help='Use Docker for version bisection (default: True)')
+    version_parser.add_argument('--no-docker', dest='use_docker', action='store_false',
+                                help='Disable Docker, use local compilers only')
 
     # pass-bisect command
     pass_parser = subparsers.add_parser(
@@ -669,6 +706,10 @@ def main():
     pipeline_parser.add_argument('--expected-output', help='Expected output string (for UB detection)')
     pipeline_parser.add_argument('--optimization-level', default='-O2',
                                  help='Optimization level (default: -O2)')
+    pipeline_parser.add_argument('--use-docker', action='store_true', default=True,
+                                 help='Use Docker for version bisection (default: True)')
+    pipeline_parser.add_argument('--no-docker', dest='use_docker', action='store_false',
+                                 help='Disable Docker, use local compilers only')
 
     args = parser.parse_args()
 
@@ -683,7 +724,8 @@ def main():
             result = ub_detect_cmd(args.source_file, args.test_input, args.expected_output)
         elif args.command == 'version-bisect':
             result = version_bisect_cmd(args.source_file, args.test_command,
-                                       args.optimization_level)
+                                       args.optimization_level,
+                                       use_docker=args.use_docker)
         elif args.command == 'pass-bisect':
             result = pass_bisect_cmd(args.source_file, args.test_command,
                                     args.optimization_level,
@@ -691,7 +733,8 @@ def main():
         elif args.command == 'full-pipeline':
             result = full_pipeline_cmd(args.source_file, args.test_command,
                                       args.test_input, args.expected_output,
-                                      args.optimization_level)
+                                      args.optimization_level,
+                                      use_docker=args.use_docker)
         else:
             parser.print_help()
             sys.exit(1)

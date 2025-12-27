@@ -147,8 +147,8 @@ def test_e2e_instrumented_binary_to_collector(instrumented_binary, collector_ser
     # Set environment variable to enable JSON output from runtime
     env = os.environ.copy()
     env['TRACE2PASS_JSON_OUTPUT'] = '1'
-    # CRITICAL: Runtime needs the full endpoint URL, not just the base URL
-    env['TRACE2PASS_COLLECTOR_URL'] = f"{collector_server}/api/v1/report"
+    # NOTE: Runtime auto-appends /api/v1/report, so just provide base URL
+    env['TRACE2PASS_COLLECTOR_URL'] = collector_server
 
     # Run instrumented binary
     result = subprocess.run(

@@ -127,7 +127,39 @@ void trace2pass_set_collector_url(const char* url) {
         free(collector_url);
     }
     if (url) {
-        collector_url = strdup(url);
+        // CRITICAL: Auto-append /api/v1/report endpoint if not present
+        // The runtime needs the full POST endpoint, not just the base URL
+        const char* endpoint = "/api/v1/report";
+        size_t url_len = strlen(url);
+        size_t endpoint_len = strlen(endpoint);
+
+        // Check if URL already ends with /api/v1/report
+        if (url_len >= endpoint_len &&
+            strcmp(url + url_len - endpoint_len, endpoint) == 0) {
+            // Already has the endpoint, use as-is
+            collector_url = strdup(url);
+        } else {
+            // Auto-append the endpoint
+            // Remove trailing slash if present
+            int has_trailing_slash = (url_len > 0 && url[url_len - 1] == '/');
+            size_t total_len = url_len + endpoint_len + 1;  // +1 for null terminator
+            if (has_trailing_slash) {
+                total_len--;  // Don't need extra slash
+            }
+
+            collector_url = (char*)malloc(total_len);
+            if (collector_url) {
+                if (has_trailing_slash) {
+                    snprintf(collector_url, total_len, "%.*s%s",
+                            (int)(url_len - 1), url, endpoint);
+                } else {
+                    snprintf(collector_url, total_len, "%s%s", url, endpoint);
+                }
+
+                fprintf(stderr, "ℹ️  Trace2Pass: Collector URL configured as: %s\n", collector_url);
+                fprintf(stderr, "   (Auto-appended /api/v1/report endpoint)\n");
+            }
+        }
     } else {
         collector_url = NULL;
     }
