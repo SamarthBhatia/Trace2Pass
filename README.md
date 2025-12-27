@@ -372,10 +372,14 @@ export TRACE2PASS_JSON_OUTPUT=1
 ```
 
 **Note on TRACE2PASS_COLLECTOR_URL:**
-- The runtime automatically appends `/api/v1/report` to the URL you provide
-- Example: Setting `http://localhost:5800` → POSTs to `http://localhost:5800/api/v1/report`
-- Trailing slashes are handled automatically (`http://localhost:5800/` works too)
-- If you want to use a custom endpoint, include the full path (e.g., `http://example.com/custom/api/v1/report`)
+- The runtime automatically appends `/api/v1/report` if not present in the URL path
+- Examples:
+  - `http://localhost:5800` → `http://localhost:5800/api/v1/report`
+  - `http://localhost:5800/` → `http://localhost:5800/api/v1/report`
+  - `http://localhost:5800?token=abc` → `http://localhost:5800/api/v1/report?token=abc`
+  - `http://localhost:5800/api/v1/report?token=abc` → Used as-is (already has endpoint)
+- Query strings and fragments are preserved correctly
+- Custom endpoints work too: `http://example.com/custom/endpoint` is used as-is
 
 ### Understanding the Output
 

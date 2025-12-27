@@ -675,10 +675,8 @@ def main():
                                 help='Test command with {binary} placeholder (e.g., "{binary} | grep -q OK")')
     version_parser.add_argument('--optimization-level', default='-O2',
                                 help='Optimization level (default: -O2)')
-    version_parser.add_argument('--use-docker', action='store_true', default=True,
-                                help='Use Docker for version bisection (default: True)')
-    version_parser.add_argument('--no-docker', dest='use_docker', action='store_false',
-                                help='Disable Docker, use local compilers only')
+    version_parser.add_argument('--no-docker', dest='use_docker', action='store_false', default=True,
+                                help='Disable Docker and use local compilers only (default: use Docker)')
 
     # pass-bisect command
     pass_parser = subparsers.add_parser(
@@ -706,10 +704,8 @@ def main():
     pipeline_parser.add_argument('--expected-output', help='Expected output string (for UB detection)')
     pipeline_parser.add_argument('--optimization-level', default='-O2',
                                  help='Optimization level (default: -O2)')
-    pipeline_parser.add_argument('--use-docker', action='store_true', default=True,
-                                 help='Use Docker for version bisection (default: True)')
-    pipeline_parser.add_argument('--no-docker', dest='use_docker', action='store_false',
-                                 help='Disable Docker, use local compilers only')
+    pipeline_parser.add_argument('--no-docker', dest='use_docker', action='store_false', default=True,
+                                 help='Disable Docker and use local compilers only (default: use Docker)')
 
     args = parser.parse_args()
 
