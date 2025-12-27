@@ -178,46 +178,77 @@ void trace2pass_set_collector_url(const char* url) {
             path_end = fragment_start - url;
         }
 
-        // Check if /api/v1/report appears in the path at a proper boundary
-        // CRITICAL: Must verify the character after the endpoint substring is a valid boundary.
-        // We extract the path portion (before ? or #), search for the endpoint substring,
-        // then verify it's followed by '/' or end-of-path.
+        // Check if /api/v1/report appears at a path-segment boundary
+        // CRITICAL: Must verify BOTH prefix and suffix boundaries to avoid false matches.
         //
-        // Valid cases (will match):
-        // - https://host/api/v1/report (exact match, followed by end of path)
-        // - https://host/api/v1/report/ (followed by slash)
-        // - https://host/api/v1/report/v2 (followed by slash + more path)
-        // - https://host/api/v1/report?token=abc (query string excluded from path, so end-of-path)
-        // - https://host/prefix/api/v1/report (reverse proxy, followed by end of path)
+        // The endpoint "/api/v1/report" must:
+        // 1. Start at a path-segment boundary (preceded by '/' or start of path portion)
+        // 2. End at a path-segment boundary (followed by '/', '?', '#', or end of string)
         //
-        // Invalid cases (will NOT match - different endpoints):
-        // - https://host/api/v1/reporting (followed by 'i', not '/' or end)
-        // - https://host/api/v1/report_v2 (followed by '_', not '/' or end)
-        // - https://host/api/v1/reportdata (followed by 'd', not '/' or end)
-        // - https://host/api/v1/report-backup (followed by '-', not '/' or end)
+        // Valid URLs (will be detected):
+        // - https://host/api/v1/report → path="/api/v1/report" (prefix='', suffix=end)
+        // - https://host/api/v1/report/ → path="/api/v1/report/" (prefix='', suffix='/')
+        // - https://host/api/v1/report/v2 → path="/api/v1/report/v2" (prefix='', suffix='/')
+        // - https://host/prefix/api/v1/report → path="/prefix/api/v1/report" (prefix='/', suffix=end)
+        //
+        // Invalid URLs (will NOT match - different endpoints):
+        // - https://host/api/v1/reporting → path="/api/v1/reporting" (suffix='i')
+        // - https://host/api/v1/report_v2 → path="/api/v1/report_v2" (suffix='_')
+        // - https://host/foo/api/v1/reportbackup → path="/foo/api/v1/reportbackup" (suffix='b')
         int has_endpoint = 0;
         if (path_end >= endpoint_len) {
-            // Create temporary null-terminated path string for searching
-            char* path = (char*)malloc(path_end + 1);
-            if (path) {
-                memcpy(path, url, path_end);
-                path[path_end] = '\0';
+            // Find the start of the path portion (after scheme://host)
+            // Look for "://" and then find the next '/' which starts the path
+            const char* scheme_end = strstr(url, "://");
+            const char* path_start = url;  // Default to start of URL
 
-                // Find the endpoint in the path
-                char* found = strstr(path, endpoint);
-                if (found != NULL) {
-                    // Calculate position after the endpoint
-                    size_t pos_after_endpoint = (found - path) + endpoint_len;
-
-                    // Check that it's followed by a valid boundary:
-                    // - End of path
-                    // - Forward slash
-                    if (pos_after_endpoint == path_end || path[pos_after_endpoint] == '/') {
-                        has_endpoint = 1;
-                    }
+            if (scheme_end != NULL) {
+                // Find first '/' after "://" (this is the start of the path)
+                const char* slash_after_host = strchr(scheme_end + 3, '/');
+                if (slash_after_host != NULL && (size_t)(slash_after_host - url) < path_end) {
+                    path_start = slash_after_host;
                 }
+            }
 
-                free(path);
+            // Extract just the path portion for analysis
+            size_t path_portion_len = path_end - (path_start - url);
+            if (path_portion_len >= endpoint_len) {
+                char* path_portion = (char*)malloc(path_portion_len + 1);
+                if (path_portion) {
+                    memcpy(path_portion, path_start, path_portion_len);
+                    path_portion[path_portion_len] = '\0';
+
+                    // Search for ALL occurrences of endpoint in the path portion
+                    // We need to check each occurrence because the first match might be
+                    // invalid (e.g., /api/v1/reportbackup) but a later occurrence might be valid
+                    char* search_pos = path_portion;
+                    while (search_pos != NULL && !has_endpoint) {
+                        char* found = strstr(search_pos, endpoint);
+                        if (found != NULL) {
+                            size_t pos_before = found - path_portion;
+                            size_t pos_after = pos_before + endpoint_len;
+
+                            // Check boundaries within the path portion
+                            // Prefix: The endpoint starts with '/', so this '/' should be a valid separator.
+                            // A valid separator is either at the start OR preceded by a non-'/' (end of previous segment).
+                            // Checking for '== /' would allow '//' which is invalid.
+                            // Suffix: must be at end OR followed by '/' (start of next segment)
+                            int valid_prefix = (pos_before == 0 || path_portion[pos_before - 1] != '/');
+                            int valid_suffix = (pos_after == path_portion_len || path_portion[pos_after] == '/');
+
+                            if (valid_prefix && valid_suffix) {
+                                has_endpoint = 1;
+                            } else {
+                                // This occurrence doesn't match boundaries, keep searching
+                                search_pos = found + 1;
+                            }
+                        } else {
+                            search_pos = NULL;  // No more occurrences
+                        }
+                    }
+
+                    free(path_portion);
+                }
             }
         }
 
