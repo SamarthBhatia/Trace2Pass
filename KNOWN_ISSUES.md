@@ -103,7 +103,26 @@
 
 ---
 
-## Issues Fixed (2025-12-25)
+### 8. Module Import Structure Not pip-Installable
+**File**: `diagnoser/src/version_bisector.py`
+**Issue**: The diagnoser module structure relies on manual `sys.path` manipulation for imports. Tests work because they explicitly add paths (e.g., `sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))`), but this breaks for users who `pip install` the package. The module is not structured as a proper Python package with `__init__.py` and relative imports.
+
+**Impact**: MEDIUM - Distribution/packaging limitation
+**Status**: OPEN (documented, not blocking thesis work)
+**Workaround**: The diagnoser is designed to be run as a CLI tool (`python diagnoser/diagnose.py`), not imported as a library. For thesis evaluation, this works correctly.
+
+**Solution (for production release)**:
+1. Restructure diagnoser as proper Python package with `setup.py` or `pyproject.toml`
+2. Add `__init__.py` files to establish package hierarchy
+3. Use relative imports (`from .version_bisector import VersionBisector`)
+4. Create entry point for CLI in package metadata
+5. Test installation with `pip install -e .`
+
+**Note**: This is a packaging/distribution concern, not a functional bug. The current structure works for the thesis scope (CLI-based diagnosis pipeline).
+
+---
+
+## Issues Fixed (2025-12-25 and 2025-12-27)
 
 ### ✅ 1. Version Bisector Non-ICE Handling
 **File**: `diagnoser/src/version_bisector.py`
@@ -122,6 +141,13 @@
 **Issue**: Unconditionally recommended `-O1` without caveats
 **Fix**: Added warnings, prefer pass-specific disable over global optimization lowering
 **Commit**: fff467e
+
+### ✅ 4. Runtime Compiler Metadata Always "unknown" (2025-12-27)
+**File**: `runtime/src/trace2pass_runtime.c`
+**Issue**: All reports emitted `"compiler":{"name":"unknown","version":"unknown"}`, breaking deduplication by compiler version and making version tracking impossible
+**Fix**: Added preprocessor macro-based compiler detection using `__clang__`, `__clang_version__`, `__GNUC__`, etc. Reports now include actual compiler name, version, and target architecture that built the runtime library.
+**Limitation**: This captures the compiler that built the runtime library, not necessarily the one that compiled the user's program (which may differ if runtime is distributed as a pre-built binary)
+**Commit**: [current]
 
 ---
 

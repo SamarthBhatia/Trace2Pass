@@ -16,6 +16,35 @@
 #include <dlfcn.h>
 #endif
 
+// Compiler detection using preprocessor macros
+// This captures the compiler that built the runtime library
+#if defined(__clang__)
+    #define TRACE2PASS_COMPILER_NAME "clang"
+    #define TRACE2PASS_COMPILER_VERSION __clang_version__
+#elif defined(__GNUC__)
+    #define TRACE2PASS_COMPILER_NAME "gcc"
+    #define TRACE2PASS_COMPILER_VERSION_STR \
+        __STRINGIFY(__GNUC__) "." __STRINGIFY(__GNUC_MINOR__) "." __STRINGIFY(__GNUC_PATCHLEVEL__)
+    #define __STRINGIFY(x) #x
+    #define TRACE2PASS_COMPILER_VERSION TRACE2PASS_COMPILER_VERSION_STR
+#else
+    #define TRACE2PASS_COMPILER_NAME "unknown"
+    #define TRACE2PASS_COMPILER_VERSION "unknown"
+#endif
+
+// Target architecture detection
+#if defined(__x86_64__) || defined(_M_X64)
+    #define TRACE2PASS_TARGET_ARCH "x86_64"
+#elif defined(__i386__) || defined(_M_IX86)
+    #define TRACE2PASS_TARGET_ARCH "i386"
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    #define TRACE2PASS_TARGET_ARCH "aarch64"
+#elif defined(__arm__) || defined(_M_ARM)
+    #define TRACE2PASS_TARGET_ARCH "arm"
+#else
+    #define TRACE2PASS_TARGET_ARCH "unknown"
+#endif
+
 // Configuration
 static double sample_rate = 0.01;  // Default: 1%
 static FILE* output_file = NULL;
@@ -541,7 +570,7 @@ void trace2pass_report_overflow(void* pc, const char* expr,
         "\"check_type\":\"arithmetic_overflow\","
         "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
-        "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
+        "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
         "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
         "\"check_details\":{\"expr\":\"%s\",\"operands\":[%lld,%lld]}"
         "}",
@@ -602,7 +631,7 @@ void trace2pass_report_unreachable(void* pc, const char* message) {
         "\"check_type\":\"unreachable_code_executed\","
         "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
-        "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
+        "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
         "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
         "\"check_details\":{\"message\":\"%s\"}"
         "}",
@@ -659,7 +688,7 @@ void trace2pass_report_bounds_violation(void* pc, void* ptr,
         "\"check_type\":\"bounds_violation\","
         "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
-        "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
+        "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
         "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
         "\"check_details\":{\"ptr\":\"0x%llx\",\"offset\":%zu,\"size\":%zu}"
         "}",
@@ -717,7 +746,7 @@ void trace2pass_report_sign_conversion(void* pc, int64_t original_value,
         "\"check_type\":\"sign_conversion\","
         "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
-        "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
+        "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
         "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
         "\"check_details\":{\"original_value\":%lld,\"cast_value\":%llu,\"src_bits\":%u,\"dest_bits\":%u}"
         "}",
@@ -779,7 +808,7 @@ void trace2pass_report_division_by_zero(void* pc, const char* op_name,
         "\"check_type\":\"division_by_zero\","
         "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
-        "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
+        "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
         "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
         "\"check_details\":{\"operation\":\"%s\",\"dividend\":%lld,\"divisor\":%lld}"
         "}",
@@ -882,7 +911,7 @@ void trace2pass_check_pure_consistency(void* pc, const char* func_name,
                 "\"check_type\":\"pure_function_inconsistency\","
                 "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
                 "\"pc\":\"0x%llx\","
-                "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
+                "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
                 "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
                 "\"check_details\":{\"function\":\"%s\",\"arg0\":%lld,\"arg1\":%lld,\"previous_result\":%lld,\"current_result\":%lld}"
                 "}",
@@ -958,7 +987,7 @@ void trace2pass_report_loop_bound_exceeded(void* pc, const char* loop_name,
         "\"check_type\":\"loop_bound_exceeded\","
         "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
-        "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
+        "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
         "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
         "\"check_details\":{\"loop_name\":\"%s\",\"iteration_count\":%llu,\"threshold\":%llu}"
         "}",
