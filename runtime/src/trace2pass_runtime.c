@@ -54,6 +54,15 @@ static char* collector_url = NULL;  // Collector API endpoint (optional)
 static int json_output = 0;  // If 1, output JSON to stderr instead of plain text
 static pthread_mutex_t output_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+// Build metadata injected by instrumentor (extern declarations)
+// These globals are created by the LLVM pass in the instrumented binary
+extern const char __trace2pass_opt_level[] __attribute__((weak));
+extern const char __trace2pass_compile_flags[] __attribute__((weak));
+
+// Build metadata storage (populated in trace2pass_init)
+static const char* build_opt_level = NULL;
+static const char* build_compile_flags = NULL;
+
 // Bloom filter for deduplication (shared across threads with atomic operations)
 // CRITICAL: Must be shared, not thread-local, to deduplicate across all threads
 #define BLOOM_SIZE 1024
@@ -149,7 +158,12 @@ void trace2pass_init(void) {
         json_output = 1;
     }
 
-    fprintf(get_output_file(), "Trace2Pass: Runtime initialized (sample_rate=%.3f", sample_rate);
+    // Read build metadata injected by instrumentor
+    // Use weak symbols so runtime doesn't fail if globals not present
+    build_opt_level = (&__trace2pass_opt_level != NULL) ? __trace2pass_opt_level : "unknown";
+    build_compile_flags = (&__trace2pass_compile_flags != NULL) ? __trace2pass_compile_flags : "";
+
+    fprintf(get_output_file(), "Trace2Pass: Runtime initialized (sample_rate=%.3f, opt_level=%s", sample_rate, build_opt_level);
     if (collector_url) {
         fprintf(get_output_file(), ", collector=%s", collector_url);
     }
@@ -665,10 +679,11 @@ void trace2pass_report_overflow(void* pc, const char* file, int line, const char
         "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-        "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
         "\"check_details\":{\"expr\":\"%s\",\"operands\":[%lld,%lld]}"
         "}",
         report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
+        build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
         expr_escaped, (long long)a, (long long)b);
 
     // Send to Collector if configured
@@ -733,10 +748,12 @@ void trace2pass_report_unreachable(void* pc, const char* file, int line, const c
         "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-        "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
         "\"check_details\":{\"message\":\"%s\"}"
         "}",
-        report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc, msg_escaped);
+        report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
+        build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
+        msg_escaped);
 
     // Send to Collector if configured
     if (collector_url) {
@@ -796,10 +813,11 @@ void trace2pass_report_bounds_violation(void* pc, const char* file, int line, co
         "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-        "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
         "\"check_details\":{\"ptr\":\"0x%llx\",\"offset\":%zu,\"size\":%zu}"
         "}",
         report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
+        build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
         (unsigned long long)ptr, offset, size);
 
     // Send to Collector if configured
@@ -860,10 +878,11 @@ void trace2pass_report_sign_conversion(void* pc, const char* file, int line, con
         "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-        "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
         "\"check_details\":{\"original_value\":%lld,\"cast_value\":%llu,\"src_bits\":%u,\"dest_bits\":%u}"
         "}",
         report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
+        build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
         (long long)original_value, (unsigned long long)cast_value, src_bits, dest_bits);
 
     // Send to Collector if configured
@@ -928,10 +947,11 @@ void trace2pass_report_division_by_zero(void* pc, const char* file, int line, co
         "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-        "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
         "\"check_details\":{\"operation\":\"%s\",\"dividend\":%lld,\"divisor\":%lld}"
         "}",
         report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
+        build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
         op_escaped, (long long)dividend, (long long)divisor);
 
     // Send to Collector if configured
@@ -1037,10 +1057,11 @@ void trace2pass_check_pure_consistency(void* pc, const char* file, int line, con
                 "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
                 "\"pc\":\"0x%llx\","
                 "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-                "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
+                "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
                 "\"check_details\":{\"function\":\"%s\",\"arg0\":%lld,\"arg1\":%lld,\"previous_result\":%lld,\"current_result\":%lld}"
                 "}",
                 report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
+                build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
                 func_escaped, (long long)arg0, (long long)arg1,
                 (long long)entry->result, (long long)result);
 
@@ -1119,10 +1140,11 @@ void trace2pass_report_loop_bound_exceeded(void* pc, const char* file, int line,
         "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-        "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
         "\"check_details\":{\"loop_name\":\"%s\",\"iteration_count\":%llu,\"threshold\":%llu}"
         "}",
         report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
+        build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
         loop_escaped, (unsigned long long)iteration_count, (unsigned long long)threshold);
 
     // Send to Collector if configured

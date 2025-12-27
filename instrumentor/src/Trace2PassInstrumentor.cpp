@@ -43,6 +43,9 @@ private:
   };
   LocationInfo extractLocation(IRBuilder<> &Builder, Instruction *I);
 
+  // Build metadata injection
+  void injectBuildMetadata(Module &M);
+
   // Runtime function declarations
   FunctionCallee getOverflowReportFunc(Module &M);
   FunctionCallee getUnreachableReportFunc(Module &M);
@@ -72,6 +75,10 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
   // Skip runtime library functions to avoid recursive instrumentation
   if (F.getName().starts_with("trace2pass_"))
     return PreservedAnalyses::all();
+
+  // Inject build metadata (once per module)
+  Module &M = *F.getParent();
+  injectBuildMetadata(M);
 
   errs() << "Trace2Pass: Instrumenting function: " << F.getName() << "\n";
 
@@ -196,6 +203,56 @@ Trace2PassInstrumentorPass::extractLocation(IRBuilder<> &Builder, Instruction *I
   }
 
   return Loc;
+}
+
+// Inject build metadata as global variables for runtime consumption
+// This allows the runtime to report actual optimization level and flags instead of "unknown"
+void Trace2PassInstrumentorPass::injectBuildMetadata(Module &M) {
+  LLVMContext &Ctx = M.getContext();
+
+  // Check if already injected (avoid duplicates across multiple functions)
+  if (M.getGlobalVariable("__trace2pass_opt_level")) {
+    return;  // Already injected
+  }
+
+  // Get optimization level from environment variable (set by build system)
+  // Usage: TRACE2PASS_OPT_LEVEL=-O2 clang -fpass-plugin=...
+  const char* opt_level_env = getenv("TRACE2PASS_OPT_LEVEL");
+  std::string opt_level = opt_level_env ? opt_level_env : "-O?";
+
+  // Get compiler flags from environment (set by build system)
+  const char* flags_env = getenv("TRACE2PASS_COMPILE_FLAGS");
+  std::string flags = flags_env ? flags_env : "";
+
+  // Create global string constants (readable by runtime via extern)
+  IRBuilder<> Builder(Ctx);
+
+  // Optimization level global
+  Constant *OptLevelStr = ConstantDataArray::getString(Ctx, opt_level, true);
+  GlobalVariable *OptLevelGlobal = new GlobalVariable(
+      M,
+      OptLevelStr->getType(),
+      true,  // isConstant
+      GlobalValue::ExternalLinkage,
+      OptLevelStr,
+      "__trace2pass_opt_level"
+  );
+  OptLevelGlobal->setVisibility(GlobalValue::DefaultVisibility);
+
+  // Compile flags global
+  Constant *FlagsStr = ConstantDataArray::getString(Ctx, flags, true);
+  GlobalVariable *FlagsGlobal = new GlobalVariable(
+      M,
+      FlagsStr->getType(),
+      true,  // isConstant
+      GlobalValue::ExternalLinkage,
+      FlagsStr,
+      "__trace2pass_compile_flags"
+  );
+  FlagsGlobal->setVisibility(GlobalValue::DefaultVisibility);
+
+  errs() << "Trace2Pass: Injected build metadata: opt_level=" << opt_level
+         << ", flags=" << (flags.empty() ? "(none)" : flags) << "\n";
 }
 
 bool Trace2PassInstrumentorPass::instrumentArithmeticOperations(Function &F) {
