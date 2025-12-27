@@ -174,7 +174,7 @@ Trace2PassInstrumentorPass::extractLocation(IRBuilder<> &Builder, Instruction *I
   if (DL) {
     // Extract file path
     StringRef Filename = DL->getFilename();
-    Loc.File = Builder.CreateGlobalStringPtr(Filename.empty() ? "unknown" : Filename);
+    Loc.File = Builder.CreateGlobalString(Filename.empty() ? "unknown" : Filename);
 
     // Extract line number
     unsigned Line = DL.getLine();
@@ -183,16 +183,16 @@ Trace2PassInstrumentorPass::extractLocation(IRBuilder<> &Builder, Instruction *I
     // Extract function name from the enclosing function
     Function *F = I->getFunction();
     StringRef FuncName = F ? F->getName() : "unknown";
-    Loc.Function = Builder.CreateGlobalStringPtr(FuncName);
+    Loc.Function = Builder.CreateGlobalString(FuncName);
   } else {
     // No debug info available - use placeholders
-    Loc.File = Builder.CreateGlobalStringPtr("unknown");
+    Loc.File = Builder.CreateGlobalString("unknown");
     Loc.Line = ConstantInt::get(Type::getInt32Ty(Ctx), 0);
 
     // Still try to get function name even without debug info
     Function *F = I->getFunction();
     StringRef FuncName = F ? F->getName() : "unknown";
-    Loc.Function = Builder.CreateGlobalStringPtr(FuncName);
+    Loc.Function = Builder.CreateGlobalString(FuncName);
   }
 
   return Loc;
@@ -706,6 +706,9 @@ bool Trace2PassInstrumentorPass::instrumentSignConversions(Function &F) {
         &M, Intrinsic::returnaddress);
     Value *PC = Builder.CreateCall(ReturnAddrFn, {Builder.getInt32(0)});
 
+    // Extract source location from debug metadata
+    LocationInfo Loc = extractLocation(Builder, Cast);
+
     // Convert values to i64
     Value *OrigValue_i64 = Builder.CreateSExtOrTrunc(OriginalValue, Builder.getInt64Ty());
     Value *CastValue_i64 = Builder.CreateZExtOrTrunc(CastValue, Builder.getInt64Ty());
@@ -713,9 +716,9 @@ bool Trace2PassInstrumentorPass::instrumentSignConversions(Function &F) {
     Value *SrcBits = Builder.getInt32(SrcTy->getIntegerBitWidth());
     Value *DestBits = Builder.getInt32(DestTy->getIntegerBitWidth());
 
-    // Call runtime function
+    // Call runtime function with location metadata
     FunctionCallee ReportFunc = getSignConversionReportFunc(M);
-    Builder.CreateCall(ReportFunc, {PC, OrigValue_i64, CastValue_i64, SrcBits, DestBits});
+    Builder.CreateCall(ReportFunc, {PC, Loc.File, Loc.Line, Loc.Function, OrigValue_i64, CastValue_i64, SrcBits, DestBits});
 
     Modified = true;
     NumSignConversionInstrumented++;
@@ -894,8 +897,11 @@ bool Trace2PassInstrumentorPass::instrumentPureFunctionCalls(Function &F) {
     // Get result (extend to i64)
     Value *Result = Builder.CreateSExtOrBitCast(Call, Builder.getInt64Ty());
 
-    // Call: trace2pass_check_pure_consistency(PC, func_name, arg0, arg1, result)
-    Builder.CreateCall(ReportFunc, {PC, FuncName, Arg0, Arg1, Result});
+    // Extract source location from debug metadata
+    LocationInfo Loc = extractLocation(Builder, Call);
+
+    // Call: trace2pass_check_pure_consistency(PC, file, line, function, func_name, arg0, arg1, result)
+    Builder.CreateCall(ReportFunc, {PC, Loc.File, Loc.Line, Loc.Function, FuncName, Arg0, Arg1, Result});
 
     Modified = true;
     NumPureCallsInstrumented++;
@@ -1152,8 +1158,11 @@ bool Trace2PassInstrumentorPass::instrumentLoopBounds(Function &F) {
     std::string LoopId = F.getName().str() + ":" + LoopHeader->getName().str();
     Value *LoopName = Builder.CreateGlobalString(LoopId, "loop_id");
 
-    // Call: trace2pass_report_loop_bound_exceeded(PC, loop_name, iteration_count, threshold)
-    Builder.CreateCall(ReportFunc, {PC, LoopName, NewCount, ThresholdVal});
+    // Extract source location from debug metadata
+    LocationInfo Loc = extractLocation(Builder, ThenTerm);
+
+    // Call: trace2pass_report_loop_bound_exceeded(PC, file, line, function, loop_name, iteration_count, threshold)
+    Builder.CreateCall(ReportFunc, {PC, Loc.File, Loc.Line, Loc.Function, LoopName, NewCount, ThresholdVal});
 
     Modified = true;
     NumLoopsInstrumented++;
