@@ -360,9 +360,22 @@ export TRACE2PASS_SAMPLE_RATE=1.0
 # Output file (default: stderr)
 export TRACE2PASS_OUTPUT=/tmp/overflow_report.txt
 
+# Collector URL (for production deployment)
+# IMPORTANT: Provide the base URL only - the /api/v1/report endpoint is auto-appended
+export TRACE2PASS_COLLECTOR_URL=http://localhost:5800
+
+# Enable JSON output format (for collector integration)
+export TRACE2PASS_JSON_OUTPUT=1
+
 # Run your program
 ./your_program
 ```
+
+**Note on TRACE2PASS_COLLECTOR_URL:**
+- The runtime automatically appends `/api/v1/report` to the URL you provide
+- Example: Setting `http://localhost:5800` → POSTs to `http://localhost:5800/api/v1/report`
+- Trailing slashes are handled automatically (`http://localhost:5800/` works too)
+- If you want to use a custom endpoint, include the full path (e.g., `http://example.com/custom/api/v1/report`)
 
 ### Understanding the Output
 
