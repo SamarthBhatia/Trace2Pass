@@ -466,13 +466,16 @@ bool Trace2PassInstrumentorPass::instrumentUnreachableCode(Function &F) {
     Value *PC = Builder.CreateCall(ReturnAddrIntrinsic,
                                     {Builder.getInt32(0)});
 
+    // Extract source location from debug metadata
+    LocationInfo Loc = extractLocation(Builder, UI);
+
     // Create message string
     std::string Message = "unreachable code executed";
     Value *MessageGlobal = Builder.CreateGlobalString(Message);
 
-    // Call the report function immediately before unreachable
+    // Call the report function immediately before unreachable with location metadata
     // No branching needed - if we reach this code, it's already a bug
-    Builder.CreateCall(ReportFunc, {PC, MessageGlobal});
+    Builder.CreateCall(ReportFunc, {PC, Loc.File, Loc.Line, Loc.Function, MessageGlobal});
 
     // The unreachable instruction remains after the report call
     // If execution reaches here, we report it, then hit unreachable (crash/UB)
@@ -589,6 +592,9 @@ void Trace2PassInstrumentorPass::insertBoundsCheck(IRBuilder<> &Builder,
     Value *PC = Builder.CreateCall(ReturnAddrIntrinsic,
                                     {Builder.getInt32(0)});
 
+    // Extract source location from debug metadata
+    LocationInfo Loc = extractLocation(Builder, GEP);
+
     // Cast base pointer to void*
     Value *BasePtr_void = Builder.CreatePointerCast(BasePtr,
                                                      PointerType::getUnqual(Ctx));
@@ -598,9 +604,8 @@ void Trace2PassInstrumentorPass::insertBoundsCheck(IRBuilder<> &Builder,
     Value *Offset_u64 = Builder.CreateSExtOrTrunc(Index_i64, Builder.getInt64Ty());
     Value *Size_u64 = Builder.getInt64(0); // Unknown size
 
-    // Call the report function
-    // void trace2pass_report_bounds_violation(void* pc, void* ptr, size_t offset, size_t size)
-    Builder.CreateCall(ReportFunc, {PC, BasePtr_void, Offset_u64, Size_u64});
+    // Call the report function with location metadata
+    Builder.CreateCall(ReportFunc, {PC, Loc.File, Loc.Line, Loc.Function, BasePtr_void, Offset_u64, Size_u64});
   }
 }
 
@@ -766,6 +771,9 @@ bool Trace2PassInstrumentorPass::instrumentDivisionByZero(Function &F) {
     Function *ReturnAddrFn = Intrinsic::getOrInsertDeclaration(&M, Intrinsic::returnaddress);
     Value *PC = Builder.CreateCall(ReturnAddrFn, {Builder.getInt32(0)});
 
+    // Extract source location from debug metadata
+    LocationInfo Loc = extractLocation(Builder, DivOp);
+
     // Determine operation type
     const char *OpName;
     switch (DivOp->getOpcode()) {
@@ -790,8 +798,8 @@ bool Trace2PassInstrumentorPass::instrumentDivisionByZero(Function &F) {
       Divisor64 = Builder.CreateZExtOrBitCast(Divisor, Builder.getInt64Ty());
     }
 
-    // Call: trace2pass_report_division_by_zero(PC, op_name, dividend, divisor)
-    Builder.CreateCall(ReportFunc, {PC, OpStr, Dividend64, Divisor64});
+    // Call with location metadata
+    Builder.CreateCall(ReportFunc, {PC, Loc.File, Loc.Line, Loc.Function, OpStr, Dividend64, Divisor64});
 
     Modified = true;
     NumDivisionByZeroInstrumented++;
@@ -899,16 +907,19 @@ bool Trace2PassInstrumentorPass::instrumentPureFunctionCalls(Function &F) {
 FunctionCallee Trace2PassInstrumentorPass::getSignConversionReportFunc(Module &M) {
   LLVMContext &Ctx = M.getContext();
 
-  // void trace2pass_report_sign_conversion(void* pc, int64_t original_value, uint64_t cast_value, uint32_t src_bits, uint32_t dest_bits)
+  // void trace2pass_report_sign_conversion(void* pc, const char* file, int line, const char* function,
+  //                                         int64_t original_value, uint64_t cast_value, uint32_t src_bits, uint32_t dest_bits)
   Type *VoidTy = Type::getVoidTy(Ctx);
   Type *VoidPtrTy = PointerType::getUnqual(Ctx);
+  Type *CharPtrTy = PointerType::getUnqual(Ctx);
+  Type *I32Ty = Type::getInt32Ty(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
   Type *Uint64Ty = Type::getInt64Ty(Ctx); // Same as Int64 in LLVM IR
   Type *Uint32Ty = Type::getInt32Ty(Ctx);
 
   FunctionType *FT = FunctionType::get(
       VoidTy,
-      {VoidPtrTy, Int64Ty, Uint64Ty, Uint32Ty, Uint32Ty},
+      {VoidPtrTy, CharPtrTy, I32Ty, CharPtrTy, Int64Ty, Uint64Ty, Uint32Ty, Uint32Ty},
       false);
 
   return M.getOrInsertFunction("trace2pass_report_sign_conversion", FT);
@@ -917,14 +928,17 @@ FunctionCallee Trace2PassInstrumentorPass::getSignConversionReportFunc(Module &M
 FunctionCallee Trace2PassInstrumentorPass::getBoundsViolationReportFunc(Module &M) {
   LLVMContext &Ctx = M.getContext();
 
-  // void trace2pass_report_bounds_violation(void* pc, void* ptr, size_t offset, size_t size)
+  // void trace2pass_report_bounds_violation(void* pc, const char* file, int line, const char* function,
+  //                                          void* ptr, size_t offset, size_t size)
   Type *VoidTy = Type::getVoidTy(Ctx);
   Type *VoidPtrTy = PointerType::getUnqual(Ctx);
+  Type *CharPtrTy = PointerType::getUnqual(Ctx);
+  Type *I32Ty = Type::getInt32Ty(Ctx);
   Type *SizeTy = Type::getInt64Ty(Ctx); // size_t is i64 on 64-bit systems
 
   FunctionType *FT = FunctionType::get(
       VoidTy,
-      {VoidPtrTy, VoidPtrTy, SizeTy, SizeTy},
+      {VoidPtrTy, CharPtrTy, I32Ty, CharPtrTy, VoidPtrTy, SizeTy, SizeTy},
       false);
 
   return M.getOrInsertFunction("trace2pass_report_bounds_violation", FT);
@@ -933,15 +947,17 @@ FunctionCallee Trace2PassInstrumentorPass::getBoundsViolationReportFunc(Module &
 FunctionCallee Trace2PassInstrumentorPass::getDivisionByZeroReportFunc(Module &M) {
   LLVMContext &Ctx = M.getContext();
 
-  // void trace2pass_report_division_by_zero(void* pc, const char* op_name, int64_t dividend, int64_t divisor)
+  // void trace2pass_report_division_by_zero(void* pc, const char* file, int line, const char* function,
+  //                                          const char* op_name, int64_t dividend, int64_t divisor)
   Type *VoidTy = Type::getVoidTy(Ctx);
   Type *VoidPtrTy = PointerType::getUnqual(Ctx);
   Type *CharPtrTy = PointerType::getUnqual(Ctx);  // const char*
+  Type *I32Ty = Type::getInt32Ty(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
 
   FunctionType *FT = FunctionType::get(
       VoidTy,
-      {VoidPtrTy, CharPtrTy, Int64Ty, Int64Ty},
+      {VoidPtrTy, CharPtrTy, I32Ty, CharPtrTy, CharPtrTy, Int64Ty, Int64Ty},
       false);
 
   return M.getOrInsertFunction("trace2pass_report_division_by_zero", FT);
@@ -950,15 +966,17 @@ FunctionCallee Trace2PassInstrumentorPass::getDivisionByZeroReportFunc(Module &M
 FunctionCallee Trace2PassInstrumentorPass::getPureConsistencyReportFunc(Module &M) {
   LLVMContext &Ctx = M.getContext();
 
-  // void trace2pass_check_pure_consistency(void* pc, const char* func_name, int64_t arg0, int64_t arg1, int64_t result)
+  // void trace2pass_check_pure_consistency(void* pc, const char* file, int line, const char* function,
+  //                                         const char* func_name, int64_t arg0, int64_t arg1, int64_t result)
   Type *VoidTy = Type::getVoidTy(Ctx);
   Type *VoidPtrTy = PointerType::getUnqual(Ctx);
   Type *CharPtrTy = PointerType::getUnqual(Ctx);  // const char*
+  Type *I32Ty = Type::getInt32Ty(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
 
   FunctionType *FT = FunctionType::get(
       VoidTy,
-      {VoidPtrTy, CharPtrTy, Int64Ty, Int64Ty, Int64Ty},
+      {VoidPtrTy, CharPtrTy, I32Ty, CharPtrTy, CharPtrTy, Int64Ty, Int64Ty, Int64Ty},
       false);
 
   return M.getOrInsertFunction("trace2pass_check_pure_consistency", FT);
@@ -967,15 +985,17 @@ FunctionCallee Trace2PassInstrumentorPass::getPureConsistencyReportFunc(Module &
 FunctionCallee Trace2PassInstrumentorPass::getLoopBoundReportFunc(Module &M) {
   LLVMContext &Ctx = M.getContext();
 
-  // void trace2pass_report_loop_bound_exceeded(void* pc, const char* loop_name, uint64_t iteration_count, uint64_t threshold)
+  // void trace2pass_report_loop_bound_exceeded(void* pc, const char* file, int line, const char* function,
+  //                                             const char* loop_name, uint64_t iteration_count, uint64_t threshold)
   Type *VoidTy = Type::getVoidTy(Ctx);
   Type *VoidPtrTy = PointerType::getUnqual(Ctx);
   Type *CharPtrTy = PointerType::getUnqual(Ctx);
+  Type *I32Ty = Type::getInt32Ty(Ctx);
   Type *Uint64Ty = Type::getInt64Ty(Ctx);
 
   FunctionType *FT = FunctionType::get(
       VoidTy,
-      {VoidPtrTy, CharPtrTy, Uint64Ty, Uint64Ty},
+      {VoidPtrTy, CharPtrTy, I32Ty, CharPtrTy, CharPtrTy, Uint64Ty, Uint64Ty},
       false);
 
   return M.getOrInsertFunction("trace2pass_report_loop_bound_exceeded", FT);
