@@ -372,17 +372,20 @@ export TRACE2PASS_JSON_OUTPUT=1
 ```
 
 **Note on TRACE2PASS_COLLECTOR_URL:**
-- The runtime automatically appends `/api/v1/report` if it doesn't appear anywhere in the URL path
-- Examples that get auto-appended:
-  - `http://localhost:5800` → `http://localhost:5800/api/v1/report`
-  - `http://localhost:5800/` → `http://localhost:5800/api/v1/report`
-  - `http://localhost:5800?token=abc` → `http://localhost:5800/api/v1/report?token=abc`
-- Examples that are used as-is (endpoint detected in path):
-  - `http://localhost:5800/api/v1/report` → Used as-is
-  - `http://localhost:5800/api/v1/report?token=abc` → Used as-is
-  - `http://localhost:5800/api/v1/report/v2` → Used as-is (additional path segments preserved)
-  - `http://proxy.example.com/trace2pass/api/v1/report` → Used as-is (reverse proxy paths supported)
-- Query strings, fragments, and additional path segments are all preserved correctly
+- The runtime automatically appends `/api/v1/report` if it doesn't appear in the URL path at a valid boundary
+- **Boundary Detection**: The endpoint must be followed by '/', '?', '#', or end-of-string (not alphanumeric/punctuation)
+- Examples that get auto-appended (endpoint NOT detected):
+  - `http://localhost:5800` → `http://localhost:5800/api/v1/report` ✓
+  - `http://localhost:5800/` → `http://localhost:5800/api/v1/report` ✓
+  - `http://localhost:5800?token=abc` → `http://localhost:5800/api/v1/report?token=abc` ✓
+  - **Warning**: Incorrect URLs like `http://localhost:5800/api/v1/reporting` (note "reporting" ≠ "report") will result in malformed URLs. Always use the exact endpoint path or let auto-append handle it.
+- Examples that are used as-is (endpoint detected at boundary):
+  - `http://localhost:5800/api/v1/report` → Used as-is (end of path boundary)
+  - `http://localhost:5800/api/v1/report/` → Used as-is (slash boundary)
+  - `http://localhost:5800/api/v1/report?token=abc` → Used as-is (query boundary)
+  - `http://localhost:5800/api/v1/report/v2` → Used as-is (slash + additional segments)
+  - `http://proxy.example.com/trace2pass/api/v1/report` → Used as-is (reverse proxy)
+- **Recommendation**: Always test your collector URL configuration to ensure reports are delivered correctly
 
 ### Understanding the Output
 

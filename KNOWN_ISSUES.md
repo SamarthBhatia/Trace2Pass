@@ -129,6 +129,36 @@
 
 ---
 
+### 9. Insufficient Test Coverage for Docker Fallback and used_docker Tracking
+**File**: `diagnoser/tests/test_version_bisector.py`
+**Issue**: Version bisector tests don't cover several critical code paths:
+1. Docker fallback behavior when `use_docker=True` but Docker is unavailable
+2. The `used_docker` field tracking (added for pass bisection skip logic)
+3. Tests import from module root without adding test directory to `sys.path`
+
+**Impact**: MEDIUM - Test coverage gap
+- Docker fallback logic could regress without tests failing
+- `used_docker` tracking not validated
+- Tests may fail in different environments
+
+**Status**: OPEN (documented, not blocking thesis work)
+**Current Test Coverage**:
+- ✓ Basic version bisection with local compilers
+- ✓ Bisection verdicts (bisected, all_pass, all_fail)
+- ✗ Docker fallback when Docker unavailable
+- ✗ `used_docker` field presence and correctness
+- ✗ Integration between version bisection and pass bisection skip logic
+
+**Solution**:
+1. Add test case for `VersionBisector(use_docker=True)` when Docker is unavailable
+2. Verify `used_docker` field in test assertions
+3. Add integration test for full pipeline with Docker fallback
+4. Fix `sys.path` issues in test imports
+
+**Note**: For thesis evaluation, manual testing of Docker fallback has been performed. Automated test coverage is a production-readiness concern.
+
+---
+
 ## Issues Fixed (2025-12-25 and 2025-12-27)
 
 ### ✅ 1. Version Bisector Non-ICE Handling

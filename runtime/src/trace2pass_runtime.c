@@ -179,14 +179,22 @@ void trace2pass_set_collector_url(const char* url) {
         }
 
         // Check if /api/v1/report appears in the path at a proper boundary
-        // Valid cases:
+        // CRITICAL: Must verify the character after the endpoint substring is a valid boundary.
+        // We extract the path portion (before ? or #), search for the endpoint substring,
+        // then verify it's followed by '/' or end-of-path.
+        //
+        // Valid cases (will match):
         // - https://host/api/v1/report (exact match, followed by end of path)
         // - https://host/api/v1/report/ (followed by slash)
         // - https://host/api/v1/report/v2 (followed by slash + more path)
-        // - https://host/api/v1/report?token=abc (followed by query string)
-        // Invalid cases (should NOT match):
-        // - https://host/api/v1/reporting (different endpoint)
-        // - https://host/api/v1/report_v2 (different endpoint)
+        // - https://host/api/v1/report?token=abc (query string excluded from path, so end-of-path)
+        // - https://host/prefix/api/v1/report (reverse proxy, followed by end of path)
+        //
+        // Invalid cases (will NOT match - different endpoints):
+        // - https://host/api/v1/reporting (followed by 'i', not '/' or end)
+        // - https://host/api/v1/report_v2 (followed by '_', not '/' or end)
+        // - https://host/api/v1/reportdata (followed by 'd', not '/' or end)
+        // - https://host/api/v1/report-backup (followed by '-', not '/' or end)
         int has_endpoint = 0;
         if (path_end >= endpoint_len) {
             // Create temporary null-terminated path string for searching
