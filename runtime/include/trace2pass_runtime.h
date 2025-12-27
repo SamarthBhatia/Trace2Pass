@@ -10,34 +10,35 @@ extern "C" {
 
 // Arithmetic Integrity Checks
 
-void trace2pass_report_overflow(void* pc, const char* expr,
-                                 long long a, long long b);
+void trace2pass_report_overflow(void* pc, const char* file, int line, const char* function,
+                                 const char* expr, long long a, long long b);
 
-void trace2pass_report_sign_conversion(void* pc, int64_t original_value,
-                                        uint64_t cast_value, uint32_t src_bits,
-                                        uint32_t dest_bits);
+void trace2pass_report_sign_conversion(void* pc, const char* file, int line, const char* function,
+                                        int64_t original_value, uint64_t cast_value,
+                                        uint32_t src_bits, uint32_t dest_bits);
 
-void trace2pass_report_division_by_zero(void* pc, const char* op_name,
-                                          int64_t dividend, int64_t divisor);
+void trace2pass_report_division_by_zero(void* pc, const char* file, int line, const char* function,
+                                          const char* op_name, int64_t dividend, int64_t divisor);
 
-void trace2pass_check_pure_consistency(void* pc, const char* func_name,
-                                         int64_t arg0, int64_t arg1,
+void trace2pass_check_pure_consistency(void* pc, const char* file, int line, const char* function,
+                                         const char* func_name, int64_t arg0, int64_t arg1,
                                          int64_t result);
 
 // Loop Bounds Checks
 
-void trace2pass_report_loop_bound_exceeded(void* pc, const char* loop_name,
-                                            uint64_t iteration_count,
+void trace2pass_report_loop_bound_exceeded(void* pc, const char* file, int line, const char* function,
+                                            const char* loop_name, uint64_t iteration_count,
                                             uint64_t threshold);
 
 // Control Flow Integrity Checks
 
-void trace2pass_report_unreachable(void* pc, const char* message);
+void trace2pass_report_unreachable(void* pc, const char* file, int line, const char* function,
+                                     const char* message);
 
 // Memory Bounds Checks
 
-void trace2pass_report_bounds_violation(void* pc, void* ptr,
-                                         size_t offset, size_t size);
+void trace2pass_report_bounds_violation(void* pc, const char* file, int line, const char* function,
+                                         void* ptr, size_t offset, size_t size);
 
 // Sampling Control
 

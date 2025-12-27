@@ -54,32 +54,58 @@ static char* collector_url = NULL;  // Collector API endpoint (optional)
 static int json_output = 0;  // If 1, output JSON to stderr instead of plain text
 static pthread_mutex_t output_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-// Bloom filter for deduplication
+// Bloom filter for deduplication (shared across threads with atomic operations)
+// CRITICAL: Must be shared, not thread-local, to deduplicate across all threads
 #define BLOOM_SIZE 1024
-static __thread uint64_t seen_reports[BLOOM_SIZE] = {0};
+static uint64_t seen_reports[BLOOM_SIZE] = {0};
 
-// Helper: Simple hash function
-static uint64_t hash_report(void* pc, const char* type) {
+// Helper: Hash function including location metadata for deduplication
+// CRITICAL: Uses file:line:function for dedup key, not just PC, because:
+// - Inlined functions have same PC but different source locations
+// - Optimizations can move code, changing PC while source location stays same
+// - Real location data enables accurate collector deduplication
+static uint64_t hash_report(void* pc, const char* type, const char* file, int line, const char* function) {
     uint64_t h = (uint64_t)pc;
+
+    // Mix in type
     const char* p = type;
     while (*p) {
         h = h * 31 + *p++;
     }
+
+    // Mix in file path
+    if (file) {
+        p = file;
+        while (*p) {
+            h = h * 31 + *p++;
+        }
+    }
+
+    // Mix in line number
+    h = h * 31 + (uint64_t)line;
+
+    // Mix in function name
+    if (function) {
+        p = function;
+        while (*p) {
+            h = h * 31 + *p++;
+        }
+    }
+
     return h;
 }
 
-// Helper: Bloom filter check
-static int bloom_contains(uint64_t* bloom, uint64_t hash) {
+// Helper: Bloom filter check-and-insert (atomic, thread-safe)
+// Returns 1 if the item was already present, 0 if newly inserted
+static int bloom_check_and_insert(uint64_t* bloom, uint64_t hash) {
     size_t idx = (hash >> 6) % BLOOM_SIZE;
     uint64_t bit = 1ULL << (hash & 63);
-    return (bloom[idx] & bit) != 0;
-}
 
-// Helper: Bloom filter insert
-static void bloom_insert(uint64_t* bloom, uint64_t hash) {
-    size_t idx = (hash >> 6) % BLOOM_SIZE;
-    uint64_t bit = 1ULL << (hash & 63);
-    bloom[idx] |= bit;
+    // Atomically OR the bit and return the old value
+    // If the bit was already set, the old value will have the bit set
+    uint64_t old_value = __atomic_fetch_or(&bloom[idx], bit, __ATOMIC_SEQ_CST);
+
+    return (old_value & bit) != 0;  // Returns 1 if already present
 }
 
 // Helper: Format timestamp
@@ -605,11 +631,11 @@ static void generate_report_id(const char* callsite_id, const char* timestamp, c
 
 // Arithmetic Checks
 
-void trace2pass_report_overflow(void* pc, const char* expr,
-                                 long long a, long long b) {
-    uint64_t hash = hash_report(pc, "overflow");
-    if (bloom_contains(seen_reports, hash)) return;
-    bloom_insert(seen_reports, hash);
+void trace2pass_report_overflow(void* pc, const char* file, int line, const char* function,
+                                 const char* expr, long long a, long long b) {
+    // Use real location metadata in dedup hash
+    uint64_t hash = hash_report(pc, "overflow", file, line, function);
+    if (bloom_check_and_insert(seen_reports, hash)) return;  // Already reported
 
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
@@ -620,6 +646,13 @@ void trace2pass_report_overflow(void* pc, const char* expr,
     char report_id[64];
     generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
 
+    // Escape strings for JSON
+    char file_escaped[512];
+    json_escape_string(file ? file : "unknown", file_escaped, sizeof(file_escaped));
+
+    char function_escaped[256];
+    json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
+
     char expr_escaped[256];
     json_escape_string(expr, expr_escaped, sizeof(expr_escaped));
 
@@ -629,13 +662,13 @@ void trace2pass_report_overflow(void* pc, const char* expr,
         "\"report_id\":\"%s\","
         "\"timestamp\":\"%s\","
         "\"check_type\":\"arithmetic_overflow\","
-        "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
+        "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
         "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
         "\"check_details\":{\"expr\":\"%s\",\"operands\":[%lld,%lld]}"
         "}",
-        report_id, timestamp, callsite_id, (unsigned long long)pc,
+        report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
         expr_escaped, (long long)a, (long long)b);
 
     // Send to Collector if configured
@@ -655,6 +688,7 @@ void trace2pass_report_overflow(void* pc, const char* expr,
         fprintf(out, "\n=== Trace2Pass Report ===\n");
         fprintf(out, "Timestamp: %s\n", timestamp);
         fprintf(out, "Type: arithmetic_overflow\n");
+        fprintf(out, "Location: %s:%d in %s\n", file ? file : "unknown", line, function ? function : "unknown");
         fprintf(out, "PC: %p\n", pc);
         fprintf(out, "Expression: %s\n", expr);
         fprintf(out, "Operands: %lld, %lld\n", a, b);
@@ -667,10 +701,10 @@ void trace2pass_report_overflow(void* pc, const char* expr,
 
 // Control Flow Checks
 
-void trace2pass_report_unreachable(void* pc, const char* message) {
-    uint64_t hash = hash_report(pc, "unreachable");
-    if (bloom_contains(seen_reports, hash)) return;
-    bloom_insert(seen_reports, hash);
+void trace2pass_report_unreachable(void* pc, const char* file, int line, const char* function,
+                                     const char* message) {
+    uint64_t hash = hash_report(pc, "unreachable", file, line, function);
+    if (bloom_check_and_insert(seen_reports, hash)) return;  // Already reported
 
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
@@ -681,6 +715,12 @@ void trace2pass_report_unreachable(void* pc, const char* message) {
     char report_id[64];
     generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
 
+    char file_escaped[512];
+    json_escape_string(file ? file : "unknown", file_escaped, sizeof(file_escaped));
+
+    char function_escaped[256];
+    json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
+
     char msg_escaped[256];
     json_escape_string(message, msg_escaped, sizeof(msg_escaped));
 
@@ -690,13 +730,13 @@ void trace2pass_report_unreachable(void* pc, const char* message) {
         "\"report_id\":\"%s\","
         "\"timestamp\":\"%s\","
         "\"check_type\":\"unreachable_code_executed\","
-        "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
+        "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
         "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
         "\"check_details\":{\"message\":\"%s\"}"
         "}",
-        report_id, timestamp, callsite_id, (unsigned long long)pc, msg_escaped);
+        report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc, msg_escaped);
 
     // Send to Collector if configured
     if (collector_url) {
@@ -715,6 +755,7 @@ void trace2pass_report_unreachable(void* pc, const char* message) {
         fprintf(out, "\n=== Trace2Pass Report ===\n");
         fprintf(out, "Timestamp: %s\n", timestamp);
         fprintf(out, "Type: unreachable_code_executed\n");
+        fprintf(out, "Location: %s:%d in %s\n", file ? file : "unknown", line, function ? function : "unknown");
         fprintf(out, "PC: %p\n", pc);
         fprintf(out, "Message: %s\n", message);
         fprintf(out, "========================\n\n");
@@ -726,11 +767,10 @@ void trace2pass_report_unreachable(void* pc, const char* message) {
 
 // Memory Checks
 
-void trace2pass_report_bounds_violation(void* pc, void* ptr,
-                                         size_t offset, size_t size) {
-    uint64_t hash = hash_report(pc, "bounds_violation");
-    if (bloom_contains(seen_reports, hash)) return;
-    bloom_insert(seen_reports, hash);
+void trace2pass_report_bounds_violation(void* pc, const char* file, int line, const char* function,
+                                         void* ptr, size_t offset, size_t size) {
+    uint64_t hash = hash_report(pc, "bounds_violation", file, line, function);
+    if (bloom_check_and_insert(seen_reports, hash)) return;  // Already reported
 
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
@@ -741,19 +781,25 @@ void trace2pass_report_bounds_violation(void* pc, void* ptr,
     char report_id[64];
     generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
 
+    char file_escaped[512];
+    json_escape_string(file ? file : "unknown", file_escaped, sizeof(file_escaped));
+
+    char function_escaped[256];
+    json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
+
     char json[2048];
     snprintf(json, sizeof(json),
         "{"
         "\"report_id\":\"%s\","
         "\"timestamp\":\"%s\","
         "\"check_type\":\"bounds_violation\","
-        "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
+        "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
         "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
         "\"check_details\":{\"ptr\":\"0x%llx\",\"offset\":%zu,\"size\":%zu}"
         "}",
-        report_id, timestamp, callsite_id, (unsigned long long)pc,
+        report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
         (unsigned long long)ptr, offset, size);
 
     // Send to Collector if configured
@@ -773,6 +819,7 @@ void trace2pass_report_bounds_violation(void* pc, void* ptr,
         fprintf(out, "\n=== Trace2Pass Report ===\n");
         fprintf(out, "Timestamp: %s\n", timestamp);
         fprintf(out, "Type: bounds_violation\n");
+        fprintf(out, "Location: %s:%d in %s\n", file ? file : "unknown", line, function ? function : "unknown");
         fprintf(out, "PC: %p\n", pc);
         fprintf(out, "Pointer: %p\n", ptr);
         fprintf(out, "Offset: %zu\n", offset);
@@ -783,12 +830,11 @@ void trace2pass_report_bounds_violation(void* pc, void* ptr,
     fflush(out);
     pthread_mutex_unlock(&output_mutex);
 }
-void trace2pass_report_sign_conversion(void* pc, int64_t original_value,
-                                        uint64_t cast_value, uint32_t src_bits,
-                                        uint32_t dest_bits) {
-    uint64_t hash = hash_report(pc, "sign_conversion");
-    if (bloom_contains(seen_reports, hash)) return;
-    bloom_insert(seen_reports, hash);
+void trace2pass_report_sign_conversion(void* pc, const char* file, int line, const char* function,
+                                        int64_t original_value, uint64_t cast_value,
+                                        uint32_t src_bits, uint32_t dest_bits) {
+    uint64_t hash = hash_report(pc, "sign_conversion", file, line, function);
+    if (bloom_check_and_insert(seen_reports, hash)) return;  // Already reported
 
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
@@ -799,19 +845,25 @@ void trace2pass_report_sign_conversion(void* pc, int64_t original_value,
     char report_id[64];
     generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
 
+    char file_escaped[512];
+    json_escape_string(file ? file : "unknown", file_escaped, sizeof(file_escaped));
+
+    char function_escaped[256];
+    json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
+
     char json[2048];
     snprintf(json, sizeof(json),
         "{"
         "\"report_id\":\"%s\","
         "\"timestamp\":\"%s\","
         "\"check_type\":\"sign_conversion\","
-        "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
+        "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
         "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
         "\"check_details\":{\"original_value\":%lld,\"cast_value\":%llu,\"src_bits\":%u,\"dest_bits\":%u}"
         "}",
-        report_id, timestamp, callsite_id, (unsigned long long)pc,
+        report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
         (long long)original_value, (unsigned long long)cast_value, src_bits, dest_bits);
 
     // Send to Collector if configured
@@ -831,6 +883,7 @@ void trace2pass_report_sign_conversion(void* pc, int64_t original_value,
         fprintf(out, "\n=== Trace2Pass Report ===\n");
         fprintf(out, "Timestamp: %s\n", timestamp);
         fprintf(out, "Type: sign_conversion\n");
+        fprintf(out, "Location: %s:%d in %s\n", file ? file : "unknown", line, function ? function : "unknown");
         fprintf(out, "PC: %p\n", pc);
         fprintf(out, "Original Value (signed i%u): %lld\n", src_bits, (long long)original_value);
         fprintf(out, "Cast Value (unsigned i%u): %llu (0x%llx)\n", dest_bits,
@@ -843,11 +896,10 @@ void trace2pass_report_sign_conversion(void* pc, int64_t original_value,
     pthread_mutex_unlock(&output_mutex);
 }
 
-void trace2pass_report_division_by_zero(void* pc, const char* op_name,
-                                         int64_t dividend, int64_t divisor) {
-    uint64_t hash = hash_report(pc, "division_by_zero");
-    if (bloom_contains(seen_reports, hash)) return;
-    bloom_insert(seen_reports, hash);
+void trace2pass_report_division_by_zero(void* pc, const char* file, int line, const char* function,
+                                         const char* op_name, int64_t dividend, int64_t divisor) {
+    uint64_t hash = hash_report(pc, "division_by_zero", file, line, function);
+    if (bloom_check_and_insert(seen_reports, hash)) return;  // Already reported
 
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
@@ -858,6 +910,12 @@ void trace2pass_report_division_by_zero(void* pc, const char* op_name,
     char report_id[64];
     generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
 
+    char file_escaped[512];
+    json_escape_string(file ? file : "unknown", file_escaped, sizeof(file_escaped));
+
+    char function_escaped[256];
+    json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
+
     char op_escaped[64];
     json_escape_string(op_name, op_escaped, sizeof(op_escaped));
 
@@ -867,13 +925,13 @@ void trace2pass_report_division_by_zero(void* pc, const char* op_name,
         "\"report_id\":\"%s\","
         "\"timestamp\":\"%s\","
         "\"check_type\":\"division_by_zero\","
-        "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
+        "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
         "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
         "\"check_details\":{\"operation\":\"%s\",\"dividend\":%lld,\"divisor\":%lld}"
         "}",
-        report_id, timestamp, callsite_id, (unsigned long long)pc,
+        report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
         op_escaped, (long long)dividend, (long long)divisor);
 
     // Send to Collector if configured
@@ -893,6 +951,7 @@ void trace2pass_report_division_by_zero(void* pc, const char* op_name,
         fprintf(out, "\n=== Trace2Pass Report ===\n");
         fprintf(out, "Timestamp: %s\n", timestamp);
         fprintf(out, "Type: division_by_zero\n");
+        fprintf(out, "Location: %s:%d in %s\n", file ? file : "unknown", line, function ? function : "unknown");
         fprintf(out, "PC: %p\n", pc);
         fprintf(out, "Operation: %s\n", op_name);
         fprintf(out, "Dividend: %lld\n", (long long)dividend);
@@ -928,8 +987,8 @@ static uint64_t hash_string(const char* str) {
     return h;
 }
 
-void trace2pass_check_pure_consistency(void* pc, const char* func_name,
-                                        int64_t arg0, int64_t arg1,
+void trace2pass_check_pure_consistency(void* pc, const char* file, int line, const char* function,
+                                        const char* func_name, int64_t arg0, int64_t arg1,
                                         int64_t result) {
     uint64_t func_hash = hash_string(func_name);
 
@@ -948,9 +1007,8 @@ void trace2pass_check_pure_consistency(void* pc, const char* func_name,
         // We've seen this call before - check consistency
         if (entry->result != result) {
             // Inconsistency detected!
-            uint64_t report_hash = hash_report(pc, "pure_inconsistency");
-            if (bloom_contains(seen_reports, report_hash)) return;
-            bloom_insert(seen_reports, report_hash);
+            uint64_t report_hash = hash_report(pc, "pure_inconsistency", file, line, function);
+            if (bloom_check_and_insert(seen_reports, report_hash)) return;  // Already reported
 
             char timestamp[32];
             get_timestamp(timestamp, sizeof(timestamp));
@@ -961,6 +1019,12 @@ void trace2pass_check_pure_consistency(void* pc, const char* func_name,
             char report_id[64];
             generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
 
+            char file_escaped[512];
+            json_escape_string(file ? file : "unknown", file_escaped, sizeof(file_escaped));
+
+            char function_escaped[256];
+            json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
+
             char func_escaped[128];
             json_escape_string(func_name, func_escaped, sizeof(func_escaped));
 
@@ -970,13 +1034,13 @@ void trace2pass_check_pure_consistency(void* pc, const char* func_name,
                 "\"report_id\":\"%s\","
                 "\"timestamp\":\"%s\","
                 "\"check_type\":\"pure_function_inconsistency\","
-                "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
+                "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
                 "\"pc\":\"0x%llx\","
                 "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
                 "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
                 "\"check_details\":{\"function\":\"%s\",\"arg0\":%lld,\"arg1\":%lld,\"previous_result\":%lld,\"current_result\":%lld}"
                 "}",
-                report_id, timestamp, callsite_id, (unsigned long long)pc,
+                report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
                 func_escaped, (long long)arg0, (long long)arg1,
                 (long long)entry->result, (long long)result);
 
@@ -997,6 +1061,7 @@ void trace2pass_check_pure_consistency(void* pc, const char* func_name,
                 fprintf(out, "\n=== Trace2Pass Report ===\n");
                 fprintf(out, "Timestamp: %s\n", timestamp);
                 fprintf(out, "Type: pure_function_inconsistency\n");
+                fprintf(out, "Location: %s:%d in %s\n", file ? file : "unknown", line, function ? function : "unknown");
                 fprintf(out, "PC: %p\n", pc);
                 fprintf(out, "Function: %s\n", func_name);
                 fprintf(out, "Arg0: %lld\n", (long long)arg0);
@@ -1021,12 +1086,11 @@ void trace2pass_check_pure_consistency(void* pc, const char* func_name,
     }
 }
 
-void trace2pass_report_loop_bound_exceeded(void* pc, const char* loop_name,
-                                            uint64_t iteration_count,
+void trace2pass_report_loop_bound_exceeded(void* pc, const char* file, int line, const char* function,
+                                            const char* loop_name, uint64_t iteration_count,
                                             uint64_t threshold) {
-    uint64_t hash = hash_report(pc, "loop_bound_exceeded");
-    if (bloom_contains(seen_reports, hash)) return;
-    bloom_insert(seen_reports, hash);
+    uint64_t hash = hash_report(pc, "loop_bound_exceeded", file, line, function);
+    if (bloom_check_and_insert(seen_reports, hash)) return;  // Already reported
 
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
@@ -1037,6 +1101,12 @@ void trace2pass_report_loop_bound_exceeded(void* pc, const char* loop_name,
     char report_id[64];
     generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
 
+    char file_escaped[512];
+    json_escape_string(file ? file : "unknown", file_escaped, sizeof(file_escaped));
+
+    char function_escaped[256];
+    json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
+
     char loop_escaped[128];
     json_escape_string(loop_name, loop_escaped, sizeof(loop_escaped));
 
@@ -1046,13 +1116,13 @@ void trace2pass_report_loop_bound_exceeded(void* pc, const char* loop_name,
         "\"report_id\":\"%s\","
         "\"timestamp\":\"%s\","
         "\"check_type\":\"loop_bound_exceeded\","
-        "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
+        "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
         "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
         "\"check_details\":{\"loop_name\":\"%s\",\"iteration_count\":%llu,\"threshold\":%llu}"
         "}",
-        report_id, timestamp, callsite_id, (unsigned long long)pc,
+        report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
         loop_escaped, (unsigned long long)iteration_count, (unsigned long long)threshold);
 
     // Send to Collector if configured
@@ -1072,6 +1142,7 @@ void trace2pass_report_loop_bound_exceeded(void* pc, const char* loop_name,
         fprintf(out, "\n=== Trace2Pass Report ===\n");
         fprintf(out, "Timestamp: %s\n", timestamp);
         fprintf(out, "Type: loop_bound_exceeded\n");
+        fprintf(out, "Location: %s:%d in %s\n", file ? file : "unknown", line, function ? function : "unknown");
         fprintf(out, "PC: %p\n", pc);
         fprintf(out, "Loop: %s\n", loop_name);
         fprintf(out, "Iteration Count: %llu\n", (unsigned long long)iteration_count);
