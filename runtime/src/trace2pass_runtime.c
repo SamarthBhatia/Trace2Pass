@@ -178,18 +178,26 @@ void trace2pass_set_collector_url(const char* url) {
             path_end = fragment_start - url;
         }
 
-        // Strip ALL trailing slashes from path for comparison
-        size_t path_end_no_slash = path_end;
-        while (path_end_no_slash > 0 && url[path_end_no_slash - 1] == '/') {
-            path_end_no_slash--;
-        }
-
-        // Check if path (without trailing slash) ends with /api/v1/report
+        // Check if /api/v1/report appears ANYWHERE in the path
+        // This handles cases like:
+        // - https://host/api/v1/report (exact match)
+        // - https://host/api/v1/report/ (with trailing slash)
+        // - https://host/api/v1/report/v2 (with additional path segments)
+        // - https://host/api/v1/report?token=abc (with query string)
         int has_endpoint = 0;
-        if (path_end_no_slash >= endpoint_len) {
-            // Compare last endpoint_len characters of path with endpoint
-            if (memcmp(url + path_end_no_slash - endpoint_len, endpoint, endpoint_len) == 0) {
-                has_endpoint = 1;
+        if (path_end >= endpoint_len) {
+            // Create temporary null-terminated path string for searching
+            char* path = (char*)malloc(path_end + 1);
+            if (path) {
+                memcpy(path, url, path_end);
+                path[path_end] = '\0';
+
+                // Check if endpoint appears anywhere in path
+                if (strstr(path, endpoint) != NULL) {
+                    has_endpoint = 1;
+                }
+
+                free(path);
             }
         }
 

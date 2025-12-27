@@ -372,14 +372,17 @@ export TRACE2PASS_JSON_OUTPUT=1
 ```
 
 **Note on TRACE2PASS_COLLECTOR_URL:**
-- The runtime automatically appends `/api/v1/report` if not present in the URL path
-- Examples:
+- The runtime automatically appends `/api/v1/report` if it doesn't appear anywhere in the URL path
+- Examples that get auto-appended:
   - `http://localhost:5800` → `http://localhost:5800/api/v1/report`
   - `http://localhost:5800/` → `http://localhost:5800/api/v1/report`
   - `http://localhost:5800?token=abc` → `http://localhost:5800/api/v1/report?token=abc`
-  - `http://localhost:5800/api/v1/report?token=abc` → Used as-is (already has endpoint)
-- Query strings and fragments are preserved correctly
-- Custom endpoints work too: `http://example.com/custom/endpoint` is used as-is
+- Examples that are used as-is (endpoint detected in path):
+  - `http://localhost:5800/api/v1/report` → Used as-is
+  - `http://localhost:5800/api/v1/report?token=abc` → Used as-is
+  - `http://localhost:5800/api/v1/report/v2` → Used as-is (additional path segments preserved)
+  - `http://proxy.example.com/trace2pass/api/v1/report` → Used as-is (reverse proxy paths supported)
+- Query strings, fragments, and additional path segments are all preserved correctly
 
 ### Understanding the Output
 
