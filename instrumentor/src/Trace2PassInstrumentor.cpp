@@ -35,6 +35,14 @@ private:
                         Value *ShiftValue, Value *ShiftAmount);
   void insertBoundsCheck(IRBuilder<> &Builder, GetElementPtrInst *GEP);
 
+  // Debug info extraction helper
+  struct LocationInfo {
+    Value *File;
+    Value *Line;
+    Value *Function;
+  };
+  LocationInfo extractLocation(IRBuilder<> &Builder, Instruction *I);
+
   // Runtime function declarations
   FunctionCallee getOverflowReportFunc(Module &M);
   FunctionCallee getUnreachableReportFunc(Module &M);
@@ -150,6 +158,44 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
   }
 
   return PreservedAnalyses::all();
+}
+
+// Extract source location from debug metadata
+// Returns file, line, function as LLVM Values for passing to runtime
+Trace2PassInstrumentorPass::LocationInfo
+Trace2PassInstrumentorPass::extractLocation(IRBuilder<> &Builder, Instruction *I) {
+  LocationInfo Loc;
+  Module &M = *I->getModule();
+  LLVMContext &Ctx = M.getContext();
+
+  // Try to get debug location
+  const DebugLoc &DL = I->getDebugLoc();
+
+  if (DL) {
+    // Extract file path
+    StringRef Filename = DL->getFilename();
+    Loc.File = Builder.CreateGlobalStringPtr(Filename.empty() ? "unknown" : Filename);
+
+    // Extract line number
+    unsigned Line = DL.getLine();
+    Loc.Line = ConstantInt::get(Type::getInt32Ty(Ctx), Line);
+
+    // Extract function name from the enclosing function
+    Function *F = I->getFunction();
+    StringRef FuncName = F ? F->getName() : "unknown";
+    Loc.Function = Builder.CreateGlobalStringPtr(FuncName);
+  } else {
+    // No debug info available - use placeholders
+    Loc.File = Builder.CreateGlobalStringPtr("unknown");
+    Loc.Line = ConstantInt::get(Type::getInt32Ty(Ctx), 0);
+
+    // Still try to get function name even without debug info
+    Function *F = I->getFunction();
+    StringRef FuncName = F ? F->getName() : "unknown";
+    Loc.Function = Builder.CreateGlobalStringPtr(FuncName);
+  }
+
+  return Loc;
 }
 
 bool Trace2PassInstrumentorPass::instrumentArithmeticOperations(Function &F) {
@@ -278,6 +324,9 @@ void Trace2PassInstrumentorPass::insertOverflowCheck(IRBuilder<> &Builder,
     Value *PC = Builder.CreateCall(ReturnAddrIntrinsic,
                                     {Builder.getInt32(0)});
 
+    // Extract source location from debug metadata
+    LocationInfo Loc = extractLocation(Builder, I);
+
     // Create expression string based on operation
     std::string ExprStr = std::string("x ") + OpName + " y";
     Value *ExprGlobal = Builder.CreateGlobalString(ExprStr);
@@ -286,8 +335,8 @@ void Trace2PassInstrumentorPass::insertOverflowCheck(IRBuilder<> &Builder,
     Value *LHS_i64 = Builder.CreateSExtOrTrunc(LHS, Builder.getInt64Ty());
     Value *RHS_i64 = Builder.CreateSExtOrTrunc(RHS, Builder.getInt64Ty());
 
-    // Call the report function
-    Builder.CreateCall(ReportFunc, {PC, ExprGlobal, LHS_i64, RHS_i64});
+    // Call the report function with location metadata
+    Builder.CreateCall(ReportFunc, {PC, Loc.File, Loc.Line, Loc.Function, ExprGlobal, LHS_i64, RHS_i64});
 
     // Reset builder to after the merge point for potential next check
     // The split created: OrigBlock -> ThenBlock -> MergeBlock
@@ -353,6 +402,9 @@ void Trace2PassInstrumentorPass::insertShiftCheck(IRBuilder<> &Builder,
   Value *PC = Builder.CreateCall(ReturnAddrIntrinsic,
                                   {Builder.getInt32(0)});
 
+  // Extract source location from debug metadata
+  LocationInfo Loc = extractLocation(Builder, I);
+
   // Create expression string
   std::string ExprStr = "x shl y";
   Value *ExprGlobal = Builder.CreateGlobalString(ExprStr);
@@ -361,22 +413,24 @@ void Trace2PassInstrumentorPass::insertShiftCheck(IRBuilder<> &Builder,
   Value *Value_i64 = Builder.CreateSExtOrTrunc(ShiftValue, Builder.getInt64Ty());
   Value *ShiftAmount_i64 = Builder.CreateZExtOrTrunc(ShiftAmount, Builder.getInt64Ty());
 
-  // Call the report function
-  Builder.CreateCall(ReportFunc, {PC, ExprGlobal, Value_i64, ShiftAmount_i64});
+  // Call the report function with location metadata
+  Builder.CreateCall(ReportFunc, {PC, Loc.File, Loc.Line, Loc.Function, ExprGlobal, Value_i64, ShiftAmount_i64});
 }
 
 FunctionCallee Trace2PassInstrumentorPass::getOverflowReportFunc(Module &M) {
   LLVMContext &Ctx = M.getContext();
 
-  // void trace2pass_report_overflow(void* pc, const char* expr, i64 a, i64 b)
+  // void trace2pass_report_overflow(void* pc, const char* file, int line, const char* function,
+  //                                  const char* expr, long long a, long long b)
   Type *VoidTy = Type::getVoidTy(Ctx);
   Type *VoidPtrTy = PointerType::getUnqual(Ctx);
   Type *CharPtrTy = PointerType::getUnqual(Ctx);
+  Type *I32Ty = Type::getInt32Ty(Ctx);
   Type *I64Ty = Type::getInt64Ty(Ctx);
 
   FunctionType *FT = FunctionType::get(
       VoidTy,
-      {VoidPtrTy, CharPtrTy, I64Ty, I64Ty},
+      {VoidPtrTy, CharPtrTy, I32Ty, CharPtrTy, CharPtrTy, I64Ty, I64Ty},
       false);
 
   return M.getOrInsertFunction("trace2pass_report_overflow", FT);
@@ -433,14 +487,16 @@ bool Trace2PassInstrumentorPass::instrumentUnreachableCode(Function &F) {
 FunctionCallee Trace2PassInstrumentorPass::getUnreachableReportFunc(Module &M) {
   LLVMContext &Ctx = M.getContext();
 
-  // void trace2pass_report_unreachable(void* pc, const char* message)
+  // void trace2pass_report_unreachable(void* pc, const char* file, int line, const char* function,
+  //                                      const char* message)
   Type *VoidTy = Type::getVoidTy(Ctx);
   Type *VoidPtrTy = PointerType::getUnqual(Ctx);
   Type *CharPtrTy = PointerType::getUnqual(Ctx);
+  Type *I32Ty = Type::getInt32Ty(Ctx);
 
   FunctionType *FT = FunctionType::get(
       VoidTy,
-      {VoidPtrTy, CharPtrTy},
+      {VoidPtrTy, CharPtrTy, I32Ty, CharPtrTy, CharPtrTy},
       false);
 
   return M.getOrInsertFunction("trace2pass_report_unreachable", FT);
