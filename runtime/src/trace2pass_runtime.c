@@ -129,7 +129,7 @@ void trace2pass_set_collector_url(const char* url) {
     if (url) {
         // CRITICAL: Auto-append /api/v1/report endpoint if not present in path
         // The runtime needs the full POST endpoint, not just the base URL
-        // Must handle query strings and fragments correctly
+        // Must handle query strings, fragments, and trailing slashes correctly
         const char* endpoint = "/api/v1/report";
         size_t url_len = strlen(url);
         size_t endpoint_len = strlen(endpoint);
@@ -147,21 +147,18 @@ void trace2pass_set_collector_url(const char* url) {
             path_end = fragment_start - url;
         }
 
-        // Check if /api/v1/report appears anywhere in the path
+        // Strip trailing slash from path for comparison
+        size_t path_end_no_slash = path_end;
+        if (path_end_no_slash > 0 && url[path_end_no_slash - 1] == '/') {
+            path_end_no_slash--;
+        }
+
+        // Check if path (without trailing slash) ends with /api/v1/report
         int has_endpoint = 0;
-        if (path_end >= endpoint_len) {
-            // Create a temporary null-terminated path string for searching
-            char* path = (char*)malloc(path_end + 1);
-            if (path) {
-                memcpy(path, url, path_end);
-                path[path_end] = '\0';
-
-                // Check if endpoint appears in path
-                if (strstr(path, endpoint) != NULL) {
-                    has_endpoint = 1;
-                }
-
-                free(path);
+        if (path_end_no_slash >= endpoint_len) {
+            // Compare last endpoint_len characters of path with endpoint
+            if (memcmp(url + path_end_no_slash - endpoint_len, endpoint, endpoint_len) == 0) {
+                has_endpoint = 1;
             }
         }
 
@@ -171,13 +168,12 @@ void trace2pass_set_collector_url(const char* url) {
             fprintf(stderr, "ℹ️  Trace2Pass: Collector URL configured as: %s\n", collector_url);
         } else {
             // Auto-append the endpoint before any query string or fragment
-            // Remove trailing slash if present in path
+            // CRITICAL: Always allocate url_len + endpoint_len + 1 bytes
+            // Adjust what we copy, not the allocation size
             int has_trailing_slash = (path_end > 0 && url[path_end - 1] == '/');
 
-            size_t total_len = path_end + endpoint_len + (url_len - path_end) + 1;
-            if (has_trailing_slash) {
-                total_len--;  // Don't need extra slash
-            }
+            // Allocate: url without trailing slash + endpoint + query/fragment + null
+            size_t total_len = url_len + endpoint_len + 1;
 
             collector_url = (char*)malloc(total_len);
             if (collector_url) {
