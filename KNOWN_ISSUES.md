@@ -60,9 +60,12 @@
 
 **Status**: OPEN
 **Current Behavior**:
-- Pipeline detects `used_docker` flag from version bisection and skips pass bisection with warnings
-- **Docker Fallback Behavior**: If user requests Docker (`--use-docker` or default) but Docker is unavailable, version bisector automatically falls back to local compilers (if available). In this case, `used_docker=False` and pass bisection will attempt to run. However, local compilers may lack the full toolchain (`opt`, `llc`) needed for pass bisection even if they work for version bisection.
-- **Test Coverage Note**: Tests that patch `_compile_with_docker` may not account for the fallback behavior, potentially causing `used_docker` to be False even when Docker was requested.
+- Pipeline only skips pass bisection if BOTH conditions are met:
+  1. Version bisection successfully found a regression (`first_bad_version` exists)
+  2. Version bisection used Docker (`used_docker=True`)
+- If version bisection failed or didn't find a regression, pass bisection attempts to run regardless of Docker usage
+- **Docker Fallback Behavior**: If user requests Docker but it's unavailable, version bisector falls back to local compilers (if available). In this case, `used_docker=False` and pass bisection will attempt to run. However, local compilers may lack the full toolchain (`opt`, `llc`) needed for pass bisection.
+- **Test Coverage Note**: Tests that patch `_compile_with_docker` may not account for the fallback behavior.
 
 **Solution**:
 1. Implement Docker-backed pass bisection (mount source, run `opt` inside container, extract IR)

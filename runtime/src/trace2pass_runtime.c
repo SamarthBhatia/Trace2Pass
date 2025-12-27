@@ -178,12 +178,15 @@ void trace2pass_set_collector_url(const char* url) {
             path_end = fragment_start - url;
         }
 
-        // Check if /api/v1/report appears ANYWHERE in the path
-        // This handles cases like:
-        // - https://host/api/v1/report (exact match)
-        // - https://host/api/v1/report/ (with trailing slash)
-        // - https://host/api/v1/report/v2 (with additional path segments)
-        // - https://host/api/v1/report?token=abc (with query string)
+        // Check if /api/v1/report appears in the path at a proper boundary
+        // Valid cases:
+        // - https://host/api/v1/report (exact match, followed by end of path)
+        // - https://host/api/v1/report/ (followed by slash)
+        // - https://host/api/v1/report/v2 (followed by slash + more path)
+        // - https://host/api/v1/report?token=abc (followed by query string)
+        // Invalid cases (should NOT match):
+        // - https://host/api/v1/reporting (different endpoint)
+        // - https://host/api/v1/report_v2 (different endpoint)
         int has_endpoint = 0;
         if (path_end >= endpoint_len) {
             // Create temporary null-terminated path string for searching
@@ -192,9 +195,18 @@ void trace2pass_set_collector_url(const char* url) {
                 memcpy(path, url, path_end);
                 path[path_end] = '\0';
 
-                // Check if endpoint appears anywhere in path
-                if (strstr(path, endpoint) != NULL) {
-                    has_endpoint = 1;
+                // Find the endpoint in the path
+                char* found = strstr(path, endpoint);
+                if (found != NULL) {
+                    // Calculate position after the endpoint
+                    size_t pos_after_endpoint = (found - path) + endpoint_len;
+
+                    // Check that it's followed by a valid boundary:
+                    // - End of path
+                    // - Forward slash
+                    if (pos_after_endpoint == path_end || path[pos_after_endpoint] == '/') {
+                        has_endpoint = 1;
+                    }
                 }
 
                 free(path);

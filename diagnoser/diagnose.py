@@ -518,34 +518,31 @@ def full_pipeline_cmd(source_file: str, test_command: str,
     # Stage 3: Pass Bisection
     print("Stage 3/3: Pass Bisection...")
 
-    # CRITICAL: Check if version bisection ACTUALLY used Docker
-    # Pass bisection requires local LLVM toolchain (clang-N, opt-N, llc-N)
-    # If version bisection used Docker (because local toolchains weren't available),
-    # we cannot run pass bisection without Docker support (not yet implemented)
+    # CRITICAL: Only skip pass bisection if BOTH conditions are met:
+    # 1. Version bisection successfully found a regression (has first_bad_version)
+    # 2. Version bisection used Docker (local toolchain likely unavailable)
+    #
+    # If version bisection failed or didn't find a regression, attempt pass bisection
+    # anyway - the user may have local toolchain even if Docker was requested.
+    first_bad_version = version_result.get('first_bad_version')
     actually_used_docker = version_result.get('used_docker', False)
-    if actually_used_docker:
+
+    if actually_used_docker and first_bad_version:
         print("⚠️  WARNING: Pass bisection skipped (Docker-based version bisection detected)")
         print("   Pass bisection requires local LLVM toolchain installation:")
-        first_bad_version = version_result.get('first_bad_version')
-        if first_bad_version:
-            major_version = first_bad_version.split('.')[0]
-            print(f"   - clang-{major_version}")
-            print(f"   - opt-{major_version}")
-            print(f"   - llc-{major_version}")
+        major_version = first_bad_version.split('.')[0]
+        print(f"   - clang-{major_version}")
+        print(f"   - opt-{major_version}")
+        print(f"   - llc-{major_version}")
         print()
         print("   Options:")
         print("   1. Install matching LLVM toolchain locally for pass-level analysis")
         print("   2. Use version bisection results to narrow down the regression")
         print()
 
-        # Build recommendation based on whether we found a regression
-        first_bad_version = version_result.get('first_bad_version')
-        if first_bad_version:
-            major_version = first_bad_version.split('.')[0]
-            recommendation = (f"Version bisection identified regression in {first_bad_version}. "
-                            f"Install local LLVM {major_version} toolchain for pass-level analysis.")
-        else:
-            recommendation = "Pass bisection requires local LLVM toolchain. Install clang, opt, and llc for pass-level analysis."
+        # Build recommendation (we know first_bad_version exists here)
+        recommendation = (f"Version bisection identified regression in {first_bad_version}. "
+                        f"Install local LLVM {major_version} toolchain for pass-level analysis.")
 
         return {
             "verdict": "incomplete",
@@ -557,7 +554,7 @@ def full_pipeline_cmd(source_file: str, test_command: str,
 
     # CRITICAL: Pass the first_bad_version to pass bisection so it analyzes
     # the correct compiler version's pass pipeline, not the system default
-    first_bad_version = version_result.get('first_bad_version')
+    # (first_bad_version already extracted above)
 
     # Wrap pass_bisect_cmd call to catch any unexpected exceptions
     try:
