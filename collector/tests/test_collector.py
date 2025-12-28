@@ -32,18 +32,29 @@ def test_db():
 
 
 @pytest.fixture
-def client(test_db, monkeypatch):
+def client(test_db, monkeypatch, request):
     """Create test client with injected test database.
 
     Uses dependency injection to override get_db() so that all requests
     use the test database instead of mutating the global singleton.
     This ensures thread-safety and proper isolation between tests.
+
+    Explicitly saves and restores the original get_db() to prevent leakage
+    to code outside pytest or subsequent tests.
     """
     app.config['TESTING'] = True
 
-    # Override get_db() to return our test database
+    # Save original get_db() before override
     import collector as collector_module
+    original_get_db = collector_module.get_db
+
+    # Override get_db() to return our test database
     monkeypatch.setattr(collector_module, 'get_db', lambda: test_db)
+
+    # Add explicit finalizer to restore original (redundant with monkeypatch, but explicit)
+    def restore_get_db():
+        collector_module.get_db = original_get_db
+    request.addfinalizer(restore_get_db)
 
     with app.test_client() as client:
         yield client
