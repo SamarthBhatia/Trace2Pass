@@ -276,7 +276,11 @@ int main() {
 
     try:
         # Run diagnosis
-        diagnosis = diagnose.full_pipeline_cmd(source, '{binary}', '-O2')
+        diagnosis = diagnose.full_pipeline_cmd(
+            source_file=source,
+            test_command='{binary}',
+            optimization_level='-O2'
+        )
 
         # Should complete successfully
         assert "verdict" in diagnosis
