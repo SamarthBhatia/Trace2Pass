@@ -88,9 +88,75 @@ class UBDetector:
                 source_file, test_input, details
             )
 
+        # CRITICAL: Check if baseline (-O0) failed before computing confidence
+        # If baseline fails, we cannot determine if behavior is UB or compiler bug
+        opt_details = details.get('optimization', {})
+
+        # Check if optimization phase ran at all
+        if 'error' in opt_details or '-O0' not in opt_details:
+            # Optimization sensitivity check didn't run or failed
+            # Cannot determine compiler bug without optimization data
+            reason = opt_details.get('error', 'Clang not installed or compilation failed')
+            print(f"⚠️  WARNING: Optimization sensitivity check failed: {reason}")
+            print(f"   Install clang to enable optimization-level comparison (-O0 vs -O2)")
+            details['missing_optimization_data'] = reason
+            return UBDetectionResult(
+                verdict="inconclusive",
+                confidence=0.5,  # Neutral - no optimization data
+                ubsan_clean=ubsan_clean,
+                optimization_sensitive=False,  # Couldn't determine
+                multi_compiler_differs=multi_compiler_differs,
+                details=details
+            )
+
+        # Check if baseline (-O0) failed
+        baseline_failed = False
+        o0_result = opt_details['-O0']
+        baseline_failed = (
+            o0_result.get('compile_failed') or
+            o0_result.get('timeout') or
+            o0_result.get('returncode', 0) != 0  # Crashes, assertions, UB
+        )
+
+        # If baseline fails, return inconclusive verdict immediately
+        if baseline_failed:
+            print("⚠️  WARNING: Baseline (-O0) execution failed")
+            if o0_result.get('compile_failed'):
+                print("   Baseline compilation failed - cannot establish expected behavior")
+            elif o0_result.get('timeout'):
+                print("   Baseline timed out - program may have infinite loop")
+            elif o0_result.get('returncode', 0) != 0:
+                print(f"   Baseline crashed (exit code {o0_result.get('returncode')})")
+            details['baseline_failed'] = True
+            return UBDetectionResult(
+                verdict="inconclusive",
+                confidence=0.5,  # Neutral - we couldn't test
+                ubsan_clean=ubsan_clean,
+                optimization_sensitive=False,  # Couldn't determine (override None)
+                multi_compiler_differs=multi_compiler_differs,
+                details=details
+            )
+
+        # If optimization_sensitive is None (baseline unusable), print precise warning
+        # and override to False to ensure we don't pass None to _compute_confidence
+        if optimization_sensitive is None:
+            # Determine which optimization level failed
+            failure_level = details.get('optimization_failure_level', '-O0')
+            failure_reason = details.get('optimization_failure_reason', 'unknown')
+
+            print(f"⚠️  WARNING: {failure_level} execution failed ({failure_reason})")
+            if failure_reason == 'compile_failed' or failure_reason is True:
+                print(f"   {failure_level} compilation failed - cannot establish baseline behavior")
+            elif failure_reason == 'timeout':
+                print(f"   {failure_level} timed out - program may have infinite loop")
+            else:
+                print(f"   {failure_level} crashed during execution")
+
+            optimization_sensitive = False
+
         # Compute confidence score
         confidence = self._compute_confidence(
-            ubsan_clean, optimization_sensitive, multi_compiler_differs
+            ubsan_clean, optimization_sensitive, multi_compiler_differs, details
         )
 
         # Determine verdict
@@ -224,14 +290,72 @@ class UBDetector:
 
         details['optimization'] = outputs
 
-        # Check if -O0/-O1 agree but -O2/-O3 differ
-        if '-O0' in outputs and '-O2' in outputs:
-            o0_output = outputs['-O0'].get('stdout', '')
-            o2_output = outputs['-O2'].get('stdout', '')
+        # If expected_output is provided, check if any optimization level produces wrong output
+        if expected_output is not None:
+            # CRITICAL: Check for compile failures/timeouts before comparing stdout
+            # If -O0 compiles but -O2 fails to compile, that's a compiler bug
+            o0_output = outputs.get('-O0', {})
+            o2_output = outputs.get('-O2', {})
 
-            # If outputs differ, this is optimization-sensitive
-            if o0_output != o2_output:
+            o0_failed = o0_output.get('compile_failed') or o0_output.get('timeout')
+            o2_failed = o2_output.get('compile_failed') or o2_output.get('timeout')
+
+            # If -O0 compiles but -O2 fails to compile → optimizer crash (compiler bug)
+            if not o0_failed and o2_failed:
+                return True  # Optimization-sensitive compiler bug
+
+            # If -O0 fails to compile → can't determine (baseline doesn't work)
+            # Return None to signal that we couldn't determine optimization sensitivity
+            # (as opposed to False, which means "tested and not optimization-sensitive")
+            if o0_failed:
+                return None  # Couldn't determine (baseline unusable)
+
+            # Both compiled successfully - compare outputs
+            o0_correct = o0_output.get('stdout') == expected_output
+            o2_correct = o2_output.get('stdout') == expected_output
+
+            # If -O0 is correct but -O2 is wrong, this is optimization-sensitive compiler bug
+            if o0_correct and not o2_correct:
                 return True
+            # If both are wrong, might be UB (not optimization-sensitive)
+            # If both are correct, no bug detected
+            return False
+        else:
+            # Fallback: Check if -O0/-O1 agree but -O2/-O3 differ
+            if '-O0' in outputs and '-O2' in outputs:
+                o0_result = outputs['-O0']
+                o2_result = outputs['-O2']
+
+                # Check for compile failures first (same logic as expected_output path)
+                # Convert None/falsy to explicit False for clearer logic
+                o0_failed = bool(o0_result.get('compile_failed') or o0_result.get('timeout'))
+                o2_failed = bool(o2_result.get('compile_failed') or o2_result.get('timeout'))
+
+                # If -O0 compiles but -O2 fails → optimizer crash (compiler bug)
+                # CRITICAL: This must be caught BEFORE stdout comparison
+                if not o0_failed and o2_failed:
+                    details['optimization_failure_level'] = '-O2'
+                    details['optimization_failure_reason'] = o2_result.get('compile_failed', 'timeout' if o2_result.get('timeout') else 'crash')
+                    return True  # Optimization-sensitive compiler bug
+
+                # If -O0 fails → can't determine baseline
+                # Record this for diagnostics (same as expected_output path)
+                if o0_failed:
+                    details['baseline_failed'] = True
+                    details['baseline_failure_reason'] = 'fallback_path'
+                    details['optimization_failure_level'] = '-O0'
+                    details['optimization_failure_reason'] = o0_result.get('compile_failed', 'timeout' if o0_result.get('timeout') else 'crash')
+                    return None  # Couldn't determine (baseline unusable)
+
+                # Both compiled successfully - compare outputs
+                # NOTE: For programs with no output, both will be '', so we return False
+                # This is correct behavior - no output difference = not optimization-sensitive
+                o0_output = o0_result.get('stdout', '')
+                o2_output = o2_result.get('stdout', '')
+
+                # If outputs differ, this is optimization-sensitive
+                if o0_output != o2_output:
+                    return True
 
         return False
 
@@ -291,10 +415,52 @@ class UBDetector:
 
         details['multi_compiler'] = outputs
 
-        # Check if outputs differ
+        # Check if outputs differ - but ONLY if both compilers succeeded
         if 'clang' in outputs and 'gcc' in outputs:
-            clang_out = outputs['clang'].get('stdout', '')
-            gcc_out = outputs['gcc'].get('stdout', '')
+            clang_result = outputs['clang']
+            gcc_result = outputs['gcc']
+
+            # Separate compile failures from runtime failures
+            clang_compile_failed = clang_result.get('compile_failed', False)
+            gcc_compile_failed = gcc_result.get('compile_failed', False)
+
+            # If either compiler failed to compile, this is a front-end difference
+            # (e.g., GCC rejecting C23 syntax, different extension support)
+            # NOT an optimizer bug, so don't boost confidence
+            if clang_compile_failed or gcc_compile_failed:
+                return False
+
+            # Both compiled successfully - now check runtime behavior
+            clang_runtime_failed = (
+                clang_result.get('timeout') or
+                clang_result.get('returncode', 0) != 0  # Runtime crashes/failures
+            )
+            gcc_runtime_failed = (
+                gcc_result.get('timeout') or
+                gcc_result.get('returncode', 0) != 0  # Runtime crashes/failures
+            )
+
+            # If both failed at runtime, can't determine (might be UB in both)
+            if clang_runtime_failed and gcc_runtime_failed:
+                return False
+
+            # If only one failed at runtime, this could indicate an optimizer bug
+            # (one compiler's optimizer introduced UB/crash, the other didn't)
+            # This is actually a STRONG signal - one compiler's codegen is broken
+            if clang_runtime_failed and not gcc_runtime_failed:
+                # Clang crashed but GCC didn't - likely Clang optimizer bug
+                details['multi_compiler']['clang']['runtime_crash_signal'] = True
+                print("  ⚠️  Clang crashed but GCC succeeded - strong compiler-bug signal")
+                return True  # Different behavior = multi-compiler differs
+            elif gcc_runtime_failed and not clang_runtime_failed:
+                # GCC crashed but Clang didn't - likely GCC optimizer bug
+                details['multi_compiler']['gcc']['runtime_crash_signal'] = True
+                print("  ⚠️  GCC crashed but Clang succeeded - strong compiler-bug signal")
+                return True  # Different behavior = multi-compiler differs
+
+            # Both compiled AND ran successfully - compare outputs
+            clang_out = clang_result.get('stdout', '')
+            gcc_out = gcc_result.get('stdout', '')
 
             return clang_out != gcc_out
 
@@ -304,7 +470,8 @@ class UBDetector:
         self,
         ubsan_clean: bool,
         optimization_sensitive: bool,
-        multi_compiler_differs: bool
+        multi_compiler_differs: bool,
+        details: Dict[str, Any] = None
     ) -> float:
         """
         Compute confidence score that anomaly is a compiler bug.
@@ -314,7 +481,8 @@ class UBDetector:
         - UBSan clean: +0.3
         - UBSan triggers: -0.4 (likely UB)
         - Optimization sensitive (O0 works, O2 fails): +0.2
-        - Multi-compiler differs: +0.15
+        - Multi-compiler differs (output): +0.15
+        - Multi-compiler differs (crash): +0.25 (stronger signal)
 
         Returns:
             Confidence in range [0.0, 1.0]
@@ -333,7 +501,22 @@ class UBDetector:
 
         # Multi-compiler differential
         if multi_compiler_differs:
-            confidence += 0.15
+            # Check if difference is due to crash (stronger signal)
+            is_crash_signal = False
+            if details and 'multi_compiler' in details:
+                mc = details['multi_compiler']
+                if isinstance(mc, dict):
+                    # Check for runtime_crash_signal flag set by _check_multi_compiler
+                    for compiler in ['clang', 'gcc']:
+                        if compiler in mc and isinstance(mc[compiler], dict):
+                            if mc[compiler].get('runtime_crash_signal'):
+                                is_crash_signal = True
+                                break
+
+            if is_crash_signal:
+                confidence += 0.25  # Crash = stronger signal
+            else:
+                confidence += 0.15  # Output difference = weaker signal
 
         # Clamp to [0.0, 1.0]
         return max(0.0, min(1.0, confidence))
@@ -439,6 +622,23 @@ def _generate_reproducer(check_type: str, check_details: Dict[str, Any]) -> Opti
         a = operands[0] if len(operands) > 0 else 0
         b = operands[1] if len(operands) > 1 else 0
 
+        # Map LLVM intrinsic names and instruction mnemonics to C operators
+        # Instrumentor generates "x sadd y", "x umul y", "x shl y", etc.
+        intrinsic_to_c_op = {
+            'sadd': '+', 'uadd': '+',
+            'ssub': '-', 'usub': '-',
+            'smul': '*', 'umul': '*',
+            'shl': '<<'  # Left shift operator
+        }
+
+        # Replace intrinsic names with C operators
+        expr_code = expr
+        for intrinsic, c_op in intrinsic_to_c_op.items():
+            expr_code = expr_code.replace(intrinsic, c_op)
+
+        # Replace variable placeholders (x, y) with actual variable names (a, b)
+        expr_code = expr_code.replace('x', 'a').replace('y', 'b')
+
         return f"""// Minimal reproducer for arithmetic_overflow
 // Original expression: {expr}
 // Operands: {a}, {b}
@@ -446,7 +646,7 @@ def _generate_reproducer(check_type: str, check_details: Dict[str, Any]) -> Opti
 int main(void) {{
     long long a = {a}LL;
     long long b = {b}LL;
-    long long result = {expr};  // This may overflow
+    long long result = {expr_code};  // This may overflow
     return (int)result;
 }}
 """

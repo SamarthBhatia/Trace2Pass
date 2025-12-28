@@ -1,0 +1,5 @@
+# Integration Test Dependencies
+
+pytest>=7.4.0
+requests>=2.31.0
+flask>=2.3.0

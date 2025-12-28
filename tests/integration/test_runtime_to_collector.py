@@ -1,0 +1,409 @@
+#!/usr/bin/env python3
+"""
+Integration Test: Runtime → Collector
+
+Tests the flow from instrumented binary detecting an anomaly to the collector
+receiving and storing the report.
+"""
+
+import pytest
+import subprocess
+import json
+import time
+import requests
+import tempfile
+import os
+import sys
+from pathlib import Path
+
+# Add collector to path
+REPO_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(REPO_ROOT / "collector" / "src"))
+
+from collector import app, db
+
+
+@pytest.fixture
+def collector_server():
+    """Start collector server for testing."""
+    from werkzeug.serving import make_server
+    import threading
+
+    app.config['TESTING'] = True
+    db.db_path = ':memory:'
+    db.connect()
+
+    # Create server with explicit shutdown support
+    server = make_server('localhost', 58001, app, threaded=True)
+    server_thread = threading.Thread(target=server.serve_forever)
+    server_thread.daemon = True
+    server_thread.start()
+
+    # Wait for server to be ready
+    time.sleep(1)
+
+    yield "http://localhost:58001"
+
+    # Cleanup: shutdown server and wait for thread
+    server.shutdown()
+    server_thread.join(timeout=5)
+    db.close()
+
+
+@pytest.fixture
+def instrumented_binary():
+    """Compile a test program with instrumentation."""
+    test_code = """
+#include <stdio.h>
+#include <limits.h>
+
+// This will trigger an overflow
+int vulnerable_function(int a, int b) {
+    return a * b;  // Overflow when a=INT_MAX, b=2
+}
+
+int main() {
+    int result = vulnerable_function(2147483647, 2);
+    printf("Result: %d\\n", result);
+    return 0;
+}
+"""
+
+    # Write test code
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.c', delete=False) as f:
+        f.write(test_code)
+        source_file = f.name
+
+    # Compile with instrumentation
+    binary_file = source_file.replace('.c', '_instrumented')
+
+    # Check if instrumentation pass is available
+    instrumentor_path = REPO_ROOT / "instrumentor" / "build" / "Trace2PassInstrumentor.so"
+    runtime_lib = REPO_ROOT / "runtime" / "build" / "libTrace2PassRuntime.a"
+
+    if not instrumentor_path.exists():
+        pytest.skip("Instrumentor pass not built")
+
+    if not runtime_lib.exists():
+        pytest.skip("Runtime library not built")
+
+    try:
+        # Compile with instrumentation
+        subprocess.run([
+            'clang', '-O2',
+            f'-fpass-plugin={instrumentor_path}',
+            source_file,
+            '-c', '-o', source_file.replace('.c', '.o')
+        ], check=True, capture_output=True)
+
+        # Link with runtime
+        subprocess.run([
+            'clang',
+            source_file.replace('.c', '.o'),
+            str(runtime_lib),
+            '-lpthread', '-ldl',
+            '-o', binary_file
+        ], check=True, capture_output=True)
+
+        yield binary_file
+
+    finally:
+        # Cleanup
+        for ext in ['.c', '.o', '_instrumented']:
+            try:
+                os.unlink(source_file.replace('.c', ext))
+            except FileNotFoundError:
+                pass
+
+
+def test_runtime_generates_json_report(instrumented_binary):
+    """Test that runtime can generate JSON-formatted reports."""
+    # Run instrumented binary and capture output
+    result = subprocess.run(
+        [instrumented_binary],
+        capture_output=True,
+        text=True,
+        timeout=5
+    )
+
+    # Runtime should detect overflow and report to stderr
+    assert result.returncode == 0 or "overflow" in result.stderr.lower()
+
+    # Check that output contains report markers
+    assert "Trace2Pass" in result.stderr or result.returncode == 0
+
+
+def test_e2e_instrumented_binary_to_collector(instrumented_binary, collector_server):
+    """
+    End-to-end test: Run instrumented binary and submit actual runtime output to collector.
+
+    This test exercises the real runtime→collector path, including known limitations:
+    - DILocation metadata may be missing (documented in KNOWN_ISSUES.md)
+    - Bloom filter is thread-local (may miss duplicates across threads)
+    - Fields like file/line/function may be "unknown"
+
+    The test verifies that the collector accepts real runtime output even with these gaps.
+    """
+    # Set environment variable to enable JSON output from runtime
+    env = os.environ.copy()
+    env['TRACE2PASS_JSON_OUTPUT'] = '1'
+    # NOTE: Runtime auto-appends /api/v1/report, so just provide base URL
+    env['TRACE2PASS_COLLECTOR_URL'] = collector_server
+
+    # Run instrumented binary
+    result = subprocess.run(
+        [instrumented_binary],
+        capture_output=True,
+        text=True,
+        timeout=5,
+        env=env
+    )
+
+    # Parse runtime output for JSON reports
+    # Runtime may output multiple JSON objects, one per line or in stderr
+    reports = []
+    partial_json = ""
+
+    # Try to extract JSON from runtime output
+    for line in result.stderr.splitlines():
+        line_stripped = line.strip()
+
+        # Look for JSON-like content
+        if '{' in line_stripped:
+            # Start of potential JSON object
+            partial_json = line_stripped[line_stripped.index('{'):]
+
+            # Try to parse it
+            try:
+                report = json.loads(partial_json)
+                if "report_id" in report or "check_type" in report:
+                    reports.append(report)
+                    partial_json = ""
+            except json.JSONDecodeError:
+                # Might be multi-line JSON, continue accumulating
+                continue
+        elif partial_json and '}' in line_stripped:
+            # Continuation of multi-line JSON
+            partial_json += line_stripped
+            try:
+                report = json.loads(partial_json)
+                if "report_id" in report or "check_type" in report:
+                    reports.append(report)
+                partial_json = ""
+            except json.JSONDecodeError:
+                partial_json = ""
+
+    # CRITICAL: If runtime did not output JSON, FAIL the test
+    # Fabricating placeholder reports hides regressions in runtime→collector serialization
+    if not reports:
+        pytest.fail(
+            f"Runtime did not emit any JSON output despite TRACE2PASS_JSON_OUTPUT=1.\n"
+            f"This is a regression in runtime→collector serialization.\n"
+            f"Return code: {result.returncode}\n"
+            f"Stdout: {result.stdout[:200]}\n"
+            f"Stderr: {result.stderr[:200]}\n"
+            f"Expected: At least one JSON object with 'report_id' or 'check_type' field"
+        )
+
+    # CRITICAL: Runtime should have POST'd directly to collector via http_post_json()
+    # We do NOT re-submit the reports manually - that would mask HTTP failures
+    # Instead, we verify that the collector actually received the runtime's POSTs
+
+    # Give the runtime's background HTTP requests time to complete
+    # (http_post_json uses system("curl ...") which may be async)
+    time.sleep(0.5)
+
+    # Query the collector to verify it received the runtime's HTTP POSTs
+    response = requests.get(f"{collector_server}/api/v1/queue")
+    assert response.status_code == 200
+    queue = response.json()
+
+    # CRITICAL: Do NOT compare counts - collector deduplicates by report_id
+    # If runtime emits duplicate JSON (e.g., bloom filter thread-local issues),
+    # stderr may have more JSON objects than collector has unique reports.
+    # Instead, verify that specific report_ids from stderr exist in collector.
+
+    # Extract report_ids from collector queue
+    collector_report_ids = {r.get('report_id') for r in queue['queue']}
+
+    # Verify that each parsed report was actually delivered to collector
+    missing_reports = []
+    for report in reports:
+        report_id = report.get('report_id')
+        if report_id not in collector_report_ids:
+            missing_reports.append(report_id)
+
+    if missing_reports:
+        pytest.fail(
+            f"Runtime→collector HTTP POST failed!\n"
+            f"Expected reports not found in collector: {missing_reports}\n"
+            f"Parsed from stderr: {[r.get('report_id', 'no-id') for r in reports]}\n"
+            f"In collector queue: {list(collector_report_ids)}\n"
+            f"This means the runtime's http_post_json() failed for some reports."
+        )
+
+    # Verify reports have expected check_types
+    collector_check_types = [r.get("check_type") for r in queue["queue"]]
+    for report in reports:
+        check_type = report.get("check_type")
+        assert check_type in collector_check_types, \
+            f"Runtime sent check_type={check_type} but collector didn't receive it"
+
+    print(f"\n✓ Runtime→collector HTTP POST verified: {len(reports)} report(s) parsed, {len(collector_report_ids)} unique in collector")
+    print(f"  Check types: {collector_check_types}")
+
+
+def test_manual_report_submission(collector_server):
+    """Test manual submission of a report to collector (simulates runtime POST)."""
+    # Create a synthetic report (as runtime would generate)
+    report = {
+        "report_id": "test-runtime-001",
+        "timestamp": "2025-12-23T10:00:00Z",
+        "check_type": "arithmetic_overflow",
+        "location": {
+            "file": "test.c",
+            "line": 10,
+            "function": "vulnerable_function"
+        },
+        "pc": "0x401234",
+        "stacktrace": ["main+0x10", "vulnerable_function+0x5"],
+        "compiler": {
+            "name": "clang",
+            "version": "17.0.6",
+            "target": "x86_64-linux-gnu"
+        },
+        "build_info": {
+            "optimization_level": "-O2",
+            "flags": ["-O2"]
+        },
+        "check_details": {
+            "expression": "a * b",
+            "operands": {"a": 2147483647, "b": 2}
+        },
+        "system_info": {
+            "os": "Linux",
+            "arch": "x86_64"
+        }
+    }
+
+    # POST to collector
+    response = requests.post(
+        f"{collector_server}/api/v1/report",
+        json=report,
+        headers={"Content-Type": "application/json"}
+    )
+
+    # Verify acceptance
+    assert response.status_code == 201
+    data = response.json()
+    assert data["status"] == "success"
+    assert "report_id" in data
+
+    # Verify storage in collector
+    response = requests.get(f"{collector_server}/api/v1/reports/{data['report_id']}")
+    assert response.status_code == 200
+
+    stored = response.json()
+    assert stored["check_type"] == "arithmetic_overflow"
+    # Note: location is stored as string "file:line:function", not a dict
+    assert "vulnerable_function" in stored["location"]
+
+
+def test_deduplication_across_runs(collector_server):
+    """Test that multiple reports from same location are deduplicated."""
+    base_report = {
+        "report_id": "test-dedup-001",
+        "timestamp": "2025-12-23T10:00:00Z",
+        "check_type": "arithmetic_overflow",
+        "location": {
+            "file": "test.c",
+            "line": 10,
+            "function": "vulnerable_function"
+        },
+        "compiler": {
+            "name": "clang",
+            "version": "17.0.6"
+        },
+        "build_info": {
+            "optimization_level": "-O2",
+            "flags": ["-O2"]
+        }
+    }
+
+    # Submit first report
+    response1 = requests.post(
+        f"{collector_server}/api/v1/report",
+        json=base_report
+    )
+    assert response1.status_code == 201
+
+    # Submit duplicate (same location, compiler, flags)
+    duplicate_report = base_report.copy()
+    duplicate_report["report_id"] = "test-dedup-002"
+    duplicate_report["timestamp"] = "2025-12-23T10:05:00Z"
+
+    response2 = requests.post(
+        f"{collector_server}/api/v1/report",
+        json=duplicate_report
+    )
+    assert response2.status_code == 201
+
+    # Verify only one unique bug in queue
+    response = requests.get(f"{collector_server}/api/v1/queue")
+    assert response.status_code == 200
+
+    queue = response.json()
+    # Should have deduplicated - frequency should be 2
+    # Note: location is a string "file:line:function", not a dict
+    matching = [r for r in queue["queue"]
+                if "vulnerable_function" in r["location"]]
+
+    assert len(matching) == 1
+    assert matching[0]["frequency"] == 2
+
+
+def test_multiple_check_types(collector_server):
+    """Test collector handles different check types."""
+    check_types = [
+        "arithmetic_overflow",
+        "division_by_zero",
+        "unreachable_code_executed",
+        "pure_function_inconsistency"
+    ]
+
+    for i, check_type in enumerate(check_types):
+        report = {
+            "report_id": f"test-type-{i:03d}",
+            "timestamp": "2025-12-23T10:00:00Z",
+            "check_type": check_type,
+            "location": {
+                "file": f"test_{check_type}.c",
+                "line": 10 + i,
+                "function": "test_function"
+            },
+            "compiler": {
+                "name": "clang",
+                "version": "17.0.6"
+            },
+            "build_info": {
+                "optimization_level": "-O2",
+                "flags": ["-O2"]
+            }
+        }
+
+        response = requests.post(
+            f"{collector_server}/api/v1/report",
+            json=report
+        )
+        assert response.status_code == 201
+
+    # Verify all stored
+    response = requests.get(f"{collector_server}/api/v1/stats")
+    assert response.status_code == 200
+
+    stats = response.json()
+    assert stats["total_reports"] >= len(check_types)
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

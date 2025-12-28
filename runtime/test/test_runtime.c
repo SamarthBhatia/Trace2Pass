@@ -6,20 +6,20 @@
 
 void test_overflow_report(void) {
     printf("Testing arithmetic overflow report...\n");
-    trace2pass_report_overflow(__builtin_return_address(0), "x * y", 1000000, 1000000);
+    trace2pass_report_overflow(__builtin_return_address(0), __FILE__, __LINE__, __func__, "x * y", 1000000, 1000000);
     printf("✓ Overflow report sent\n");
 }
 
 void test_unreachable(void) {
     printf("Testing unreachable code report...\n");
-    trace2pass_report_unreachable(__builtin_return_address(0), "unreachable code executed");
+    trace2pass_report_unreachable(__builtin_return_address(0), __FILE__, __LINE__, __func__, "unreachable code executed");
     printf("✓ Unreachable report sent\n");
 }
 
 void test_bounds_violation(void) {
     printf("Testing bounds violation report...\n");
     int arr[10];
-    trace2pass_report_bounds_violation(__builtin_return_address(0), arr, 15, 10);
+    trace2pass_report_bounds_violation(__builtin_return_address(0), __FILE__, __LINE__, __func__, arr, 15, 10);
     printf("✓ Bounds violation report sent\n");
 }
 
@@ -44,7 +44,7 @@ void test_deduplication(void) {
     // Report the same overflow multiple times
     // Should only appear once in output
     for (int i = 0; i < 10; i++) {
-        trace2pass_report_overflow(__builtin_return_address(0), "x + y", 100, 200);
+        trace2pass_report_overflow(__builtin_return_address(0), __FILE__, __LINE__, __func__, "x + y", 100, 200);
     }
 
     printf("✓ Sent 10 duplicate reports (should see only 1 in output)\n");
