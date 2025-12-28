@@ -55,7 +55,9 @@ class UBDetector:
         self,
         source_file: str,
         test_input: Optional[str] = None,
-        expected_output: Optional[str] = None
+        expected_output: Optional[str] = None,
+        opt_level: Optional[str] = None,
+        compiler_flags: Optional[List[str]] = None
     ) -> UBDetectionResult:
         """
         Detect whether anomaly is due to UB or compiler bug.
@@ -64,6 +66,8 @@ class UBDetector:
             source_file: Path to source file to test
             test_input: Optional input to pass to program
             expected_output: Optional expected output (from -O0 or known-good)
+            opt_level: Production optimization level (e.g., "-O2") to ensure testing
+            compiler_flags: Production compiler flags for exact reproduction
 
         Returns:
             UBDetectionResult with verdict and confidence
@@ -73,12 +77,13 @@ class UBDetector:
 
         details = {}
 
-        # Signal 1: UBSan check
+        # Signal 1: UBSan check (always at -O0 with -fsanitize=undefined)
         ubsan_clean = self._check_ubsan(source_file, test_input, details)
 
         # Signal 2: Optimization sensitivity
+        # If production opt_level provided, ensure it's tested
         optimization_sensitive = self._check_optimization_sensitivity(
-            source_file, test_input, expected_output, details
+            source_file, test_input, expected_output, details, opt_level, compiler_flags
         )
 
         # Signal 3: Multi-compiler differential (optional, if GCC available)
@@ -241,10 +246,15 @@ class UBDetector:
         source_file: str,
         test_input: Optional[str],
         expected_output: Optional[str],
-        details: Dict[str, Any]
+        details: Dict[str, Any],
+        production_opt_level: Optional[str] = None,
+        production_flags: Optional[List[str]] = None
     ) -> bool:
         """
         Check if behavior changes with optimization level.
+
+        If production_opt_level is provided, ensures that level is tested.
+        If production_flags are provided, compiles with exact production configuration.
 
         Returns:
             True if -O0/-O1 agree but -O2/-O3 differ (compiler bug signal)
@@ -253,15 +263,28 @@ class UBDetector:
             details['optimization'] = {'error': 'clang not available'}
             return False
 
+        # Default opt levels to test
         opt_levels = ["-O0", "-O1", "-O2", "-O3"]
+
+        # If production opt_level provided and not in defaults, add it
+        if production_opt_level and production_opt_level not in opt_levels:
+            opt_levels.append(production_opt_level)
+
         outputs = {}
 
         for opt in opt_levels:
             binary = os.path.join(self.work_dir, f"test{opt}")
 
+            # Build compilation command
+            # If this is the production opt level and we have production flags, use them
+            if opt == production_opt_level and production_flags:
+                compile_cmd = [self.clang] + production_flags + [source_file, "-o", binary]
+            else:
+                compile_cmd = [self.clang, opt, source_file, "-o", binary]
+
             # Compile
             compile_result = subprocess.run(
-                [self.clang, opt, source_file, "-o", binary],
+                compile_cmd,
                 capture_output=True,
                 text=True
             )
@@ -568,13 +591,14 @@ def analyze_report(report: Dict[str, Any]) -> UBDetectionResult:
         try:
             detector = UBDetector()
 
-            # Run UB detection with actual compilation flags
-            # This gives us the real UB analysis, not a synthetic one
+            # Run UB detection with actual production compilation configuration
+            # This ensures we test with the exact opt level and flags that triggered the anomaly
             result = detector.detect(
                 source_file=source_file,
                 test_input=None,  # Runtime inputs not available from report
                 expected_output=None,  # Expected output not available
-                # TODO: Pass compiler_flags to detector for exact reproduction
+                opt_level=opt_level,  # Pass production optimization level
+                compiler_flags=compiler_flags  # Pass production compiler flags
             )
 
             # Add production report metadata
