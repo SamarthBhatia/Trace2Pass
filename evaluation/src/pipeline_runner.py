@@ -199,26 +199,33 @@ class PipelineRunner:
         from werkzeug.serving import make_server
         import threading
 
-        collector_db = Database(':memory:')
-        collector_db.connect()
-
-        # Configure collector to use our in-memory database
-        collector_app.config['TESTING'] = True
-        import collector as collector_module
-        original_get_db = collector_module.get_db
-        collector_module.get_db = lambda: collector_db
-
-        # Start collector server on random available port
-        server = make_server('localhost', 0, collector_app, threaded=True)
-        collector_port = server.server_address[1]
-        collector_url = f"http://localhost:{collector_port}"
-
-        server_thread = threading.Thread(target=server.serve_forever)
-        server_thread.daemon = True
-        server_thread.start()
-        time.sleep(0.2)  # Give server time to start
+        # Initialize resources before try block
+        collector_db = None
+        server = None
+        server_thread = None
+        collector_module = None
+        original_get_db = None
 
         try:
+            collector_db = Database(':memory:')
+            collector_db.connect()
+
+            # Configure collector to use our in-memory database
+            collector_app.config['TESTING'] = True
+            import collector as collector_module
+            original_get_db = collector_module.get_db
+            collector_module.get_db = lambda: collector_db
+
+            # Start collector server on random available port
+            server = make_server('localhost', 0, collector_app, threaded=True)
+            collector_port = server.server_address[1]
+            collector_url = f"http://localhost:{collector_port}"
+
+            server_thread = threading.Thread(target=server.serve_forever)
+            server_thread.daemon = True
+            server_thread.start()
+            time.sleep(0.2)  # Give server time to start
+
             # Run binary with TRACE2PASS_COLLECTOR_URL set
             env = os.environ.copy()
             env['TRACE2PASS_COLLECTOR_URL'] = f"{collector_url}/api/v1/report"
@@ -255,11 +262,15 @@ class PipelineRunner:
         except Exception as e:
             return (False, time.time() - start_time, [], str(e))
         finally:
-            # Cleanup: shutdown collector and restore
-            server.shutdown()
-            server_thread.join(timeout=1)
-            collector_db.close()
-            collector_module.get_db = original_get_db
+            # CRITICAL: Always cleanup server resources, even if startup failed
+            if server is not None:
+                server.shutdown()
+            if server_thread is not None:
+                server_thread.join(timeout=1)
+            if collector_db is not None:
+                collector_db.close()
+            if collector_module is not None and original_get_db is not None:
+                collector_module.get_db = original_get_db
 
     def _diagnose(self, source_file: str, bug_id: str, binary_path: str, opt_level: str = "-O2",
                   runtime_reports: List[Dict] = None) -> tuple:
