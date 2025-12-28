@@ -26,6 +26,7 @@ class Database:
         self.conn.row_factory = sqlite3.Row  # Return dict-like rows
         self._create_tables()
         self._migrate_location_format()
+        self._migrate_add_target_arch()
 
     def _create_tables(self):
         """Create database schema."""
@@ -40,6 +41,7 @@ class Database:
             stacktrace TEXT,
             compiler_name TEXT NOT NULL,
             compiler_version TEXT NOT NULL,
+            target_arch TEXT,
             optimization_level TEXT NOT NULL,
             flags TEXT,
             source_hash TEXT,
@@ -138,6 +140,27 @@ class Database:
             import logging
             logging.warning(f"Location format migration failed: {e}")
 
+    def _migrate_add_target_arch(self):
+        """Add target_arch column to existing databases.
+
+        Older databases lack the target_arch column. Add it if missing.
+        This is safe to run multiple times (idempotent).
+        """
+        try:
+            # Check if column exists
+            cursor = self.conn.execute("PRAGMA table_info(reports)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            if 'target_arch' not in columns:
+                self.conn.execute("ALTER TABLE reports ADD COLUMN target_arch TEXT")
+                self.conn.commit()
+                import logging
+                logging.info("Added target_arch column to reports table")
+        except Exception as e:
+            # Migration failure shouldn't break the app
+            import logging
+            logging.warning(f"target_arch migration failed: {e}")
+
     def close(self):
         """Close database connection."""
         if self.conn:
@@ -194,11 +217,11 @@ class Database:
                 """
                 INSERT INTO reports (
                     report_id, timestamp, check_type, location, pc,
-                    stacktrace, compiler_name, compiler_version,
+                    stacktrace, compiler_name, compiler_version, target_arch,
                     optimization_level, flags, source_hash, binary_checksum,
                     check_details, system_info, dedupe_hash,
                     frequency, first_seen, last_seen, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     report['report_id'],
@@ -209,6 +232,7 @@ class Database:
                     json.dumps(report.get('stacktrace', [])),
                     report['compiler']['name'],
                     report['compiler']['version'],
+                    report['compiler'].get('target'),
                     report['build_info']['optimization_level'],
                     json.dumps(report['build_info'].get('flags', [])),
                     report['build_info'].get('source_hash'),
@@ -381,11 +405,30 @@ class Database:
         # Check for unparseable legacy entries marked by migration
         if location_str.startswith('LEGACY_UNPARSEABLE|'):
             # Migration couldn't parse this (C++ symbols, Windows paths, etc.)
-            # Extract original string and mark as unparseable
+            # Try to extract useful information from the raw string
             original_location = location_str[len('LEGACY_UNPARSEABLE|'):]
-            file_name = original_location
-            line_num = 0
-            function_name = 'unparseable'
+
+            # Attempt best-effort parsing using rsplit from the right
+            # Format should be "file:line:function", so rsplit(':', 2) gets last 3 parts
+            parts = original_location.rsplit(':', 2)
+            if len(parts) == 3:
+                # We got 3 parts - try to use them even if imperfect
+                file_part, line_part, function_part = parts
+                try:
+                    line_num = int(line_part)
+                    # Valid line number found - use parsed parts
+                    file_name = file_part  # May be incomplete for Windows paths, but better than nothing
+                    function_name = function_part  # Preserve actual function name!
+                except ValueError:
+                    # Line part isn't a number - use raw string as fallback
+                    file_name = original_location
+                    line_num = 0
+                    function_name = 'unparseable'
+            else:
+                # Couldn't split into 3 parts - use raw string as fallback
+                file_name = original_location
+                line_num = 0
+                function_name = 'unparseable'
         # Parse pipe-delimited format with URL decoding (post-migration)
         elif '|' in location_str:
             location_parts = location_str.split('|', 2)
@@ -437,8 +480,8 @@ class Database:
             'stacktrace': json.loads(flat['stacktrace']) if flat.get('stacktrace') else [],
             'compiler': {
                 'name': flat['compiler_name'],
-                'version': flat['compiler_version']
-                # Note: target_arch column doesn't exist yet, omitted
+                'version': flat['compiler_version'],
+                'target': flat.get('target_arch')
             },
             'build_info': {
                 'optimization_level': flat['optimization_level'],
