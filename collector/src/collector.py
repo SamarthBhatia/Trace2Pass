@@ -120,7 +120,8 @@ def list_reports():
         params.extend([limit, offset])
 
         rows = db.conn.execute(query, params).fetchall()
-        reports = [dict(row) for row in rows]
+        # Transform flat rows to nested schema format for downstream consumption
+        reports = [db._rehydrate_report(dict(row)) for row in rows]
 
         return jsonify({
             'reports': reports,

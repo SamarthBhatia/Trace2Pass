@@ -692,11 +692,11 @@ void trace2pass_report_overflow(void* pc, const char* file, int line, const char
         "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":[]},"
         "\"check_details\":{\"expr\":\"%s\",\"operands\":[%lld,%lld]}"
         "}",
         report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
-        build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
+        build_opt_level ? build_opt_level : "unknown",
         expr_escaped, (long long)a, (long long)b);
 
     // Send to Collector if configured
@@ -761,11 +761,11 @@ void trace2pass_report_unreachable(void* pc, const char* file, int line, const c
         "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":[]},"
         "\"check_details\":{\"message\":\"%s\"}"
         "}",
         report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
-        build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
+        build_opt_level ? build_opt_level : "unknown",
         msg_escaped);
 
     // Send to Collector if configured
@@ -826,11 +826,11 @@ void trace2pass_report_bounds_violation(void* pc, const char* file, int line, co
         "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":[]},"
         "\"check_details\":{\"ptr\":\"0x%llx\",\"offset\":%zu,\"size\":%zu}"
         "}",
         report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
-        build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
+        build_opt_level ? build_opt_level : "unknown",
         (unsigned long long)ptr, offset, size);
 
     // Send to Collector if configured
@@ -891,11 +891,11 @@ void trace2pass_report_sign_conversion(void* pc, const char* file, int line, con
         "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":[]},"
         "\"check_details\":{\"original_value\":%lld,\"cast_value\":%llu,\"src_bits\":%u,\"dest_bits\":%u}"
         "}",
         report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
-        build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
+        build_opt_level ? build_opt_level : "unknown",
         (long long)original_value, (unsigned long long)cast_value, src_bits, dest_bits);
 
     // Send to Collector if configured
@@ -960,11 +960,11 @@ void trace2pass_report_division_by_zero(void* pc, const char* file, int line, co
         "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":[]},"
         "\"check_details\":{\"operation\":\"%s\",\"dividend\":%lld,\"divisor\":%lld}"
         "}",
         report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
-        build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
+        build_opt_level ? build_opt_level : "unknown",
         op_escaped, (long long)dividend, (long long)divisor);
 
     // Send to Collector if configured
@@ -1070,11 +1070,11 @@ void trace2pass_check_pure_consistency(void* pc, const char* file, int line, con
                 "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
                 "\"pc\":\"0x%llx\","
                 "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-                "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
+                "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":[]},"
                 "\"check_details\":{\"function\":\"%s\",\"arg0\":%lld,\"arg1\":%lld,\"previous_result\":%lld,\"current_result\":%lld}"
                 "}",
                 report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
-                build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
+                build_opt_level ? build_opt_level : "unknown",
                 func_escaped, (long long)arg0, (long long)arg1,
                 (long long)entry->result, (long long)result);
 
@@ -1153,11 +1153,11 @@ void trace2pass_report_loop_bound_exceeded(void* pc, const char* file, int line,
         "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":[]},"
         "\"check_details\":{\"loop_name\":\"%s\",\"iteration_count\":%llu,\"threshold\":%llu}"
         "}",
         report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
-        build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
+        build_opt_level ? build_opt_level : "unknown",
         loop_escaped, (unsigned long long)iteration_count, (unsigned long long)threshold);
 
     // Send to Collector if configured
