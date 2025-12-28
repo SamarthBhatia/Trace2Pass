@@ -276,9 +276,12 @@ class UBDetector:
             binary = os.path.join(self.work_dir, f"test{opt}")
 
             # Build compilation command
-            # If this is the production opt level and we have production flags, use them
+            # CRITICAL: Always include opt flag to ensure correct optimization level
+            # If this is the production opt level and we have production flags, add them too
             if opt == production_opt_level and production_flags:
-                compile_cmd = [self.clang] + production_flags + [source_file, "-o", binary]
+                # Prepend opt flag even with production_flags to ensure optimization level is honored
+                # (production_flags may not include -O* explicitly)
+                compile_cmd = [self.clang, opt] + production_flags + [source_file, "-o", binary]
             else:
                 compile_cmd = [self.clang, opt, source_file, "-o", binary]
 
