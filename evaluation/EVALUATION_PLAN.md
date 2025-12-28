@@ -156,6 +156,33 @@ Use specific Docker images for each version:
 - Each image has exact LLVM version
 - Faster than testing all 45 versions
 
+### IR-Only Bug Testing
+Many bugs have **LLVM IR reproducers** instead of C source. We can still test these!
+
+**What Works:**
+- ✅ **Pass Bisection**: Use `opt` tool directly on IR, then `llc` to compile to binary
+- ✅ **Version Bisection**: Test IR across different LLVM versions
+- ❌ **Instrumentation**: Cannot instrument IR (needs C source)
+- ❌ **UB Detection**: Requires C source for multi-compiler testing
+
+**Example Flow:**
+```bash
+# Baseline (unoptimized)
+opt -O0 bug.ll -o baseline.bc
+llc baseline.bc -o baseline.s
+clang baseline.s driver.c -o baseline
+
+# Test optimized
+opt -O2 bug.ll -o test.bc
+llc test.bc -o test.s
+clang test.s driver.c -o test
+
+# Bisect passes
+opt -passes="pass1,pass2,..." bug.ll -o test.bc
+```
+
+**Benefit:** Expands dataset significantly - found 611 open wrong-code bugs, many with IR reproducers
+
 ## Next Steps
 
 1. **Create test cases for OPEN bugs** (10 bugs)
