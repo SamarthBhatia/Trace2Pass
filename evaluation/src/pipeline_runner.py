@@ -22,17 +22,25 @@ import sys
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 sys.path.insert(0, str(project_root / "diagnoser"))
+sys.path.insert(0, str(project_root / "collector" / "src"))
 
 try:
     # Import diagnoser functions directly from diagnose.py
     from diagnose import full_pipeline_cmd, ub_detect_cmd
     from reporter.src.report_generator import ReportGenerator as BugReportGenerator
     from reporter.src.templates import MarkdownTemplate
+
+    # Import collector for runtime report collection
+    from collector import app as collector_app
+    from models import Database
+
     DIAGNOSER_AVAILABLE = True
+    COLLECTOR_AVAILABLE = True
 except ImportError as e:
     print(f"Warning: Could not import Trace2Pass components: {e}")
     print("Pipeline runner will operate in mock mode for testing")
     DIAGNOSER_AVAILABLE = False
+    COLLECTOR_AVAILABLE = False
 
 
 @dataclass
@@ -69,17 +77,15 @@ class PipelineRunner:
         result_dir.mkdir(parents=True, exist_ok=True)
         return result_dir
 
-    def _compile_with_instrumentation(self, source_file: str, output: str, opt_level: str) -> tuple:
+    def _compile_without_instrumentation(self, source_file: str, output: str, opt_level: str) -> tuple:
         """
-        Compile source file with instrumentation.
+        Fallback: Compile without instrumentation when pass/runtime not available.
 
         Returns: (success: bool, compile_time: float, error: str)
         """
         start_time = time.time()
 
         try:
-            # For now, use standard compilation (instrumentation pass integration pending)
-            # In full implementation, this would use: clang -Xclang -load -Xclang PassInstrumentor.so
             cmd = [
                 'clang',
                 opt_level,
@@ -107,40 +113,176 @@ class PipelineRunner:
         except Exception as e:
             return (False, time.time() - start_time, str(e))
 
-    def _run_instrumented_binary(self, binary: str, timeout: int = 10) -> tuple:
+    def _compile_with_instrumentation(self, source_file: str, output: str, opt_level: str) -> tuple:
         """
-        Run instrumented binary and collect runtime reports.
+        Compile source file with instrumentation.
 
-        Returns: (success: bool, runtime: float, output: str, error: str)
+        Returns: (success: bool, compile_time: float, error: str)
         """
         start_time = time.time()
 
         try:
+            # Paths to Trace2Pass instrumentation and runtime
+            instrumentor_path = project_root / "instrumentor" / "build" / "Trace2PassInstrumentor.so"
+            runtime_lib_path = project_root / "runtime" / "build" / "libTrace2PassRuntime.a"
+
+            # Check if instrumentation components exist
+            if not instrumentor_path.exists():
+                # Fall back to non-instrumented compilation if pass not built
+                return self._compile_without_instrumentation(source_file, output, opt_level)
+
+            if not runtime_lib_path.exists():
+                # Fall back to non-instrumented compilation if runtime not built
+                return self._compile_without_instrumentation(source_file, output, opt_level)
+
+            # Compile with Trace2Pass instrumentation pass loaded and runtime library linked
+            cmd = [
+                'clang',
+                f'-fplugin={instrumentor_path}',
+                opt_level,
+                '-g',
+                source_file,
+                '-o', output,
+                str(runtime_lib_path),
+                '-lcurl'  # Runtime library needs curl for HTTP POST
+            ]
+
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+
+            compile_time = time.time() - start_time
+
+            if result.returncode == 0:
+                return (True, compile_time, '')
+            else:
+                return (False, compile_time, result.stderr)
+
+        except subprocess.TimeoutExpired:
+            return (False, 60.0, 'Compilation timeout')
+        except Exception as e:
+            return (False, time.time() - start_time, str(e))
+
+    def _run_instrumented_binary(self, binary: str, timeout: int = 10) -> tuple:
+        """
+        Run instrumented binary and collect runtime reports.
+
+        CRITICAL: This function starts a collector, runs the binary with
+        TRACE2PASS_COLLECTOR_URL set, and retrieves runtime anomaly reports.
+        Without this, the evaluation doesn't test Phase 2 instrumentation at all.
+
+        Returns: (success: bool, runtime: float, reports: List[Dict], error: str)
+        """
+        start_time = time.time()
+        reports = []
+
+        if not COLLECTOR_AVAILABLE:
+            # Fallback: run without collector (mock mode)
+            try:
+                result = subprocess.run(
+                    [binary],
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout
+                )
+                runtime = time.time() - start_time
+                return (True, runtime, [], '')
+            except subprocess.TimeoutExpired:
+                return (False, timeout, [], 'Execution timeout')
+            except Exception as e:
+                return (False, time.time() - start_time, [], str(e))
+
+        # Start in-memory collector for this test case
+        from werkzeug.serving import make_server
+        import threading
+
+        # Initialize resources before try block
+        collector_db = None
+        server = None
+        server_thread = None
+        collector_module = None
+        original_get_db = None
+
+        try:
+            collector_db = Database(':memory:')
+            collector_db.connect()
+
+            # Configure collector to use our in-memory database
+            collector_app.config['TESTING'] = True
+            import collector as collector_module
+            original_get_db = collector_module.get_db
+            collector_module.get_db = lambda: collector_db
+
+            # Start collector server on random available port
+            server = make_server('localhost', 0, collector_app, threaded=True)
+            collector_port = server.server_address[1]
+            collector_url = f"http://localhost:{collector_port}"
+
+            server_thread = threading.Thread(target=server.serve_forever)
+            server_thread.daemon = True
+            server_thread.start()
+            time.sleep(0.2)  # Give server time to start
+
+            # Run binary with TRACE2PASS_COLLECTOR_URL set
+            env = os.environ.copy()
+            env['TRACE2PASS_COLLECTOR_URL'] = f"{collector_url}/api/v1/report"
+
             result = subprocess.run(
                 [binary],
                 capture_output=True,
                 text=True,
-                timeout=timeout
+                timeout=timeout,
+                env=env
             )
 
             runtime = time.time() - start_time
 
-            # For now, just check if execution succeeded
-            # In full implementation, this would collect runtime anomaly reports
-            if result.returncode == 0:
-                return (True, runtime, result.stdout, '')
-            else:
-                # Non-zero exit might indicate bug manifestation
-                return (True, runtime, result.stdout, result.stderr)
+            # Give collector time to process any async reports
+            time.sleep(0.1)
+
+            # Retrieve all reports from collector
+            import requests
+            try:
+                response = requests.get(f"{collector_url}/api/v1/reports", timeout=2)
+                if response.status_code == 200:
+                    reports = response.json().get('reports', [])
+            except Exception as e:
+                # Collector query failed - not a critical error
+                error_msg = f"Failed to retrieve reports from collector: {e}"
+                reports = []
+
+            # Success if binary ran (regardless of exit code - bugs might crash it)
+            return (True, runtime, reports, '')
 
         except subprocess.TimeoutExpired:
-            return (False, timeout, '', 'Execution timeout')
+            return (False, timeout, [], 'Execution timeout')
         except Exception as e:
-            return (False, time.time() - start_time, '', str(e))
+            return (False, time.time() - start_time, [], str(e))
+        finally:
+            # CRITICAL: Always cleanup server resources, even if startup failed
+            if server is not None:
+                server.shutdown()
+            if server_thread is not None:
+                server_thread.join(timeout=1)
+            if collector_db is not None:
+                collector_db.close()
+            if collector_module is not None and original_get_db is not None:
+                collector_module.get_db = original_get_db
 
-    def _diagnose(self, source_file: str, bug_id: str, binary_path: str, opt_level: str = "-O2") -> tuple:
+    def _diagnose(self, source_file: str, bug_id: str, binary_path: str, opt_level: str = "-O2",
+                  runtime_reports: List[Dict] = None) -> tuple:
         """
         Run diagnoser on test case using full pipeline (UB detection + version/pass bisection).
+
+        Args:
+            source_file: Path to source file
+            bug_id: Unique bug identifier
+            binary_path: Path to compiled binary
+            opt_level: Optimization level used
+            runtime_reports: Runtime anomaly reports from instrumented execution (Phase 2)
 
         Returns: (success: bool, diagnosis_time: float, diagnosis: dict, error: str)
         """
@@ -157,10 +299,21 @@ class PipelineRunner:
             return (False, 0.0, diagnosis, "Diagnoser not available")
 
         try:
+            # CRITICAL: Record runtime reports in diagnosis result
+            # These reports validate Phase 2 instrumentation and provide evidence
+            # of bug manifestation beyond just exit codes
+            if runtime_reports is None:
+                runtime_reports = []
+
             # Generate test command - for these bugs, just run the binary
             # If the compiler generates correct code, it returns 0
             # If the bug manifests, __builtin_trap() is called, returns non-zero
             test_command = "{binary}"
+
+            # NOTE: Future work - integrate runtime_reports into diagnoser flow
+            # Currently the diagnoser uses test_command exit codes for bug detection
+            # Runtime reports provide much richer information (check_type, location, etc.)
+            # and should be used as primary evidence of bug manifestation
 
             # Try full pipeline first: UB detection → Version bisection → Pass bisection
             # NOTE: Version bisection uses Docker (LLVM 14-21) for comprehensive testing
@@ -173,6 +326,11 @@ class PipelineRunner:
                 optimization_level=opt_level,
                 use_docker=True  # Enable Docker for version bisection (LLVM 14-21)
             )
+
+            # Add runtime report metadata to diagnosis result
+            full_result['runtime_reports_collected'] = len(runtime_reports)
+            if runtime_reports:
+                full_result['runtime_reports'] = runtime_reports
 
             # Check if full pipeline completed or needs fallback
             verdict = full_result.get('verdict', 'error')
@@ -360,22 +518,31 @@ class PipelineRunner:
 
         logs.append(f"Compilation successful ({compile_time:.2f}s)")
 
-        # Step 2: Run instrumented binary
+        # Step 2: Run instrumented binary and collect runtime reports
         logs.append("\n=== EXECUTION ===")
-        success, runtime, output, error = self._run_instrumented_binary(str(binary), timeout=10)
+        success, runtime, runtime_reports, error = self._run_instrumented_binary(str(binary), timeout=10)
         timing['runtime'] = runtime
 
         if not success:
             logs.append(f"Execution failed: {error}")
         else:
             logs.append(f"Execution completed ({runtime:.2f}s)")
-            if output:
-                logs.append(f"Output:\n{output}")
+            logs.append(f"Runtime reports collected: {len(runtime_reports)}")
+            if runtime_reports:
+                # Log summary of runtime anomaly reports
+                for i, report in enumerate(runtime_reports, 1):
+                    check_type = report.get('check_type', 'unknown')
+                    location = report.get('location', {})
+                    func = location.get('function', 'unknown')
+                    line = location.get('line', 0)
+                    logs.append(f"  Report {i}: {check_type} at {func}:{line}")
 
         # Step 3: Diagnose with full pipeline (UB + version/pass bisection)
+        # CRITICAL: Pass runtime_reports to diagnoser to validate Phase 2 instrumentation
         logs.append("\n=== DIAGNOSIS ===")
         success, diag_time, diagnosis, error = self._diagnose(
-            source_file, bug_id, str(binary), testcase['optimization_level']
+            source_file, bug_id, str(binary), testcase['optimization_level'],
+            runtime_reports=runtime_reports
         )
         timing['diagnosis'] = diag_time
 

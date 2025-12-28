@@ -154,21 +154,28 @@ cd Trace2Pass
 # 2. Install LLVM 21 (macOS with Homebrew)
 brew install llvm@21
 
-# 3. Build runtime library
+# 3. Install Python dependencies (REQUIRED)
+pip install -r collector/requirements.txt \
+            -r diagnoser/requirements.txt \
+            -r evaluation/requirements.txt \
+            -r reporter/requirements.txt \
+            -r tests/integration/requirements.txt
+
+# 4. Build runtime library
 cd runtime
 mkdir build && cd build
 cmake ..
 make -j4
 cd ../..
 
-# 4. Build instrumentor (LLVM pass)
+# 5. Build instrumentor (LLVM pass)
 cd instrumentor
 mkdir build && cd build
 cmake -DLLVM_DIR=/opt/homebrew/opt/llvm/lib/cmake/llvm ..
 make -j4
 cd ../..
 
-# 5. Run tests
+# 6. Run tests
 cd instrumentor/test
 ./run_tests.sh
 ```
@@ -212,6 +219,54 @@ clang --version
 # Find LLVM CMake directory (needed for building)
 llvm-config --cmakedir
 ```
+
+---
+
+## Python Setup
+
+**IMPORTANT:** Install Python dependencies BEFORE building. The Collector, Diagnoser, Evaluation, and Reporter components require Python packages.
+
+### Option 1: Install All Dependencies (Quick Start)
+
+```bash
+# Install all Python dependencies at once
+pip install -r collector/requirements.txt \
+            -r diagnoser/requirements.txt \
+            -r evaluation/requirements.txt \
+            -r reporter/requirements.txt \
+            -r tests/integration/requirements.txt
+```
+
+### Option 2: Virtual Environment (Recommended)
+
+```bash
+# Create and activate virtual environment
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r collector/requirements.txt \
+            -r diagnoser/requirements.txt \
+            -r evaluation/requirements.txt \
+            -r reporter/requirements.txt \
+            -r tests/integration/requirements.txt
+```
+
+### Verify Installation
+
+```bash
+# Test that Flask is installed (required for Collector)
+python -c "import flask; print(f'Flask {flask.__version__} installed')"
+
+# Test that pytest is installed (required for tests)
+python -c "import pytest; print(f'pytest {pytest.__version__} installed')"
+```
+
+**Key Dependencies:**
+- Flask 3.0.0 (Collector HTTP server)
+- pytest 7.4.3 (Testing framework)
+- requests 2.31.0 (HTTP client)
+- marshmallow 3.20.1 (JSON validation)
 
 ---
 
