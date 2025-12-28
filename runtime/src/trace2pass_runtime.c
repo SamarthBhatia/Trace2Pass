@@ -170,7 +170,8 @@ static int serialize_flags_json(const char* flags, char* buf, size_t buf_len) {
         if (pos + 1 >= buf_len) return -1;
         buf[pos++] = '"';
 
-        // Parse one flag, respecting quotes
+        // Parse one flag, respecting quotes for tokenization but stripping them from output
+        // Quotes are shell syntax (to preserve spaces), not part of the actual flag value
         char in_quote = '\0';  // Track which quote character we're inside (' or ")
         while (*p && (in_quote || (*p != ' ' && *p != '\t' && *p != '\n' && *p != '\r'))) {
             char c = *p++;
@@ -181,20 +182,22 @@ static int serialize_flags_json(const char* flags, char* buf, size_t buf_len) {
                 if (c == in_quote) {
                     // Check if it's escaped
                     if (p > flags + 1 && *(p - 2) == '\\') {
-                        // Escaped quote - include both backslash and quote
-                        // (backslash was already added in previous iteration)
+                        // Escaped quote within quotes - include the quote character
+                        // (strip the backslash since it was shell escaping)
+                        if (c == '"' || c == '\\') {
+                            // Needs JSON escaping
+                            if (pos + 2 >= buf_len) return -1;
+                            buf[pos++] = '\\';
+                        }
                         if (pos + 1 >= buf_len) return -1;
                         buf[pos++] = c;
                     } else {
                         // Unescaped closing quote - exit quote mode
+                        // STRIP the quote character (it's shell syntax, not part of flag value)
                         in_quote = '\0';
-                        // Include the quote character in the output
-                        if (pos + 1 >= buf_len) return -1;
-                        buf[pos++] = c;
                     }
                 } else {
-                    // Regular character inside quotes
-                    // Escape JSON special characters
+                    // Regular character inside quotes - include it with JSON escaping
                     if (c == '"' || c == '\\') {
                         if (pos + 2 >= buf_len) return -1;
                         buf[pos++] = '\\';
@@ -206,17 +209,10 @@ static int serialize_flags_json(const char* flags, char* buf, size_t buf_len) {
                 // Not inside quotes
                 if (c == '"' || c == '\'') {
                     // Opening quote - enter quote mode
+                    // STRIP the quote character (it's shell syntax, not part of flag value)
                     in_quote = c;
-                    // Include the quote character in the output
-                    if (c == '"') {
-                        // Double quote needs escaping for JSON
-                        if (pos + 2 >= buf_len) return -1;
-                        buf[pos++] = '\\';
-                    }
-                    if (pos + 1 >= buf_len) return -1;
-                    buf[pos++] = c;
                 } else {
-                    // Regular character - escape JSON special characters
+                    // Regular character - include it with JSON escaping
                     if (c == '"' || c == '\\') {
                         if (pos + 2 >= buf_len) return -1;
                         buf[pos++] = '\\';

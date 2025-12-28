@@ -106,7 +106,8 @@ class Database:
             return report_id
         else:
             # Insert new report
-            location = f"{report['location']['file']}:{report['location']['line']}:{report['location']['function']}"
+            # Use pipe delimiter to avoid ambiguity with C++ symbols (::) and Windows paths (C:\)
+            location = f"{report['location']['file']}|{report['location']['line']}|{report['location']['function']}"
 
             self.conn.execute(
                 """
@@ -176,13 +177,15 @@ class Database:
         # - If instrumentor embeds metadata: function = actual function name
         # - If metadata missing: function = call-site ID (site_XXXXXXXX)
         # Note: call-site IDs are process-specific and change between runs
-        location = f"{file_name}:{line}:{function}"
+        # Use pipe delimiter to match storage format and avoid ambiguity
+        location = f"{file_name}|{line}|{function}"
 
         compiler_version = report['compiler']['version']
         check_type = report['check_type']
         flags = ','.join(sorted(report['build_info'].get('flags', [])))
 
-        key = f"{location}:{check_type}:{compiler_version}:{flags}"
+        # Use pipe for all delimiters to avoid ambiguity with paths/symbols/flags
+        key = f"{location}|{check_type}|{compiler_version}|{flags}"
         return hashlib.sha256(key.encode()).hexdigest()
 
     def get_prioritized_queue(self, limit: int = 100) -> List[Dict[str, Any]]:
@@ -287,20 +290,39 @@ class Database:
         Returns:
             Nested report matching the ingest schema
         """
-        # Parse location field: "file:line:function"
+        # Parse location field: "file|line|function"
+        # Uses pipe delimiter to avoid ambiguity with C++ symbols (::) and Windows paths (C:\)
         location_str = flat['location']
-        location_parts = location_str.rsplit(':', 2)  # Split from right to handle colons in paths
-        if len(location_parts) == 3:
-            file_name, line_str, function_name = location_parts
-            try:
-                line_num = int(line_str)
-            except ValueError:
+
+        # Try new pipe-delimited format first
+        if '|' in location_str:
+            location_parts = location_str.split('|', 2)
+            if len(location_parts) == 3:
+                file_name, line_str, function_name = location_parts
+                try:
+                    line_num = int(line_str)
+                except ValueError:
+                    line_num = 0
+            else:
+                # Malformed pipe-delimited format
+                file_name = location_str
                 line_num = 0
+                function_name = 'unknown'
         else:
-            # Fallback if location format is unexpected
-            file_name = location_str
-            line_num = 0
-            function_name = 'unknown'
+            # Fallback: old colon-delimited format (for backward compatibility)
+            # This will still fail for C++ symbols and Windows paths, but maintains
+            # compatibility with existing database entries
+            location_parts = location_str.rsplit(':', 2)
+            if len(location_parts) == 3:
+                file_name, line_str, function_name = location_parts
+                try:
+                    line_num = int(line_str)
+                except ValueError:
+                    line_num = 0
+            else:
+                file_name = location_str
+                line_num = 0
+                function_name = 'unknown'
 
         return {
             'report_id': flat['report_id'],
