@@ -27,6 +27,7 @@ class Database:
         self._create_tables()
         self._migrate_location_format()
         self._migrate_add_target_arch()
+        self._migrate_split_location_columns()
 
     def _create_tables(self):
         """Create database schema."""
@@ -37,6 +38,9 @@ class Database:
             timestamp DATETIME NOT NULL,
             check_type TEXT NOT NULL,
             location TEXT NOT NULL,
+            location_file TEXT,
+            location_line INTEGER,
+            location_function TEXT,
             pc TEXT,
             stacktrace TEXT,
             compiler_name TEXT NOT NULL,
@@ -61,6 +65,8 @@ class Database:
         CREATE INDEX IF NOT EXISTS idx_status ON reports(status);
         CREATE INDEX IF NOT EXISTS idx_check_type ON reports(check_type);
         CREATE INDEX IF NOT EXISTS idx_timestamp ON reports(timestamp DESC);
+        CREATE INDEX IF NOT EXISTS idx_location_function ON reports(location_function);
+        CREATE INDEX IF NOT EXISTS idx_location_file ON reports(location_file);
         """
         self.conn.executescript(schema)
         self.conn.commit()
@@ -71,7 +77,7 @@ class Database:
         This handles backwards compatibility for existing database entries that use
         the old "file:line:function" format.
 
-        LIMITATION: C++ symbols (std::vector::push_back) and Windows paths (C:\src\file.c)
+        LIMITATION: C++ symbols (std::vector::push_back) and Windows paths (C:\\src\\file.c)
         cannot be reliably parsed from the old colon format. These entries will be kept
         as-is with a marker to indicate they're unparseable legacy data.
 
@@ -161,6 +167,136 @@ class Database:
             import logging
             logging.warning(f"target_arch migration failed: {e}")
 
+    def _migrate_split_location_columns(self):
+        """Split location string into dedicated file/line/function columns.
+
+        This fixes the fundamental issue where location data stored in a single
+        concatenated string loses information for C++ symbols, Windows paths, etc.
+
+        With dedicated columns:
+        - location_file: Full file path (no parsing ambiguity)
+        - location_line: Line number as INTEGER (queryable, sortable)
+        - location_function: Function name (preserved even for complex C++ symbols)
+
+        This preserves function names for the entire back catalog and enables
+        proper deduplication and diagnoser attribution.
+
+        This is safe to run multiple times (idempotent).
+        """
+        try:
+            import logging
+            from urllib.parse import unquote as url_unquote
+
+            # Check if columns exist
+            cursor = self.conn.execute("PRAGMA table_info(reports)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            # Add columns if missing
+            if 'location_file' not in columns:
+                self.conn.execute("ALTER TABLE reports ADD COLUMN location_file TEXT")
+                logging.info("Added location_file column to reports table")
+            if 'location_line' not in columns:
+                self.conn.execute("ALTER TABLE reports ADD COLUMN location_line INTEGER")
+                logging.info("Added location_line column to reports table")
+            if 'location_function' not in columns:
+                self.conn.execute("ALTER TABLE reports ADD COLUMN location_function TEXT")
+                logging.info("Added location_function column to reports table")
+
+            self.conn.commit()
+
+            # Populate columns from existing location strings
+            # Only process rows where new columns are NULL (haven't been populated yet)
+            cursor = self.conn.execute(
+                "SELECT id, location FROM reports WHERE location_file IS NULL"
+            )
+            rows = cursor.fetchall()
+
+            if rows:
+                logging.info(f"Populating location columns for {len(rows)} existing reports...")
+
+            for row in rows:
+                row_id = row[0]
+                location_str = row[1]
+
+                # Parse location string using same logic as _rehydrate_report()
+                file_name, line_num, function_name = self._parse_location_string(location_str)
+
+                # Update row with parsed values
+                self.conn.execute(
+                    """UPDATE reports
+                       SET location_file = ?, location_line = ?, location_function = ?
+                       WHERE id = ?""",
+                    (file_name, line_num, function_name, row_id)
+                )
+
+            self.conn.commit()
+
+            if rows:
+                logging.info(f"Successfully populated location columns for {len(rows)} reports")
+
+        except Exception as e:
+            # Migration failure shouldn't break the app
+            import logging
+            logging.warning(f"Split location columns migration failed: {e}")
+
+    def _parse_location_string(self, location_str: str) -> tuple[str, int, str]:
+        """Parse location string into file, line, function components.
+
+        Handles multiple formats:
+        - Pipe-delimited with URL encoding: "file|line|function"
+        - Legacy colon-delimited: "file:line:function"
+        - Unparseable legacy: "LEGACY_UNPARSEABLE|original_string"
+
+        Returns:
+            (file_name, line_number, function_name) tuple
+        """
+        from urllib.parse import unquote as url_unquote
+
+        # Check for unparseable legacy entries marked by migration
+        if location_str.startswith('LEGACY_UNPARSEABLE|'):
+            original_location = location_str[len('LEGACY_UNPARSEABLE|'):]
+
+            # Attempt best-effort parsing using rsplit from the right
+            parts = original_location.rsplit(':', 2)
+            if len(parts) == 3:
+                file_part, line_part, function_part = parts
+                try:
+                    line_num = int(line_part)
+                    return (file_part, line_num, function_part)
+                except ValueError:
+                    pass
+
+            # Couldn't parse - return what we have
+            return (original_location, 0, 'unparseable')
+
+        # Parse pipe-delimited format with URL decoding (post-migration)
+        elif '|' in location_str:
+            location_parts = location_str.split('|', 2)
+            if len(location_parts) == 3:
+                file_name = url_unquote(location_parts[0])
+                function_name = url_unquote(location_parts[2])
+                try:
+                    line_num = int(url_unquote(location_parts[1]))
+                except ValueError:
+                    line_num = 0
+                return (file_name, line_num, function_name)
+            else:
+                return (location_str, 0, 'unknown')
+
+        # Legacy colon-delimited format
+        else:
+            location_parts = location_str.rsplit(':', 2)
+            if len(location_parts) == 3:
+                file_name, line_str, function_name = location_parts
+                try:
+                    line_num = int(line_str)
+                    return (file_name, line_num, function_name)
+                except ValueError:
+                    pass
+
+            # Couldn't parse - return raw string
+            return (location_str, 0, 'unparseable')
+
     def close(self):
         """Close database connection."""
         if self.conn:
@@ -216,18 +352,22 @@ class Database:
             self.conn.execute(
                 """
                 INSERT INTO reports (
-                    report_id, timestamp, check_type, location, pc,
-                    stacktrace, compiler_name, compiler_version, target_arch,
+                    report_id, timestamp, check_type, location,
+                    location_file, location_line, location_function,
+                    pc, stacktrace, compiler_name, compiler_version, target_arch,
                     optimization_level, flags, source_hash, binary_checksum,
                     check_details, system_info, dedupe_hash,
                     frequency, first_seen, last_seen, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     report['report_id'],
                     report['timestamp'],
                     report['check_type'],
                     location,
+                    report['location']['file'],
+                    report['location']['line'],
+                    report['location']['function'],
                     report.get('pc'),
                     json.dumps(report.get('stacktrace', [])),
                     report['compiler']['name'],
@@ -398,74 +538,17 @@ class Database:
         Returns:
             Nested report matching the ingest schema
         """
-        # Parse location field: "file|line|function" with URL encoding
-        # Uses pipe delimiter with URL encoding to handle any special characters
-        location_str = flat['location']
-
-        # Check for unparseable legacy entries marked by migration
-        if location_str.startswith('LEGACY_UNPARSEABLE|'):
-            # Migration couldn't parse this (C++ symbols, Windows paths, etc.)
-            # Try to extract useful information from the raw string
-            original_location = location_str[len('LEGACY_UNPARSEABLE|'):]
-
-            # Attempt best-effort parsing using rsplit from the right
-            # Format should be "file:line:function", so rsplit(':', 2) gets last 3 parts
-            parts = original_location.rsplit(':', 2)
-            if len(parts) == 3:
-                # We got 3 parts - try to use them even if imperfect
-                file_part, line_part, function_part = parts
-                try:
-                    line_num = int(line_part)
-                    # Valid line number found - use parsed parts
-                    file_name = file_part  # May be incomplete for Windows paths, but better than nothing
-                    function_name = function_part  # Preserve actual function name!
-                except ValueError:
-                    # Line part isn't a number - use raw string as fallback
-                    file_name = original_location
-                    line_num = 0
-                    function_name = 'unparseable'
-            else:
-                # Couldn't split into 3 parts - use raw string as fallback
-                file_name = original_location
-                line_num = 0
-                function_name = 'unparseable'
-        # Parse pipe-delimited format with URL decoding (post-migration)
-        elif '|' in location_str:
-            location_parts = location_str.split('|', 2)
-            if len(location_parts) == 3:
-                # URL-decode each component
-                file_name = url_unquote(location_parts[0])
-                line_str = url_unquote(location_parts[1])
-                function_name = url_unquote(location_parts[2])
-                try:
-                    line_num = int(line_str)
-                except ValueError:
-                    line_num = 0
-            else:
-                # Malformed pipe-delimited format
-                file_name = location_str
-                line_num = 0
-                function_name = 'unknown'
+        # Use dedicated location columns if available (post-migration)
+        # This preserves function names even for complex C++ symbols and Windows paths
+        if flat.get('location_file') is not None:
+            # Dedicated columns are populated - use them directly
+            file_name = flat['location_file']
+            line_num = flat.get('location_line', 0)
+            function_name = flat.get('location_function', 'unknown')
         else:
-            # No pipe found - try legacy colon-delimited format
-            # This handles databases where migration couldn't run (read-only, failed update)
-            # Parse "file:line:function" using rsplit from the right
-            location_parts = location_str.rsplit(':', 2)
-            if len(location_parts) == 3:
-                file_name, line_str, function_name = location_parts
-                try:
-                    line_num = int(line_str)
-                except ValueError:
-                    # Line is not a number - probably a C++ symbol or Windows path
-                    # Treat whole string as unparseable
-                    file_name = location_str
-                    line_num = 0
-                    function_name = 'legacy_unparsed'
-            else:
-                # Can't parse at all - treat as raw string
-                file_name = location_str
-                line_num = 0
-                function_name = 'unknown'
+            # Dedicated columns not available - fall back to parsing location string
+            # This handles legacy data that hasn't been migrated yet
+            file_name, line_num, function_name = self._parse_location_string(flat['location'])
 
         return {
             'report_id': flat['report_id'],
