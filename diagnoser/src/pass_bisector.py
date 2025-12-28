@@ -68,10 +68,106 @@ class PassBisector:
         self.timeout_sec = timeout_sec
         self.verbose = verbose
 
+        # Verify that clang, opt, and llc are from the same LLVM version
+        # Mismatched versions lead to meaningless pass bisection results
+        self._verify_tool_versions()
+
     def _log(self, msg: str):
         """Print log message if verbose mode enabled."""
         if self.verbose:
             print(f"[PassBisector] {msg}")
+
+    def _get_tool_version(self, tool_path: str) -> Optional[str]:
+        """
+        Extract LLVM version from tool (clang, opt, or llc).
+
+        Args:
+            tool_path: Path to LLVM tool
+
+        Returns:
+            Version string (e.g., "17.0.6") or None if unable to determine
+        """
+        try:
+            result = subprocess.run(
+                [tool_path, "--version"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+
+            if result.returncode != 0:
+                return None
+
+            # Parse version from output
+            # Format: "clang version 17.0.6" or "LLVM version 17.0.6"
+            import re
+            match = re.search(r'(?:clang|LLVM)\s+version\s+(\d+\.\d+\.\d+)', result.stdout)
+            if match:
+                return match.group(1)
+
+            # Try alternative format: "17.0.6"
+            match = re.search(r'(\d+\.\d+\.\d+)', result.stdout)
+            if match:
+                return match.group(1)
+
+            return None
+        except Exception:
+            return None
+
+    def _verify_tool_versions(self):
+        """
+        Verify that clang, opt, and llc are from the same LLVM version.
+
+        Raises:
+            RuntimeError: If versions don't match or can't be determined
+        """
+        clang_version = self._get_tool_version(self.clang_path)
+        opt_version = self._get_tool_version(self.opt_path)
+        llc_version = self._get_tool_version(self.llc_path)
+
+        # Collect version info for error messages
+        versions = {
+            'clang': clang_version,
+            'opt': opt_version,
+            'llc': llc_version
+        }
+
+        # Check if we could determine all versions
+        missing = [tool for tool, ver in versions.items() if ver is None]
+        if missing:
+            raise RuntimeError(
+                f"Could not determine version for: {', '.join(missing)}. "
+                f"Ensure tools are installed and in PATH."
+            )
+
+        # Extract major versions for comparison
+        # Handles cases where one tool reports "17.0.6" and another reports "17.0"
+        def get_major_version(version_str: str) -> str:
+            """Extract major version (e.g., "17.0.6" -> "17")."""
+            return version_str.split('.')[0]
+
+        clang_major = get_major_version(clang_version)
+        opt_major = get_major_version(opt_version)
+        llc_major = get_major_version(llc_version)
+
+        # Check if all major versions match
+        if not (clang_major == opt_major == llc_major):
+            raise RuntimeError(
+                f"LLVM tool version mismatch detected!\n"
+                f"  clang: {clang_version} (major: {clang_major})\n"
+                f"  opt:   {opt_version} (major: {opt_major})\n"
+                f"  llc:   {llc_version} (major: {llc_major})\n"
+                f"Pass bisection requires all tools from the same LLVM build.\n"
+                f"Install matching versions or use versioned binaries (clang-17, opt-17, llc-17)."
+            )
+
+        # Warn if patch versions differ (acceptable but worth noting)
+        if not (clang_version == opt_version == llc_version):
+            print(f"⚠️  Warning: Minor version mismatch detected (major versions match)")
+            print(f"   clang: {clang_version}, opt: {opt_version}, llc: {llc_version}")
+            print(f"   This is usually acceptable but may cause issues in rare cases.")
+
+        self._log(f"Verified tool versions: major version {clang_major} across clang/opt/llc")
 
     def _parse_pipeline_to_passes(self, pipeline_str: str) -> List[str]:
         """
@@ -467,3 +563,12 @@ class PassBisector:
         lines.append("=" * 60)
 
         return "\n".join(lines)
+
+    def cleanup(self):
+        """
+        Cleanup temporary files and resources.
+
+        PassBisector doesn't create persistent temporary files (uses tempfile for IR),
+        so this is a no-op for API consistency with VersionBisector.
+        """
+        pass

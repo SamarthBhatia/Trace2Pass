@@ -4,26 +4,26 @@ Trace2Pass Collector - JSON Schemas
 Marshmallow schemas for validating incoming anomaly reports.
 """
 
-from marshmallow import Schema, fields, validate, ValidationError
+from marshmallow import Schema, fields, validate, ValidationError, INCLUDE
 
 
 class LocationSchema(Schema):
     """Schema for source code location."""
     file = fields.Str(required=True)
-    line = fields.Int(required=True, validate=validate.Range(min=1))
+    line = fields.Int(required=True, validate=validate.Range(min=0))  # Allow 0 when metadata unavailable
     function = fields.Str(required=True)
 
 
 class CompilerSchema(Schema):
     """Schema for compiler information."""
-    name = fields.Str(required=True, validate=validate.OneOf(['clang', 'gcc', 'msvc']))
+    name = fields.Str(required=True, validate=validate.OneOf(['clang', 'gcc', 'msvc', 'unknown']))
     version = fields.Str(required=True)
     target = fields.Str(required=False)
 
 
 class BuildInfoSchema(Schema):
     """Schema for build configuration."""
-    optimization_level = fields.Str(required=True, validate=validate.OneOf(['-O0', '-O1', '-O2', '-O3', '-Os', '-Oz']))
+    optimization_level = fields.Str(required=True, validate=validate.OneOf(['-O0', '-O1', '-O2', '-O3', '-Os', '-Oz', 'unknown']))
     flags = fields.List(fields.Str(), required=False)
     source_hash = fields.Str(required=False)
     binary_checksum = fields.Str(required=False)
@@ -40,7 +40,7 @@ class CheckDetailsSchema(Schema):
     """Schema for check-specific details (flexible)."""
     class Meta:
         # Allow additional fields not defined in schema
-        unknown = 'INCLUDE'
+        unknown = INCLUDE
 
 
 class ReportSchema(Schema):

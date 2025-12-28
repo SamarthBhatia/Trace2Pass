@@ -6,6 +6,8 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/DebugInfoMetadata.h"
+#include "llvm/IR/Metadata.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
@@ -34,6 +36,17 @@ private:
   void insertShiftCheck(IRBuilder<> &Builder, Instruction *I,
                         Value *ShiftValue, Value *ShiftAmount);
   void insertBoundsCheck(IRBuilder<> &Builder, GetElementPtrInst *GEP);
+
+  // Debug info extraction helper
+  struct LocationInfo {
+    Value *File;
+    Value *Line;
+    Value *Function;
+  };
+  LocationInfo extractLocation(IRBuilder<> &Builder, Instruction *I);
+
+  // Build metadata injection
+  void injectBuildMetadata(Module &M);
 
   // Runtime function declarations
   FunctionCallee getOverflowReportFunc(Module &M);
@@ -64,6 +77,10 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
   // Skip runtime library functions to avoid recursive instrumentation
   if (F.getName().starts_with("trace2pass_"))
     return PreservedAnalyses::all();
+
+  // Inject build metadata (once per module)
+  Module &M = *F.getParent();
+  injectBuildMetadata(M);
 
   errs() << "Trace2Pass: Instrumenting function: " << F.getName() << "\n";
 
@@ -152,6 +169,156 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
   return PreservedAnalyses::all();
 }
 
+// Extract source location from debug metadata
+// Returns file, line, function as LLVM Values for passing to runtime
+Trace2PassInstrumentorPass::LocationInfo
+Trace2PassInstrumentorPass::extractLocation(IRBuilder<> &Builder, Instruction *I) {
+  LocationInfo Loc;
+  Module &M = *I->getModule();
+  LLVMContext &Ctx = M.getContext();
+
+  // Try to get debug location
+  const DebugLoc &DL = I->getDebugLoc();
+
+  if (DL) {
+    // Extract full file path (directory + filename)
+    // CRITICAL: DILocation stores directory and filename separately
+    // Must combine them to avoid conflating files with same basename (e.g., config.c)
+    StringRef Directory = DL->getDirectory();
+    StringRef Filename = DL->getFilename();
+    std::string FullPath;
+
+    if (!Directory.empty() && !Filename.empty()) {
+      // Combine directory and filename with path separator
+      FullPath = Directory.str() + "/" + Filename.str();
+    } else if (!Filename.empty()) {
+      // No directory info, use filename alone
+      FullPath = Filename.str();
+    } else {
+      // No filename at all
+      FullPath = "unknown";
+    }
+
+    Loc.File = Builder.CreateGlobalString(FullPath);
+
+    // Extract line number
+    unsigned Line = DL.getLine();
+    Loc.Line = ConstantInt::get(Type::getInt32Ty(Ctx), Line);
+
+    // Extract function name from the enclosing function
+    Function *F = I->getFunction();
+    StringRef FuncName = F ? F->getName() : "unknown";
+    Loc.Function = Builder.CreateGlobalString(FuncName);
+  } else {
+    // No debug info available - use placeholders
+    Loc.File = Builder.CreateGlobalString("unknown");
+    Loc.Line = ConstantInt::get(Type::getInt32Ty(Ctx), 0);
+
+    // Still try to get function name even without debug info
+    Function *F = I->getFunction();
+    StringRef FuncName = F ? F->getName() : "unknown";
+    Loc.Function = Builder.CreateGlobalString(FuncName);
+  }
+
+  return Loc;
+}
+
+// Inject build metadata as global variables for runtime consumption
+// This allows the runtime to report actual optimization level and flags instead of "unknown"
+void Trace2PassInstrumentorPass::injectBuildMetadata(Module &M) {
+  LLVMContext &Ctx = M.getContext();
+
+  // Check if already injected (avoid duplicates across multiple functions)
+  if (M.getGlobalVariable("__trace2pass_opt_level")) {
+    return;  // Already injected
+  }
+
+  std::string opt_level = "unknown";
+  std::string flags = "";
+
+  // Extract actual compilation flags from debug info (DICompileUnit)
+  // The producer string contains compiler version and flags used
+  if (NamedMDNode *CU_Nodes = M.getNamedMetadata("llvm.dbg.cu")) {
+    for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
+      if (DICompileUnit *CU = dyn_cast<DICompileUnit>(CU_Nodes->getOperand(i))) {
+        // Producer string typically: "clang version X.Y.Z (flags)"
+        StringRef Producer = CU->getProducer();
+        if (!Producer.empty()) {
+          flags = Producer.str();
+
+          // Try to extract optimization level from flags
+          // Look for -O0, -O1, -O2, -O3, -Os, -Oz in the producer string
+          if (Producer.contains("-O3")) opt_level = "-O3";
+          else if (Producer.contains("-O2")) opt_level = "-O2";
+          else if (Producer.contains("-O1")) opt_level = "-O1";
+          else if (Producer.contains("-Os")) opt_level = "-Os";
+          else if (Producer.contains("-Oz")) opt_level = "-Oz";
+          else if (Producer.contains("-O0")) opt_level = "-O0";
+          else if (Producer.contains("-O")) opt_level = "-O?";
+        }
+        break;  // Only need first compile unit
+      }
+    }
+  }
+
+  // Fallback: Try to infer optimization level from module characteristics
+  if (opt_level == "unknown") {
+    // Check module flags for optimization hints
+    if (M.getModuleFlag("OptLevel")) {
+      if (auto *OptLevelMD = dyn_cast<ConstantAsMetadata>(M.getModuleFlag("OptLevel"))) {
+        if (auto *OptLevelInt = dyn_cast<ConstantInt>(OptLevelMD->getValue())) {
+          uint64_t Level = OptLevelInt->getZExtValue();
+          opt_level = "-O" + std::to_string(Level);
+        }
+      }
+    } else {
+      // Heuristic: Check if functions have optnone attribute (indicates -O0)
+      bool has_optnone = false;
+      for (Function &F : M) {
+        if (F.hasFnAttribute(Attribute::OptimizeNone)) {
+          has_optnone = true;
+          break;
+        }
+      }
+      if (has_optnone) {
+        opt_level = "-O0";
+      }
+    }
+  }
+
+  // Create global string constants (readable by runtime via extern)
+  // CRITICAL: Use LinkOnceODRLinkage to avoid "multiple definition" linker errors
+  // Each object file will emit these symbols, and the linker merges identical definitions
+  IRBuilder<> Builder(Ctx);
+
+  // Optimization level global
+  Constant *OptLevelStr = ConstantDataArray::getString(Ctx, opt_level, true);
+  GlobalVariable *OptLevelGlobal = new GlobalVariable(
+      M,
+      OptLevelStr->getType(),
+      true,  // isConstant
+      GlobalValue::LinkOnceODRLinkage,  // Allows multiple identical definitions
+      OptLevelStr,
+      "__trace2pass_opt_level"
+  );
+  OptLevelGlobal->setVisibility(GlobalValue::DefaultVisibility);
+
+  // Compile flags global (producer string from debug info)
+  Constant *FlagsStr = ConstantDataArray::getString(Ctx, flags, true);
+  GlobalVariable *FlagsGlobal = new GlobalVariable(
+      M,
+      FlagsStr->getType(),
+      true,  // isConstant
+      GlobalValue::LinkOnceODRLinkage,  // Allows multiple identical definitions
+      FlagsStr,
+      "__trace2pass_compile_flags"
+  );
+  FlagsGlobal->setVisibility(GlobalValue::DefaultVisibility);
+
+  errs() << "Trace2Pass: Injected build metadata: opt_level=" << opt_level
+         << ", flags=" << (flags.empty() ? "(none)" : flags) << "\n";
+}
+
 bool Trace2PassInstrumentorPass::instrumentArithmeticOperations(Function &F) {
   bool Modified = false;
   Module &M = *F.getParent();
@@ -210,78 +377,118 @@ void Trace2PassInstrumentorPass::insertOverflowCheck(IRBuilder<> &Builder,
 
   // Determine if we should check signed or unsigned overflow
   // Use nsw/nuw flags if present, otherwise default to signed
-  bool checkSigned = true;
+  bool checkSigned = false;
   bool checkUnsigned = false;
 
   if (auto *BinOp = dyn_cast<BinaryOperator>(I)) {
     // If instruction has nsw (no signed wrap) flag, check signed overflow
     // If instruction has nuw (no unsigned wrap) flag, check unsigned overflow
-    checkSigned = BinOp->hasNoSignedWrap() || (!BinOp->hasNoSignedWrap() && !BinOp->hasNoUnsignedWrap());
+    checkSigned = BinOp->hasNoSignedWrap();
     checkUnsigned = BinOp->hasNoUnsignedWrap();
   }
 
-  // Select the appropriate overflow intrinsic based on operation and signedness
-  Intrinsic::ID IntrinsicID;
-  const char *OpName;
-
-  switch (I->getOpcode()) {
-    case Instruction::Mul:
-      IntrinsicID = checkUnsigned ? Intrinsic::umul_with_overflow : Intrinsic::smul_with_overflow;
-      OpName = checkUnsigned ? "umul" : "smul";
-      break;
-    case Instruction::Add:
-      IntrinsicID = checkUnsigned ? Intrinsic::uadd_with_overflow : Intrinsic::sadd_with_overflow;
-      OpName = checkUnsigned ? "uadd" : "sadd";
-      break;
-    case Instruction::Sub:
-      IntrinsicID = checkUnsigned ? Intrinsic::usub_with_overflow : Intrinsic::ssub_with_overflow;
-      OpName = checkUnsigned ? "usub" : "ssub";
-      break;
-    default:
-      return; // Shouldn't reach here
+  // If neither flag is set, default to signed
+  if (!checkSigned && !checkUnsigned) {
+    checkSigned = true;
   }
 
-  // Use LLVM's overflow intrinsic
-  Function *OverflowIntrinsic = Intrinsic::getOrInsertDeclaration(
-      &M, IntrinsicID, {IntTy});
+  // Lambda to emit a single overflow check for given signedness
+  // When both nsw and nuw are present, this gets called twice
+  Value *FinalResult = nullptr;
+  auto emitSingleCheck = [&](bool isUnsigned) -> Value* {
+    // Select the appropriate overflow intrinsic based on operation and signedness
+    Intrinsic::ID IntrinsicID;
+    const char *OpName;
 
-  // Call the intrinsic
-  CallInst *OverflowCall = Builder.CreateCall(OverflowIntrinsic, {LHS, RHS});
+    switch (I->getOpcode()) {
+      case Instruction::Mul:
+        IntrinsicID = isUnsigned ? Intrinsic::umul_with_overflow : Intrinsic::smul_with_overflow;
+        OpName = isUnsigned ? "umul" : "smul";
+        break;
+      case Instruction::Add:
+        IntrinsicID = isUnsigned ? Intrinsic::uadd_with_overflow : Intrinsic::sadd_with_overflow;
+        OpName = isUnsigned ? "uadd" : "sadd";
+        break;
+      case Instruction::Sub:
+        IntrinsicID = isUnsigned ? Intrinsic::usub_with_overflow : Intrinsic::ssub_with_overflow;
+        OpName = isUnsigned ? "usub" : "ssub";
+        break;
+      default:
+        return nullptr; // Shouldn't reach here
+    }
 
-  // Extract result and overflow flag
-  Value *Result = Builder.CreateExtractValue(OverflowCall, 0);
-  Value *OverflowFlag = Builder.CreateExtractValue(OverflowCall, 1);
+    // Use LLVM's overflow intrinsic
+    Function *OverflowIntrinsic = Intrinsic::getOrInsertDeclaration(
+        &M, IntrinsicID, {IntTy});
 
-  // CRITICAL FIX: Use SplitBlockAndInsertIfThen instead of manual block splitting
-  // This prevents LLVM -O2 crashes by properly handling CFG construction, PHI nodes,
-  // and terminator management. Manual splicing was causing invalid IR that crashed
-  // SimplifyCFG pass on large codebases like SQLite.
-  Instruction *ThenTerm = SplitBlockAndInsertIfThen(OverflowFlag, I, false);
+    // Call the intrinsic
+    CallInst *OverflowCall = Builder.CreateCall(OverflowIntrinsic, {LHS, RHS});
 
-  Builder.SetInsertPoint(ThenTerm);
+    // Extract result and overflow flag
+    Value *Result = Builder.CreateExtractValue(OverflowCall, 0);
+    Value *OverflowFlag = Builder.CreateExtractValue(OverflowCall, 1);
 
-  // Get the runtime report function
-  FunctionCallee ReportFunc = getOverflowReportFunc(M);
+    // CRITICAL FIX: Use SplitBlockAndInsertIfThen instead of manual block splitting
+    // This prevents LLVM -O2 crashes by properly handling CFG construction, PHI nodes,
+    // and terminator management. Manual splicing was causing invalid IR that crashed
+    // SimplifyCFG pass on large codebases like SQLite.
+    Instruction *ThenTerm = SplitBlockAndInsertIfThen(OverflowFlag, I, false);
 
-  // Get PC (return address)
-  Function *ReturnAddrIntrinsic = Intrinsic::getOrInsertDeclaration(
-      &M, Intrinsic::returnaddress);
-  Value *PC = Builder.CreateCall(ReturnAddrIntrinsic,
-                                  {Builder.getInt32(0)});
+    Builder.SetInsertPoint(ThenTerm);
 
-  // Create expression string based on operation
-  std::string ExprStr = std::string("x ") + OpName + " y";
-  Value *ExprGlobal = Builder.CreateGlobalString(ExprStr);
+    // Get the runtime report function
+    FunctionCallee ReportFunc = getOverflowReportFunc(M);
 
-  // Convert operands to i64 for reporting
-  Value *LHS_i64 = Builder.CreateSExtOrTrunc(LHS, Builder.getInt64Ty());
-  Value *RHS_i64 = Builder.CreateSExtOrTrunc(RHS, Builder.getInt64Ty());
+    // Get PC (return address)
+    Function *ReturnAddrIntrinsic = Intrinsic::getOrInsertDeclaration(
+        &M, Intrinsic::returnaddress);
+    Value *PC = Builder.CreateCall(ReturnAddrIntrinsic,
+                                    {Builder.getInt32(0)});
 
-  // Call the report function
-  Builder.CreateCall(ReportFunc, {PC, ExprGlobal, LHS_i64, RHS_i64});
+    // Extract source location from debug metadata
+    LocationInfo Loc = extractLocation(Builder, I);
+
+    // Create expression string based on operation
+    std::string ExprStr = std::string("x ") + OpName + " y";
+    Value *ExprGlobal = Builder.CreateGlobalString(ExprStr);
+
+    // Convert operands to i64 for reporting
+    Value *LHS_i64 = Builder.CreateSExtOrTrunc(LHS, Builder.getInt64Ty());
+    Value *RHS_i64 = Builder.CreateSExtOrTrunc(RHS, Builder.getInt64Ty());
+
+    // Call the report function with location metadata
+    Builder.CreateCall(ReportFunc, {PC, Loc.File, Loc.Line, Loc.Function, ExprGlobal, LHS_i64, RHS_i64});
+
+    // Reset builder to after the merge point for potential next check
+    // The split created: OrigBlock -> ThenBlock -> MergeBlock
+    // We want to insert the next check at the start of MergeBlock
+    BasicBlock *MergeBlock = ThenTerm->getParent()->getSingleSuccessor();
+    if (MergeBlock) {
+      Builder.SetInsertPoint(&MergeBlock->front());
+    }
+
+    return Result;
+  };
+
+  // Emit signed overflow check if needed
+  if (checkSigned) {
+    FinalResult = emitSingleCheck(false);
+  }
+
+  // Emit unsigned overflow check if needed
+  if (checkUnsigned) {
+    Value *UnsignedResult = emitSingleCheck(true);
+    // Use the unsigned result if we didn't emit a signed check
+    if (!FinalResult) {
+      FinalResult = UnsignedResult;
+    }
+    // Note: Both results should be identical at the bit level for add/sub/mul
+  }
 
   // Replace uses of the original instruction with our computed result
-  I->replaceAllUsesWith(Result);
+  if (FinalResult) {
+    I->replaceAllUsesWith(FinalResult);
+  }
 }
 
 void Trace2PassInstrumentorPass::insertShiftCheck(IRBuilder<> &Builder,
@@ -316,6 +523,9 @@ void Trace2PassInstrumentorPass::insertShiftCheck(IRBuilder<> &Builder,
   Value *PC = Builder.CreateCall(ReturnAddrIntrinsic,
                                   {Builder.getInt32(0)});
 
+  // Extract source location from debug metadata
+  LocationInfo Loc = extractLocation(Builder, I);
+
   // Create expression string
   std::string ExprStr = "x shl y";
   Value *ExprGlobal = Builder.CreateGlobalString(ExprStr);
@@ -324,22 +534,24 @@ void Trace2PassInstrumentorPass::insertShiftCheck(IRBuilder<> &Builder,
   Value *Value_i64 = Builder.CreateSExtOrTrunc(ShiftValue, Builder.getInt64Ty());
   Value *ShiftAmount_i64 = Builder.CreateZExtOrTrunc(ShiftAmount, Builder.getInt64Ty());
 
-  // Call the report function
-  Builder.CreateCall(ReportFunc, {PC, ExprGlobal, Value_i64, ShiftAmount_i64});
+  // Call the report function with location metadata
+  Builder.CreateCall(ReportFunc, {PC, Loc.File, Loc.Line, Loc.Function, ExprGlobal, Value_i64, ShiftAmount_i64});
 }
 
 FunctionCallee Trace2PassInstrumentorPass::getOverflowReportFunc(Module &M) {
   LLVMContext &Ctx = M.getContext();
 
-  // void trace2pass_report_overflow(void* pc, const char* expr, i64 a, i64 b)
+  // void trace2pass_report_overflow(void* pc, const char* file, int line, const char* function,
+  //                                  const char* expr, long long a, long long b)
   Type *VoidTy = Type::getVoidTy(Ctx);
   Type *VoidPtrTy = PointerType::getUnqual(Ctx);
   Type *CharPtrTy = PointerType::getUnqual(Ctx);
+  Type *I32Ty = Type::getInt32Ty(Ctx);
   Type *I64Ty = Type::getInt64Ty(Ctx);
 
   FunctionType *FT = FunctionType::get(
       VoidTy,
-      {VoidPtrTy, CharPtrTy, I64Ty, I64Ty},
+      {VoidPtrTy, CharPtrTy, I32Ty, CharPtrTy, CharPtrTy, I64Ty, I64Ty},
       false);
 
   return M.getOrInsertFunction("trace2pass_report_overflow", FT);
@@ -375,13 +587,16 @@ bool Trace2PassInstrumentorPass::instrumentUnreachableCode(Function &F) {
     Value *PC = Builder.CreateCall(ReturnAddrIntrinsic,
                                     {Builder.getInt32(0)});
 
+    // Extract source location from debug metadata
+    LocationInfo Loc = extractLocation(Builder, UI);
+
     // Create message string
     std::string Message = "unreachable code executed";
     Value *MessageGlobal = Builder.CreateGlobalString(Message);
 
-    // Call the report function immediately before unreachable
+    // Call the report function immediately before unreachable with location metadata
     // No branching needed - if we reach this code, it's already a bug
-    Builder.CreateCall(ReportFunc, {PC, MessageGlobal});
+    Builder.CreateCall(ReportFunc, {PC, Loc.File, Loc.Line, Loc.Function, MessageGlobal});
 
     // The unreachable instruction remains after the report call
     // If execution reaches here, we report it, then hit unreachable (crash/UB)
@@ -396,14 +611,16 @@ bool Trace2PassInstrumentorPass::instrumentUnreachableCode(Function &F) {
 FunctionCallee Trace2PassInstrumentorPass::getUnreachableReportFunc(Module &M) {
   LLVMContext &Ctx = M.getContext();
 
-  // void trace2pass_report_unreachable(void* pc, const char* message)
+  // void trace2pass_report_unreachable(void* pc, const char* file, int line, const char* function,
+  //                                      const char* message)
   Type *VoidTy = Type::getVoidTy(Ctx);
   Type *VoidPtrTy = PointerType::getUnqual(Ctx);
   Type *CharPtrTy = PointerType::getUnqual(Ctx);
+  Type *I32Ty = Type::getInt32Ty(Ctx);
 
   FunctionType *FT = FunctionType::get(
       VoidTy,
-      {VoidPtrTy, CharPtrTy},
+      {VoidPtrTy, CharPtrTy, I32Ty, CharPtrTy, CharPtrTy},
       false);
 
   return M.getOrInsertFunction("trace2pass_report_unreachable", FT);
@@ -496,6 +713,9 @@ void Trace2PassInstrumentorPass::insertBoundsCheck(IRBuilder<> &Builder,
     Value *PC = Builder.CreateCall(ReturnAddrIntrinsic,
                                     {Builder.getInt32(0)});
 
+    // Extract source location from debug metadata
+    LocationInfo Loc = extractLocation(Builder, GEP);
+
     // Cast base pointer to void*
     Value *BasePtr_void = Builder.CreatePointerCast(BasePtr,
                                                      PointerType::getUnqual(Ctx));
@@ -505,9 +725,8 @@ void Trace2PassInstrumentorPass::insertBoundsCheck(IRBuilder<> &Builder,
     Value *Offset_u64 = Builder.CreateSExtOrTrunc(Index_i64, Builder.getInt64Ty());
     Value *Size_u64 = Builder.getInt64(0); // Unknown size
 
-    // Call the report function
-    // void trace2pass_report_bounds_violation(void* pc, void* ptr, size_t offset, size_t size)
-    Builder.CreateCall(ReportFunc, {PC, BasePtr_void, Offset_u64, Size_u64});
+    // Call the report function with location metadata
+    Builder.CreateCall(ReportFunc, {PC, Loc.File, Loc.Line, Loc.Function, BasePtr_void, Offset_u64, Size_u64});
   }
 }
 
@@ -608,6 +827,9 @@ bool Trace2PassInstrumentorPass::instrumentSignConversions(Function &F) {
         &M, Intrinsic::returnaddress);
     Value *PC = Builder.CreateCall(ReturnAddrFn, {Builder.getInt32(0)});
 
+    // Extract source location from debug metadata
+    LocationInfo Loc = extractLocation(Builder, Cast);
+
     // Convert values to i64
     Value *OrigValue_i64 = Builder.CreateSExtOrTrunc(OriginalValue, Builder.getInt64Ty());
     Value *CastValue_i64 = Builder.CreateZExtOrTrunc(CastValue, Builder.getInt64Ty());
@@ -615,9 +837,9 @@ bool Trace2PassInstrumentorPass::instrumentSignConversions(Function &F) {
     Value *SrcBits = Builder.getInt32(SrcTy->getIntegerBitWidth());
     Value *DestBits = Builder.getInt32(DestTy->getIntegerBitWidth());
 
-    // Call runtime function
+    // Call runtime function with location metadata
     FunctionCallee ReportFunc = getSignConversionReportFunc(M);
-    Builder.CreateCall(ReportFunc, {PC, OrigValue_i64, CastValue_i64, SrcBits, DestBits});
+    Builder.CreateCall(ReportFunc, {PC, Loc.File, Loc.Line, Loc.Function, OrigValue_i64, CastValue_i64, SrcBits, DestBits});
 
     Modified = true;
     NumSignConversionInstrumented++;
@@ -673,6 +895,9 @@ bool Trace2PassInstrumentorPass::instrumentDivisionByZero(Function &F) {
     Function *ReturnAddrFn = Intrinsic::getOrInsertDeclaration(&M, Intrinsic::returnaddress);
     Value *PC = Builder.CreateCall(ReturnAddrFn, {Builder.getInt32(0)});
 
+    // Extract source location from debug metadata
+    LocationInfo Loc = extractLocation(Builder, DivOp);
+
     // Determine operation type
     const char *OpName;
     switch (DivOp->getOpcode()) {
@@ -697,8 +922,8 @@ bool Trace2PassInstrumentorPass::instrumentDivisionByZero(Function &F) {
       Divisor64 = Builder.CreateZExtOrBitCast(Divisor, Builder.getInt64Ty());
     }
 
-    // Call: trace2pass_report_division_by_zero(PC, op_name, dividend, divisor)
-    Builder.CreateCall(ReportFunc, {PC, OpStr, Dividend64, Divisor64});
+    // Call with location metadata
+    Builder.CreateCall(ReportFunc, {PC, Loc.File, Loc.Line, Loc.Function, OpStr, Dividend64, Divisor64});
 
     Modified = true;
     NumDivisionByZeroInstrumented++;
@@ -793,8 +1018,11 @@ bool Trace2PassInstrumentorPass::instrumentPureFunctionCalls(Function &F) {
     // Get result (extend to i64)
     Value *Result = Builder.CreateSExtOrBitCast(Call, Builder.getInt64Ty());
 
-    // Call: trace2pass_check_pure_consistency(PC, func_name, arg0, arg1, result)
-    Builder.CreateCall(ReportFunc, {PC, FuncName, Arg0, Arg1, Result});
+    // Extract source location from debug metadata
+    LocationInfo Loc = extractLocation(Builder, Call);
+
+    // Call: trace2pass_check_pure_consistency(PC, file, line, function, func_name, arg0, arg1, result)
+    Builder.CreateCall(ReportFunc, {PC, Loc.File, Loc.Line, Loc.Function, FuncName, Arg0, Arg1, Result});
 
     Modified = true;
     NumPureCallsInstrumented++;
@@ -806,16 +1034,19 @@ bool Trace2PassInstrumentorPass::instrumentPureFunctionCalls(Function &F) {
 FunctionCallee Trace2PassInstrumentorPass::getSignConversionReportFunc(Module &M) {
   LLVMContext &Ctx = M.getContext();
 
-  // void trace2pass_report_sign_conversion(void* pc, int64_t original_value, uint64_t cast_value, uint32_t src_bits, uint32_t dest_bits)
+  // void trace2pass_report_sign_conversion(void* pc, const char* file, int line, const char* function,
+  //                                         int64_t original_value, uint64_t cast_value, uint32_t src_bits, uint32_t dest_bits)
   Type *VoidTy = Type::getVoidTy(Ctx);
   Type *VoidPtrTy = PointerType::getUnqual(Ctx);
+  Type *CharPtrTy = PointerType::getUnqual(Ctx);
+  Type *I32Ty = Type::getInt32Ty(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
   Type *Uint64Ty = Type::getInt64Ty(Ctx); // Same as Int64 in LLVM IR
   Type *Uint32Ty = Type::getInt32Ty(Ctx);
 
   FunctionType *FT = FunctionType::get(
       VoidTy,
-      {VoidPtrTy, Int64Ty, Uint64Ty, Uint32Ty, Uint32Ty},
+      {VoidPtrTy, CharPtrTy, I32Ty, CharPtrTy, Int64Ty, Uint64Ty, Uint32Ty, Uint32Ty},
       false);
 
   return M.getOrInsertFunction("trace2pass_report_sign_conversion", FT);
@@ -824,14 +1055,17 @@ FunctionCallee Trace2PassInstrumentorPass::getSignConversionReportFunc(Module &M
 FunctionCallee Trace2PassInstrumentorPass::getBoundsViolationReportFunc(Module &M) {
   LLVMContext &Ctx = M.getContext();
 
-  // void trace2pass_report_bounds_violation(void* pc, void* ptr, size_t offset, size_t size)
+  // void trace2pass_report_bounds_violation(void* pc, const char* file, int line, const char* function,
+  //                                          void* ptr, size_t offset, size_t size)
   Type *VoidTy = Type::getVoidTy(Ctx);
   Type *VoidPtrTy = PointerType::getUnqual(Ctx);
+  Type *CharPtrTy = PointerType::getUnqual(Ctx);
+  Type *I32Ty = Type::getInt32Ty(Ctx);
   Type *SizeTy = Type::getInt64Ty(Ctx); // size_t is i64 on 64-bit systems
 
   FunctionType *FT = FunctionType::get(
       VoidTy,
-      {VoidPtrTy, VoidPtrTy, SizeTy, SizeTy},
+      {VoidPtrTy, CharPtrTy, I32Ty, CharPtrTy, VoidPtrTy, SizeTy, SizeTy},
       false);
 
   return M.getOrInsertFunction("trace2pass_report_bounds_violation", FT);
@@ -840,15 +1074,17 @@ FunctionCallee Trace2PassInstrumentorPass::getBoundsViolationReportFunc(Module &
 FunctionCallee Trace2PassInstrumentorPass::getDivisionByZeroReportFunc(Module &M) {
   LLVMContext &Ctx = M.getContext();
 
-  // void trace2pass_report_division_by_zero(void* pc, const char* op_name, int64_t dividend, int64_t divisor)
+  // void trace2pass_report_division_by_zero(void* pc, const char* file, int line, const char* function,
+  //                                          const char* op_name, int64_t dividend, int64_t divisor)
   Type *VoidTy = Type::getVoidTy(Ctx);
   Type *VoidPtrTy = PointerType::getUnqual(Ctx);
   Type *CharPtrTy = PointerType::getUnqual(Ctx);  // const char*
+  Type *I32Ty = Type::getInt32Ty(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
 
   FunctionType *FT = FunctionType::get(
       VoidTy,
-      {VoidPtrTy, CharPtrTy, Int64Ty, Int64Ty},
+      {VoidPtrTy, CharPtrTy, I32Ty, CharPtrTy, CharPtrTy, Int64Ty, Int64Ty},
       false);
 
   return M.getOrInsertFunction("trace2pass_report_division_by_zero", FT);
@@ -857,15 +1093,17 @@ FunctionCallee Trace2PassInstrumentorPass::getDivisionByZeroReportFunc(Module &M
 FunctionCallee Trace2PassInstrumentorPass::getPureConsistencyReportFunc(Module &M) {
   LLVMContext &Ctx = M.getContext();
 
-  // void trace2pass_check_pure_consistency(void* pc, const char* func_name, int64_t arg0, int64_t arg1, int64_t result)
+  // void trace2pass_check_pure_consistency(void* pc, const char* file, int line, const char* function,
+  //                                         const char* func_name, int64_t arg0, int64_t arg1, int64_t result)
   Type *VoidTy = Type::getVoidTy(Ctx);
   Type *VoidPtrTy = PointerType::getUnqual(Ctx);
   Type *CharPtrTy = PointerType::getUnqual(Ctx);  // const char*
+  Type *I32Ty = Type::getInt32Ty(Ctx);
   Type *Int64Ty = Type::getInt64Ty(Ctx);
 
   FunctionType *FT = FunctionType::get(
       VoidTy,
-      {VoidPtrTy, CharPtrTy, Int64Ty, Int64Ty, Int64Ty},
+      {VoidPtrTy, CharPtrTy, I32Ty, CharPtrTy, CharPtrTy, Int64Ty, Int64Ty, Int64Ty},
       false);
 
   return M.getOrInsertFunction("trace2pass_check_pure_consistency", FT);
@@ -874,15 +1112,17 @@ FunctionCallee Trace2PassInstrumentorPass::getPureConsistencyReportFunc(Module &
 FunctionCallee Trace2PassInstrumentorPass::getLoopBoundReportFunc(Module &M) {
   LLVMContext &Ctx = M.getContext();
 
-  // void trace2pass_report_loop_bound_exceeded(void* pc, const char* loop_name, uint64_t iteration_count, uint64_t threshold)
+  // void trace2pass_report_loop_bound_exceeded(void* pc, const char* file, int line, const char* function,
+  //                                             const char* loop_name, uint64_t iteration_count, uint64_t threshold)
   Type *VoidTy = Type::getVoidTy(Ctx);
   Type *VoidPtrTy = PointerType::getUnqual(Ctx);
   Type *CharPtrTy = PointerType::getUnqual(Ctx);
+  Type *I32Ty = Type::getInt32Ty(Ctx);
   Type *Uint64Ty = Type::getInt64Ty(Ctx);
 
   FunctionType *FT = FunctionType::get(
       VoidTy,
-      {VoidPtrTy, CharPtrTy, Uint64Ty, Uint64Ty},
+      {VoidPtrTy, CharPtrTy, I32Ty, CharPtrTy, CharPtrTy, Uint64Ty, Uint64Ty},
       false);
 
   return M.getOrInsertFunction("trace2pass_report_loop_bound_exceeded", FT);
@@ -1039,8 +1279,11 @@ bool Trace2PassInstrumentorPass::instrumentLoopBounds(Function &F) {
     std::string LoopId = F.getName().str() + ":" + LoopHeader->getName().str();
     Value *LoopName = Builder.CreateGlobalString(LoopId, "loop_id");
 
-    // Call: trace2pass_report_loop_bound_exceeded(PC, loop_name, iteration_count, threshold)
-    Builder.CreateCall(ReportFunc, {PC, LoopName, NewCount, ThresholdVal});
+    // Extract source location from debug metadata
+    LocationInfo Loc = extractLocation(Builder, ThenTerm);
+
+    // Call: trace2pass_report_loop_bound_exceeded(PC, file, line, function, loop_name, iteration_count, threshold)
+    Builder.CreateCall(ReportFunc, {PC, Loc.File, Loc.Line, Loc.Function, LoopName, NewCount, ThresholdVal});
 
     Modified = true;
     NumLoopsInstrumented++;

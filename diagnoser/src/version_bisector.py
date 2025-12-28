@@ -86,6 +86,22 @@ class VersionBisector:
         if not os.path.exists(source_file):
             raise FileNotFoundError(f"Source file not found: {source_file}")
 
+        # Check Docker availability if use_docker is enabled
+        if self.use_docker:
+            docker_available = self._check_docker_available()
+            if not docker_available:
+                print("⚠️  WARNING: Docker is not available")
+                print("   Automatically falling back to local compiler installations")
+                print()
+                print("   If you want to use Docker:")
+                print("   1. Install Docker: https://docs.docker.com/get-docker/")
+                print("   2. Rerun with --use-docker=True")
+                print()
+                print("   Continuing with local compilers (clang-14 through clang-21)...")
+                print()
+                # Disable Docker mode and fall back to local compilers
+                self.use_docker = False
+
         self.tested_versions = []
         details = {}
 
@@ -93,91 +109,187 @@ class VersionBisector:
         # CRITICAL: We need a passing version and a failing version to bisect
         # Simply finding two installed compilers is not enough - they both might pass!
 
-        # Strategy: Test all installed compilers and find one passing and one failing
+        # OPTIMIZED Strategy: Test extremes first, then march inward (lazy discovery)
+        # Old approach: Linear scan through all N versions (O(N) always)
+        # New approach: Test min/max, then march inward (O(1) best case, O(N) worst case)
         passing_idx = None
         failing_idx = None
 
-        for idx in range(len(self.versions)):
-            result = self._test_version(
-                self.versions[idx], source_file, test_func, optimization_level, details
-            )
-            if result is not None:  # Compiler was installed and tested
-                if result:
-                    # Found a passing version
-                    if passing_idx is None or idx < passing_idx:
-                        passing_idx = idx
-                else:
-                    # Found a failing version
-                    if failing_idx is None:
-                        failing_idx = idx
+        print(f"Searching for endpoints in {len(self.versions)} versions...")
 
-                # Early exit: if we have both a pass and a fail, we can bisect
-                if passing_idx is not None and failing_idx is not None:
-                    break
+        # Test the extremes first (most common case: old passes, new fails)
+        min_idx = 0
+        max_idx = len(self.versions) - 1
+
+        # Test oldest version
+        result_min = self._test_version(
+            self.versions[min_idx], source_file, test_func, optimization_level, details
+        )
+        if result_min is not None:
+            if result_min:
+                passing_idx = min_idx
+                print(f"  {self.versions[min_idx]}: PASS")
+            else:
+                failing_idx = min_idx
+                print(f"  {self.versions[min_idx]}: FAIL")
+
+        # Test newest version (unless it's the same as min)
+        if max_idx != min_idx:
+            result_max = self._test_version(
+                self.versions[max_idx], source_file, test_func, optimization_level, details
+            )
+            if result_max is not None:
+                if result_max:
+                    if passing_idx is None:
+                        passing_idx = max_idx
+                    print(f"  {self.versions[max_idx]}: PASS")
+                else:
+                    if failing_idx is None:
+                        failing_idx = max_idx
+                    print(f"  {self.versions[max_idx]}: FAIL")
+
+        # Fast path: If we found both endpoints, we're done
+        if passing_idx is not None and failing_idx is not None:
+            print(f"Found endpoints in 2 tests!")
+        else:
+            # Slow path: March inward from both ends to find missing endpoint
+            print(f"Marching inward to find missing endpoint...")
+            left = min_idx + 1
+            right = max_idx - 1
+
+            while (passing_idx is None or failing_idx is None) and left <= right:
+                # Test from left if we need more samples
+                if left <= right:
+                    result = self._test_version(
+                        self.versions[left], source_file, test_func, optimization_level, details
+                    )
+                    if result is not None:
+                        if result and passing_idx is None:
+                            passing_idx = left
+                            print(f"  {self.versions[left]}: PASS")
+                        elif not result and failing_idx is None:
+                            failing_idx = left
+                            print(f"  {self.versions[left]}: FAIL")
+
+                        # Early exit if we found both
+                        if passing_idx is not None and failing_idx is not None:
+                            break
+                    left += 1
+
+                # Test from right if we still need more samples
+                if (passing_idx is None or failing_idx is None) and left <= right:
+                    result = self._test_version(
+                        self.versions[right], source_file, test_func, optimization_level, details
+                    )
+                    if result is not None:
+                        if result and passing_idx is None:
+                            passing_idx = right
+                            print(f"  {self.versions[right]}: PASS")
+                        elif not result and failing_idx is None:
+                            failing_idx = right
+                            print(f"  {self.versions[right]}: FAIL")
+
+                        # Early exit if we found both
+                        if passing_idx is not None and failing_idx is not None:
+                            break
+                    right -= 1
 
         # Check what we found
         if passing_idx is None and failing_idx is None:
-            error_msg = f"No installed compilers found in range {self.versions[0]} to {self.versions[-1]}. "\
-                       f"Cannot bisect without at least two installed compiler versions."
-            print(f"ERROR: {error_msg}")
-            return VersionBisectionResult(
-                first_bad_version=None,
-                last_good_version=None,
-                tested_versions=self.tested_versions,
-                total_tests=len(self.tested_versions),
-                verdict="insufficient_compilers",
-                details={'error': error_msg, **details}
-            )
+            # Check if versions were skipped due to diagnostic errors vs not installed
+            diagnostic_errors = [
+                ver for ver, info in details.items()
+                if isinstance(info, dict) and info.get('compile_error_type') == 'diagnostic'
+            ]
 
-        # Determine endpoints for bisection
-        # We want: left = passing, right = failing (for bisection to work)
-        # But we need to handle cases where we only found one outcome
+            docker_failures = [
+                ver for ver, info in details.items()
+                if isinstance(info, dict) and info.get('skip_reason') == 'docker_failure'
+            ]
 
-        if passing_idx is not None and failing_idx is None:
-            # All tested compilers pass - continue testing to find a failure
-            print(f"Tested {self.versions[passing_idx]}: PASS, searching for failing version...")
-            for idx in range(passing_idx + 1, len(self.versions)):
-                result = self._test_version(
-                    self.versions[idx], source_file, test_func, optimization_level, details
-                )
-                if result is not None and not result:
-                    # Found a failing version
-                    failing_idx = idx
-                    break
+            if diagnostic_errors:
+                error_msg = f"No testable compilers in range {self.versions[0]} to {self.versions[-1]}. "\
+                           f"{len(diagnostic_errors)} version(s) skipped due to diagnostic compile errors."
+                print(f"ERROR: {error_msg}")
+                print(f"⚠️  Diagnostic errors prevent bisection:")
+                for ver in sorted(diagnostic_errors):
+                    stderr_preview = details[ver].get('stderr', '')[:80]
+                    print(f"   - {ver}: {stderr_preview}")
 
-            if failing_idx is None:
-                # All installed compilers pass - no regression found
+                # Use dedicated verdict to distinguish from tooling failures
                 return VersionBisectionResult(
                     first_bad_version=None,
-                    last_good_version=self.versions[passing_idx],
-                    tested_versions=self.tested_versions,
-                    total_tests=len(self.tested_versions),
-                    verdict="all_pass",
-                    details=details
-                )
-
-        if failing_idx is not None and passing_idx is None:
-            # All tested compilers fail - continue testing to find a pass
-            print(f"Tested {self.versions[failing_idx]}: FAIL, searching for passing version...")
-            for idx in range(failing_idx + 1, len(self.versions)):
-                result = self._test_version(
-                    self.versions[idx], source_file, test_func, optimization_level, details
-                )
-                if result is not None and result:
-                    # Found a passing version
-                    passing_idx = idx
-                    break
-
-            if passing_idx is None:
-                # All installed compilers fail - bug predates range
-                return VersionBisectionResult(
-                    first_bad_version=self.versions[failing_idx],
                     last_good_version=None,
                     tested_versions=self.tested_versions,
                     total_tests=len(self.tested_versions),
-                    verdict="all_fail",
-                    details=details
+                    verdict="diagnostic_errors",  # Dedicated verdict for user code issues
+                    details={'error': error_msg, 'diagnostic_errors': diagnostic_errors, **details}
                 )
+            elif docker_failures:
+                error_msg = f"No testable compilers in range {self.versions[0]} to {self.versions[-1]}. "\
+                           f"{len(docker_failures)} version(s) skipped due to Docker failures."
+                print(f"ERROR: {error_msg}")
+                print(f"⚠️  Docker infrastructure failures:")
+                for ver in sorted(docker_failures):
+                    stderr_preview = details[ver].get('stderr', 'Unknown error')
+                    # Strip DOCKER_ERROR: prefix for display
+                    if stderr_preview.startswith("DOCKER_ERROR:"):
+                        stderr_preview = stderr_preview[13:].strip()
+                    print(f"   - {ver}: {stderr_preview[:100]}")
+
+                return VersionBisectionResult(
+                    first_bad_version=None,
+                    last_good_version=None,
+                    tested_versions=self.tested_versions,
+                    total_tests=len(self.tested_versions),
+                    verdict="insufficient_compilers",  # Tooling failure
+                    details={'error': error_msg, 'docker_failures': docker_failures, **details}
+                )
+            else:
+                error_msg = f"No installed compilers found in range {self.versions[0]} to {self.versions[-1]}. "\
+                           f"Cannot bisect without at least two installed compiler versions."
+                print(f"ERROR: {error_msg}")
+
+                return VersionBisectionResult(
+                    first_bad_version=None,
+                    last_good_version=None,
+                    tested_versions=self.tested_versions,
+                    total_tests=len(self.tested_versions),
+                    verdict="insufficient_compilers",  # Tooling failure
+                    details={'error': error_msg, **details}
+                )
+
+        elif passing_idx is not None and failing_idx is None:
+            # All installed compilers pass - no regression found
+            # Return the highest (most recent) passing version
+            print(f"All tested compilers PASS (tested {len(self.tested_versions)} versions)")
+            highest_passing_idx = max(
+                idx for idx, ver in enumerate(self.versions) if ver in self.tested_versions
+            )
+            return VersionBisectionResult(
+                first_bad_version=None,
+                last_good_version=self.versions[highest_passing_idx],
+                tested_versions=self.tested_versions,
+                total_tests=len(self.tested_versions),
+                verdict="all_pass",
+                details=details
+            )
+
+        elif failing_idx is not None and passing_idx is None:
+            # All installed compilers fail - bug predates range
+            # Return the lowest (oldest) failing version
+            print(f"All tested compilers FAIL (tested {len(self.tested_versions)} versions)")
+            lowest_failing_idx = min(
+                idx for idx, ver in enumerate(self.versions) if ver in self.tested_versions
+            )
+            return VersionBisectionResult(
+                first_bad_version=self.versions[lowest_failing_idx],
+                last_good_version=None,
+                tested_versions=self.tested_versions,
+                total_tests=len(self.tested_versions),
+                verdict="all_fail",
+                details=details
+            )
 
         # At this point we have both passing_idx and failing_idx
         # Set up bisection boundaries: left = lower index, right = higher index
@@ -363,45 +475,77 @@ class VersionBisector:
         """
         if self.use_docker:
             # Docker-based compilation
-            binary_path, compiler_found, compile_succeeded = self._compile_with_docker(
+            binary_path, compiler_found, compile_succeeded, stderr = self._compile_with_docker(
                 version, source_file, optimization_level
             )
         else:
             # Local compilation (requires version to be installed)
-            binary_path, compiler_found, compile_succeeded = self._compile_local(
+            binary_path, compiler_found, compile_succeeded, stderr = self._compile_local(
                 version, source_file, optimization_level
             )
 
         if not compiler_found:
-            # Compiler not installed - skip this version entirely
+            # Compiler not installed, Docker failure, or non-ICE compilation error
             # Do NOT add to tested_versions, as we didn't actually test it
+
+            # Distinguish Docker infrastructure failures from missing compiler
+            is_docker_error = stderr and stderr.startswith("DOCKER_ERROR:")
+
             details[version] = {
-                'passes': None,  # None = skipped (compiler not found)
+                'passes': None,  # None = skipped (compiler not found or incompatible)
                 'compile_failed': False,
                 'binary_path': None,
-                'skipped': True
+                'skipped': True,
+                'skip_reason': 'docker_failure' if is_docker_error else 'compiler_not_found',
+                'stderr': stderr if stderr else None  # Log reason for skip (if available)
             }
             return None  # Return None to indicate "skip", not "fail"
 
         if not compile_succeeded:
-            # Compiler found but compilation failed (ICE, backend crash, etc.)
-            # This is a compiler bug manifestation - treat as test FAILURE
-            # Add to tested_versions since we actually tested this compiler
-            self.tested_versions.append(version)
-            details[version] = {
-                'passes': False,  # False = test failed (compilation failure is a bug)
-                'compile_failed': True,
-                'binary_path': None,
-                'skipped': False
-            }
-            return False  # Compilation failure = test failure
+            # Compiler found but compilation failed
+            # Distinguish ICE (compiler bug) from diagnostic errors (incompatible code)
+
+            is_diagnostic_error = stderr and stderr.startswith("DIAGNOSTIC_ERROR:")
+
+            if is_diagnostic_error:
+                # Diagnostic error (e.g., -Werror, unsupported feature)
+                # NOT the optimizer bug we're looking for - SKIP this version
+                # Do NOT add to tested_versions (we're skipping, not testing)
+                details[version] = {
+                    'passes': None,
+                    'compile_failed': True,
+                    'compile_error_type': 'diagnostic',
+                    'binary_path': None,
+                    'skipped': True,
+                    'stderr': stderr.replace("DIAGNOSTIC_ERROR: ", "", 1)  # Remove marker
+                }
+                return None  # Skip (not the bug we're looking for)
+            else:
+                # ICE is a compiler bug manifestation - treat as test FAILURE
+                # Add to tested_versions since we actually tested this compiler
+                self.tested_versions.append(version)
+                details[version] = {
+                    'passes': False,  # False = test failed (ICE is a compiler bug)
+                    'compile_failed': True,
+                    'compile_error_type': 'ICE',
+                    'binary_path': None,
+                    'skipped': False,
+                    'stderr': stderr  # Store stderr for debugging (ICE details)
+                }
+                return False  # Compilation failure (ICE) = test failure
 
         # Compiler found and compilation succeeded - add to tested_versions
         self.tested_versions.append(version)
 
         # Run test function
         try:
-            passes = test_func(version, binary_path)
+            # For Docker-compiled binaries, we need to run the test inside Docker too
+            # to avoid architecture mismatch (e.g., x86_64 binary on ARM64 host)
+            if self.use_docker:
+                passes = self._run_test_in_docker(version, binary_path, test_func)
+            else:
+                passes = test_func(version, binary_path)
+
             details[version] = {
                 'passes': passes,
                 'compile_failed': False,
@@ -422,7 +566,7 @@ class VersionBisector:
         version: str,
         source_file: str,
         optimization_level: str
-    ) -> Tuple[Optional[str], bool, bool]:
+    ) -> Tuple[Optional[str], bool, bool, Optional[str]]:
         """
         Compile with locally installed compiler.
 
@@ -435,10 +579,11 @@ class VersionBisector:
             optimization_level: Optimization level
 
         Returns:
-            Tuple of (binary_path, compiler_found, compile_succeeded):
+            Tuple of (binary_path, compiler_found, compile_succeeded, stderr):
             - binary_path: Path to compiled binary if successful, None otherwise
             - compiler_found: True if compiler binary exists on system
             - compile_succeeded: True if compilation succeeded (only meaningful if compiler_found)
+            - stderr: Compilation stderr (for logging non-ICE errors)
         """
         # Try to find versioned clang
         # CRITICAL: Do NOT fall back to plain "clang" - that would substitute
@@ -459,7 +604,7 @@ class VersionBisector:
             # Specific version not found - skip this version
             # Do NOT fall back to plain "clang" (which could be any version)
             print(f"Warning: clang-{version} not found on system, skipping")
-            return (None, False, False)
+            return (None, False, False, None)
 
         binary_path = os.path.join(self.work_dir, f"test_{version.replace('.', '_')}")
 
@@ -489,24 +634,29 @@ class VersionBisector:
             if is_ice:
                 # ICE is a compiler bug - treat as test FAILURE
                 print(f"ICE detected in {version}: {result.stderr[:200]}")
-                return (None, True, False)
+                return (None, True, False, result.stderr)
             else:
-                # Normal diagnostic error (e.g., unsupported language feature)
-                # Older compilers legitimately reject newer features
-                # Skip this version rather than marking it as bad
-                print(f"Compilation error in {version} (not ICE, skipping): {result.stderr[:100]}")
-                return (None, False, False)
+                # Normal diagnostic error (e.g., -Werror, new warning, language feature gap)
+                # This could be a front-end regression (new -Werror default) or legitimate
+                # incompatibility (older compiler rejecting newer C features).
+                # Mark compiler_found=True but with DIAGNOSTIC_ERROR prefix so caller can
+                # distinguish from "compiler not installed" and log appropriately.
+                print(f"Compile error in {version} (diagnostic, skipping): {result.stderr[:100]}")
+                error_msg = f"DIAGNOSTIC_ERROR: {result.stderr}"
+                return (None, True, False, error_msg)
 
-        return (binary_path, True, True)
+        return (binary_path, True, True, None)
 
     def _compile_with_docker(
         self,
         version: str,
         source_file: str,
         optimization_level: str
-    ) -> Tuple[Optional[str], bool, bool]:
+    ) -> Tuple[Optional[str], bool, bool, Optional[str]]:
         """
         Compile using Docker container with specific LLVM version.
+
+        Uses pre-built silkeh/clang images from Docker Hub.
 
         Args:
             version: LLVM version (e.g., "17.0.3")
@@ -514,70 +664,216 @@ class VersionBisector:
             optimization_level: Optimization level
 
         Returns:
-            Tuple of (binary_path, compiler_found, compile_succeeded):
+            Tuple of (binary_path, compiler_found, compile_succeeded, stderr):
             - binary_path: Path to compiled binary if successful, None otherwise
             - compiler_found: True if Docker image exists
             - compile_succeeded: True if compilation succeeded
+            - stderr: Compilation stderr (for logging errors)
         """
-        # Docker image name (would need to be built/pulled)
-        image = f"trace2pass/llvm-{version}"
+        # Use pre-built silkeh/clang images
+        # Extract major version (17.0.3 -> 17)
+        major_version = version.split('.')[0]
+        image = f"silkeh/clang:{major_version}"
 
         binary_path = os.path.join(self.work_dir, f"test_{version.replace('.', '_')}")
 
-        # Copy source to temp location accessible by Docker
-        temp_source = os.path.join(self.work_dir, "source.c")
-        shutil.copy(source_file, temp_source)
+        # Get absolute paths for Docker volumes
+        source_abs = os.path.abspath(source_file)
+        source_dir = os.path.dirname(source_abs)
+        source_name = os.path.basename(source_abs)
+        work_dir_abs = os.path.abspath(self.work_dir)
 
-        # Run Docker container to compile
-        result = subprocess.run(
-            [
-                "docker", "run", "--rm",
-                "-v", f"{self.work_dir}:/work",
-                image,
-                "clang", optimization_level, "/work/source.c", "-o", "/work/output"
-            ],
-            capture_output=True,
-            text=True
-        )
+        try:
+            # Check if image is available, pull if not
+            check_result = subprocess.run(
+                ["docker", "image", "inspect", image],
+                capture_output=True,
+                timeout=5
+            )
+
+            if check_result.returncode != 0:
+                # Image not found, try to pull
+                print(f"  Pulling Docker image {image}...")
+                pull_result = subprocess.run(
+                    ["docker", "pull", image],
+                    capture_output=True,
+                    timeout=300  # 5 minute timeout for pull
+                )
+                if pull_result.returncode != 0:
+                    print(f"  Failed to pull {image}, skipping version {version}")
+                    stderr_preview = pull_result.stderr[:200] if pull_result.stderr else "Unknown error"
+                    error_msg = f"DOCKER_ERROR: Failed to pull image {image}: {stderr_preview}"
+                    return (None, False, False, error_msg)
+
+            # Run Docker container to compile
+            # Mount source directory (read-only) and work directory (read-write)
+            # Use --platform linux/amd64 to ensure x86_64 even on ARM64 hosts
+            result = subprocess.run(
+                [
+                    "docker", "run", "--rm",
+                    "--platform", "linux/amd64",  # Force x86_64 (works on ARM64 via Rosetta)
+                    "-v", f"{source_dir}:/src:ro",
+                    "-v", f"{work_dir_abs}:/work",
+                    image,
+                    "clang", optimization_level, f"/src/{source_name}", "-o", "/work/output"
+                ],
+                capture_output=True,
+                text=True,
+                timeout=60  # 1 minute timeout for compilation
+            )
+        except FileNotFoundError as e:
+            # Docker not installed or not in PATH
+            print(f"  Docker not found on system, skipping version {version}")
+            print("  Install Docker to enable multi-version bisection")
+            error_msg = f"DOCKER_ERROR: Docker not found on system ({str(e)})"
+            return (None, False, False, error_msg)
+        except subprocess.TimeoutExpired as e:
+            # Docker command timed out
+            print(f"  Docker timeout for version {version}: {e}")
+            error_msg = f"DOCKER_ERROR: Docker command timed out ({str(e)})"
+            return (None, False, False, error_msg)
+        except subprocess.CalledProcessError as e:
+            # Docker command failed unexpectedly
+            print(f"  Docker command failed for version {version}: {e}")
+            error_msg = f"DOCKER_ERROR: Docker command failed ({str(e)})"
+            return (None, False, False, error_msg)
 
         if result.returncode != 0:
-            # Check if error was due to missing image or compilation failure
-            if "Unable to find image" in result.stderr or "No such image" in result.stderr:
-                print(f"Docker image {image} not found, skipping version {version}")
-                return (None, False, False)
+            # Compilation failed
+            # Distinguish ICE from normal diagnostic errors
+            ice_markers = [
+                "PLEASE submit a bug report",
+                "Internal compiler error",
+                "internal compiler error",
+                "Assertion failed",
+                "Assertion `",
+                "Stack dump:",
+                "UNREACHABLE executed",
+            ]
+
+            is_ice = any(marker in result.stderr for marker in ice_markers)
+
+            if is_ice:
+                # ICE is a compiler bug - treat as test FAILURE
+                print(f"  ICE detected in {version}: {result.stderr[:200]}")
+                return (None, True, False, result.stderr)
             else:
-                # Image exists but compilation failed
-                # Distinguish ICE from normal diagnostic errors
-                ice_markers = [
-                    "PLEASE submit a bug report",
-                    "Internal compiler error",
-                    "internal compiler error",
-                    "Assertion failed",
-                    "Assertion `",
-                    "Stack dump:",
-                    "UNREACHABLE executed",
-                ]
-
-                is_ice = any(marker in result.stderr for marker in ice_markers)
-
-                if is_ice:
-                    # ICE is a compiler bug
-                    print(f"ICE detected in {version}: {result.stderr[:200]}")
-                    return (None, True, False)
-                else:
-                    # Normal diagnostic - skip
-                    print(f"Compilation error in {version} (not ICE, skipping): {result.stderr[:100]}")
-                    return (None, False, False)
+                # Normal diagnostic error (e.g., -Werror, language feature gap)
+                # This is NOT the optimizer bug we're looking for, but compiler WAS found
+                # Mark as compiler_found=True but with special error marker so caller can distinguish
+                # from "compiler not installed" case
+                print(f"  Compile error in {version} (diagnostic, skipping): {result.stderr[:100]}")
+                # Return with a marker in stderr to indicate this is a compile-time rejection
+                error_msg = f"DIAGNOSTIC_ERROR: {result.stderr}"
+                return (None, True, False, error_msg)
 
         # Move output to final location
         output_path = os.path.join(self.work_dir, "output")
         if os.path.exists(output_path):
             shutil.move(output_path, binary_path)
-            return (binary_path, True, True)
+            return (binary_path, True, True, None)
 
         # Compilation succeeded but no output file?
-        print(f"Warning: Docker compilation succeeded but no output file found")
-        return (None, True, False)
+        # This is a Docker infrastructure issue (volume permissions, etc.), not a compiler bug
+        print(f"  Warning: Docker compilation succeeded but no output file found")
+        error_msg = "DOCKER_ERROR: No output file generated (check volume permissions)"
+        return (None, False, False, error_msg)
+
+    def _run_test_in_docker(
+        self,
+        version: str,
+        binary_path: str,
+        test_func: Callable[[str, str], bool]
+    ) -> bool:
+        """
+        Run test inside Docker container to handle architecture mismatch.
+
+        When Docker compiles for x86_64 but host is ARM64, we need to run
+        the binary inside Docker too. This method creates a wrapper script
+        that executes the binary in the same silkeh/clang image used for
+        compilation, ensuring runtime library compatibility.
+
+        The wrapper script:
+        - Uses the same Docker image as compilation (silkeh/clang:<major>)
+        - Forwards all command-line arguments to the binary
+        - Passes stdin/stdout/stderr through transparently
+        - Returns the binary's exit code
+
+        This works transparently with create_test_function() and most custom
+        test functions.
+
+        Args:
+            version: Compiler version (e.g., "17.0.6")
+            binary_path: Path to compiled binary
+            test_func: Test function (receives wrapper script path)
+
+        Returns:
+            True if test passes, False if fails
+        """
+        # Make binary executable
+        os.chmod(binary_path, 0o755)
+
+        # Get absolute paths for Docker
+        binary_abs = os.path.abspath(binary_path)
+        binary_dir = os.path.dirname(binary_abs)
+        binary_name = os.path.basename(binary_abs)
+
+        # Extract major version for Docker image (e.g., "17.0.6" -> "17")
+        major_version = version.split('.')[0]
+        image = f"silkeh/clang:{major_version}"
+
+        # Create a wrapper script that test_func can call
+        # This wrapper will execute the binary inside Docker when invoked
+        wrapper_path = os.path.join(self.work_dir, f"docker_wrapper_{version.replace('.', '_')}.sh")
+
+        with open(wrapper_path, 'w') as f:
+            f.write(f"""#!/bin/bash
+# Wrapper script for Docker execution
+# Passes stdin, stdout, stderr, arguments, and exitcode through Docker container
+# Uses same image as compilation to ensure runtime library compatibility
+#
+# NOTE: The -i flag keeps stdin open, allowing the calling process to pipe input.
+# If your test uses file redirection ({binary_name} < input.txt), the input file must be
+# in the same directory as the binary to be accessible via the mounted volume.
+# For programmatic input, prefer: subprocess.run([binary], stdin=open('file'))
+
+# Use -i to keep stdin open (works whether stdin is provided or not)
+docker run --rm \\
+    --platform linux/amd64 \\
+    -i \\
+    -v "{binary_dir}:/bin_dir:ro" \\
+    {image} \\
+    /bin_dir/{binary_name} "$@"
+
+exit $?
+""")
+
+        os.chmod(wrapper_path, 0o755)
+
+        # Call test_func with the wrapper - it will execute inside Docker
+        # when test_func runs it
+        try:
+            return test_func(version, wrapper_path)
+        except Exception as e:
+            print(f"Error running test_func with Docker wrapper: {e}")
+            return False
+
+    def _check_docker_available(self) -> bool:
+        """
+        Check if Docker is available on the system.
+
+        Returns:
+            True if Docker is installed and accessible, False otherwise
+        """
+        try:
+            result = subprocess.run(
+                ["docker", "--version"],
+                capture_output=True,
+                timeout=5
+            )
+            return result.returncode == 0
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            return False
 
     def cleanup(self):
         """Clean up temporary files."""

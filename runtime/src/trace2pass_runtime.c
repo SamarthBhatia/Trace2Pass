@@ -16,38 +16,106 @@
 #include <dlfcn.h>
 #endif
 
+// Compiler detection using preprocessor macros
+// This captures the compiler that built the runtime library
+#if defined(__clang__)
+    #define TRACE2PASS_COMPILER_NAME "clang"
+    #define TRACE2PASS_COMPILER_VERSION __clang_version__
+#elif defined(__GNUC__)
+    #define __TRACE2PASS_STRINGIFY_IMPL(x) #x
+    #define __TRACE2PASS_STRINGIFY(x) __TRACE2PASS_STRINGIFY_IMPL(x)
+    #define TRACE2PASS_COMPILER_NAME "gcc"
+    #define TRACE2PASS_COMPILER_VERSION \
+        __TRACE2PASS_STRINGIFY(__GNUC__) "." \
+        __TRACE2PASS_STRINGIFY(__GNUC_MINOR__) "." \
+        __TRACE2PASS_STRINGIFY(__GNUC_PATCHLEVEL__)
+#else
+    #define TRACE2PASS_COMPILER_NAME "unknown"
+    #define TRACE2PASS_COMPILER_VERSION "unknown"
+#endif
+
+// Target architecture detection
+#if defined(__x86_64__) || defined(_M_X64)
+    #define TRACE2PASS_TARGET_ARCH "x86_64"
+#elif defined(__i386__) || defined(_M_IX86)
+    #define TRACE2PASS_TARGET_ARCH "i386"
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    #define TRACE2PASS_TARGET_ARCH "aarch64"
+#elif defined(__arm__) || defined(_M_ARM)
+    #define TRACE2PASS_TARGET_ARCH "arm"
+#else
+    #define TRACE2PASS_TARGET_ARCH "unknown"
+#endif
+
 // Configuration
 static double sample_rate = 0.01;  // Default: 1%
 static FILE* output_file = NULL;
 static char* collector_url = NULL;  // Collector API endpoint (optional)
+static int json_output = 0;  // If 1, output JSON to stderr instead of plain text
 static pthread_mutex_t output_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-// Bloom filter for deduplication
-#define BLOOM_SIZE 1024
-static __thread uint64_t seen_reports[BLOOM_SIZE] = {0};
+// Build metadata injected by instrumentor (extern declarations)
+// These globals are created by the LLVM pass in the instrumented binary
+// Provide weak default definitions for standalone compilation (e.g., tests)
+__attribute__((weak)) const char __trace2pass_opt_level[] = "unknown";
+__attribute__((weak)) const char __trace2pass_compile_flags[] = "";
 
-// Helper: Simple hash function
-static uint64_t hash_report(void* pc, const char* type) {
+// Build metadata storage (populated in trace2pass_init)
+static const char* build_opt_level = NULL;
+static const char* build_compile_flags = NULL;
+
+// Bloom filter for deduplication (shared across threads with atomic operations)
+// CRITICAL: Must be shared, not thread-local, to deduplicate across all threads
+#define BLOOM_SIZE 1024
+static uint64_t seen_reports[BLOOM_SIZE] = {0};
+
+// Helper: Hash function including location metadata for deduplication
+// CRITICAL: Uses file:line:function for dedup key, not just PC, because:
+// - Inlined functions have same PC but different source locations
+// - Optimizations can move code, changing PC while source location stays same
+// - Real location data enables accurate collector deduplication
+static uint64_t hash_report(void* pc, const char* type, const char* file, int line, const char* function) {
     uint64_t h = (uint64_t)pc;
+
+    // Mix in type
     const char* p = type;
     while (*p) {
         h = h * 31 + *p++;
     }
+
+    // Mix in file path
+    if (file) {
+        p = file;
+        while (*p) {
+            h = h * 31 + *p++;
+        }
+    }
+
+    // Mix in line number
+    h = h * 31 + (uint64_t)line;
+
+    // Mix in function name
+    if (function) {
+        p = function;
+        while (*p) {
+            h = h * 31 + *p++;
+        }
+    }
+
     return h;
 }
 
-// Helper: Bloom filter check
-static int bloom_contains(uint64_t* bloom, uint64_t hash) {
+// Helper: Bloom filter check-and-insert (atomic, thread-safe)
+// Returns 1 if the item was already present, 0 if newly inserted
+static int bloom_check_and_insert(uint64_t* bloom, uint64_t hash) {
     size_t idx = (hash >> 6) % BLOOM_SIZE;
     uint64_t bit = 1ULL << (hash & 63);
-    return (bloom[idx] & bit) != 0;
-}
 
-// Helper: Bloom filter insert
-static void bloom_insert(uint64_t* bloom, uint64_t hash) {
-    size_t idx = (hash >> 6) % BLOOM_SIZE;
-    uint64_t bit = 1ULL << (hash & 63);
-    bloom[idx] |= bit;
+    // Atomically OR the bit and return the old value
+    // If the bit was already set, the old value will have the bit set
+    uint64_t old_value = __atomic_fetch_or(&bloom[idx], bit, __ATOMIC_SEQ_CST);
+
+    return (old_value & bit) != 0;  // Returns 1 if already present
 }
 
 // Helper: Format timestamp
@@ -86,7 +154,17 @@ void trace2pass_init(void) {
         trace2pass_set_collector_url(collector_env);
     }
 
-    fprintf(get_output_file(), "Trace2Pass: Runtime initialized (sample_rate=%.3f", sample_rate);
+    const char* json_env = getenv("TRACE2PASS_JSON_OUTPUT");
+    if (json_env && (strcmp(json_env, "1") == 0 || strcmp(json_env, "true") == 0)) {
+        json_output = 1;
+    }
+
+    // Read build metadata injected by instrumentor
+    // Weak symbols provide defaults ("unknown", "") for non-instrumented code
+    build_opt_level = __trace2pass_opt_level;
+    build_compile_flags = __trace2pass_compile_flags;
+
+    fprintf(get_output_file(), "Trace2Pass: Runtime initialized (sample_rate=%.3f, opt_level=%s", sample_rate, build_opt_level);
     if (collector_url) {
         fprintf(get_output_file(), ", collector=%s", collector_url);
     }
@@ -117,14 +195,158 @@ void trace2pass_set_output_file(const char* path) {
 }
 
 void trace2pass_set_collector_url(const char* url) {
-    if (collector_url) {
-        free(collector_url);
-    }
     if (url) {
-        collector_url = strdup(url);
+        // CRITICAL: Auto-append /api/v1/report endpoint if not present in path
+        // The runtime needs the full POST endpoint, not just the base URL
+        // Must handle query strings, fragments, and trailing slashes correctly
+        const char* endpoint = "/api/v1/report";
+        size_t url_len = strlen(url);
+        size_t endpoint_len = strlen(endpoint);
+
+        // Find query string or fragment start to check only the path portion
+        const char* query_start = strchr(url, '?');
+        const char* fragment_start = strchr(url, '#');
+
+        // Determine where the path ends (before query string or fragment)
+        size_t path_end = url_len;
+        if (query_start) {
+            path_end = query_start - url;
+        }
+        if (fragment_start && (size_t)(fragment_start - url) < path_end) {
+            path_end = fragment_start - url;
+        }
+
+        // Check if /api/v1/report appears at a path-segment boundary
+        // CRITICAL: Must verify BOTH prefix and suffix boundaries to avoid false matches.
+        //
+        // The endpoint "/api/v1/report" must:
+        // 1. Start at a path-segment boundary (preceded by '/' or start of path portion)
+        // 2. End at a path-segment boundary (followed by '/', '?', '#', or end of string)
+        //
+        // Valid URLs (will be detected):
+        // - https://host/api/v1/report → path="/api/v1/report" (prefix='', suffix=end)
+        // - https://host/api/v1/report/ → path="/api/v1/report/" (prefix='', suffix='/')
+        // - https://host/api/v1/report/v2 → path="/api/v1/report/v2" (prefix='', suffix='/')
+        // - https://host/prefix/api/v1/report → path="/prefix/api/v1/report" (prefix='/', suffix=end)
+        //
+        // Invalid URLs (will NOT match - different endpoints):
+        // - https://host/api/v1/reporting → path="/api/v1/reporting" (suffix='i')
+        // - https://host/api/v1/report_v2 → path="/api/v1/report_v2" (suffix='_')
+        // - https://host/foo/api/v1/reportbackup → path="/foo/api/v1/reportbackup" (suffix='b')
+        int has_endpoint = 0;
+        if (path_end >= endpoint_len) {
+            // Find the start of the path portion (after scheme://host)
+            // Look for "://" and then find the next '/' which starts the path
+            const char* scheme_end = strstr(url, "://");
+            const char* path_start = url;  // Default to start of URL
+
+            if (scheme_end != NULL) {
+                // Find first '/' after "://" (this is the start of the path)
+                const char* slash_after_host = strchr(scheme_end + 3, '/');
+                if (slash_after_host != NULL && (size_t)(slash_after_host - url) < path_end) {
+                    path_start = slash_after_host;
+                }
+            }
+
+            // Extract just the path portion for analysis
+            size_t path_portion_len = path_end - (path_start - url);
+            if (path_portion_len >= endpoint_len) {
+                char* path_portion = (char*)malloc(path_portion_len + 1);
+                if (path_portion) {
+                    memcpy(path_portion, path_start, path_portion_len);
+                    path_portion[path_portion_len] = '\0';
+
+                    // Search for ALL occurrences of endpoint in the path portion
+                    // We need to check each occurrence because the first match might be
+                    // invalid (e.g., /api/v1/reportbackup) but a later occurrence might be valid
+                    char* search_pos = path_portion;
+                    while (search_pos != NULL && !has_endpoint) {
+                        char* found = strstr(search_pos, endpoint);
+                        if (found != NULL) {
+                            size_t pos_before = found - path_portion;
+                            size_t pos_after = pos_before + endpoint_len;
+
+                            // Check boundaries within the path portion
+                            // Since endpoint starts with '/', the match includes that '/' character
+                            // Prefix: ensure no double-slash (previous char should not be '/')
+                            // Suffix: must be at end OR followed by '/' (start of next segment)
+                            int valid_prefix = (pos_before == 0 || path_portion[pos_before - 1] != '/');
+                            int valid_suffix = (pos_after == path_portion_len || path_portion[pos_after] == '/');
+
+                            if (valid_prefix && valid_suffix) {
+                                has_endpoint = 1;
+                            } else {
+                                // This occurrence doesn't match boundaries, keep searching
+                                search_pos = found + 1;
+                            }
+                        } else {
+                            search_pos = NULL;  // No more occurrences
+                        }
+                    }
+
+                    free(path_portion);
+                }
+            }
+        }
+
+        if (has_endpoint) {
+            // URL already contains the endpoint, use as-is
+            if (collector_url) free(collector_url);
+            collector_url = strdup(url);
+            fprintf(stderr, "ℹ️  Trace2Pass: Collector URL configured as: %s\n", collector_url);
+        } else {
+            // Check if path contains "report" but doesn't match our endpoint
+            // This catches invalid URLs like /fooapi/v1/report or /api/v1/reporting
+            // We reject these instead of auto-appending (leave collector_url unchanged)
+            if (strstr(url, "report")) {
+                fprintf(stderr, "⚠️  Trace2Pass: Invalid collector URL - contains 'report' but not at correct path boundary: %s\n", url);
+                fprintf(stderr, "   Expected endpoint: %s\n", endpoint);
+                fprintf(stderr, "   Previous collector URL unchanged.\n");
+                return;  // Don't modify collector_url
+            }
+
+            // Auto-append the endpoint before any query string or fragment
+            // CRITICAL: Always allocate url_len + endpoint_len + 1 bytes
+            // Adjust what we copy, not the allocation size
+            int has_trailing_slash = (path_end > 0 && url[path_end - 1] == '/');
+
+            // Allocate: url without trailing slash + endpoint + query/fragment + null
+            size_t total_len = url_len + endpoint_len + 1;
+
+            if (collector_url) free(collector_url);
+            collector_url = (char*)malloc(total_len);
+            if (collector_url) {
+                char* pos = collector_url;
+
+                // Copy path (excluding trailing slash if present)
+                size_t copy_len = has_trailing_slash ? path_end - 1 : path_end;
+                memcpy(pos, url, copy_len);
+                pos += copy_len;
+
+                // Add endpoint
+                memcpy(pos, endpoint, endpoint_len);
+                pos += endpoint_len;
+
+                // Copy query string and/or fragment if present
+                if (path_end < url_len) {
+                    size_t suffix_len = url_len - path_end;
+                    memcpy(pos, url + path_end, suffix_len);
+                    pos += suffix_len;
+                }
+
+                *pos = '\0';
+
+                fprintf(stderr, "ℹ️  Trace2Pass: Collector URL configured as: %s\n", collector_url);
+                fprintf(stderr, "   (Auto-appended /api/v1/report endpoint)\n");
+            }
+        }
     } else {
         collector_url = NULL;
     }
+}
+
+const char* trace2pass_get_collector_url(void) {
+    return collector_url;
 }
 
 // JSON serialization helper - properly escapes all JSON control characters
@@ -436,262 +658,341 @@ static void generate_report_id(const char* callsite_id, const char* timestamp, c
 
 // Arithmetic Checks
 
-void trace2pass_report_overflow(void* pc, const char* expr,
-                                 long long a, long long b) {
-    uint64_t hash = hash_report(pc, "overflow");
-    if (bloom_contains(seen_reports, hash)) return;
-    bloom_insert(seen_reports, hash);
+void trace2pass_report_overflow(void* pc, const char* file, int line, const char* function,
+                                 const char* expr, long long a, long long b) {
+    // Use real location metadata in dedup hash
+    uint64_t hash = hash_report(pc, "overflow", file, line, function);
+    if (bloom_check_and_insert(seen_reports, hash)) return;  // Already reported
 
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
 
+    char callsite_id[32];
+    generate_callsite_id(pc, "overflow", callsite_id, sizeof(callsite_id));
+
+    char report_id[64];
+    generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+    // Escape strings for JSON
+    char file_escaped[512];
+    json_escape_string(file ? file : "unknown", file_escaped, sizeof(file_escaped));
+
+    char function_escaped[256];
+    json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
+
+    char expr_escaped[256];
+    json_escape_string(expr, expr_escaped, sizeof(expr_escaped));
+
+    char json[2048];
+    snprintf(json, sizeof(json),
+        "{"
+        "\"report_id\":\"%s\","
+        "\"timestamp\":\"%s\","
+        "\"check_type\":\"arithmetic_overflow\","
+        "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
+        "\"pc\":\"0x%llx\","
+        "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
+        "\"check_details\":{\"expr\":\"%s\",\"operands\":[%lld,%lld]}"
+        "}",
+        report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
+        build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
+        expr_escaped, (long long)a, (long long)b);
+
     // Send to Collector if configured
     if (collector_url) {
-        char callsite_id[32];
-        generate_callsite_id(pc, "overflow", callsite_id, sizeof(callsite_id));
-
-        char report_id[64];
-        generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
-
-        char expr_escaped[256];
-        json_escape_string(expr, expr_escaped, sizeof(expr_escaped));
-
-        char json[2048];
-        snprintf(json, sizeof(json),
-            "{"
-            "\"report_id\":\"%s\","
-            "\"timestamp\":\"%s\","
-            "\"check_type\":\"arithmetic_overflow\","
-            "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
-            "\"pc\":\"0x%llx\","
-            "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
-            "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
-            "\"check_details\":{\"expr\":\"%s\",\"operands\":[%lld,%lld]}"
-            "}",
-            report_id, timestamp, callsite_id, (unsigned long long)pc,
-            expr_escaped, (long long)a, (long long)b);
-
         http_post_json(collector_url, json);
     }
 
-    // Also log to stderr/file for debugging
+    // Log to stderr/file
     pthread_mutex_lock(&output_mutex);
     FILE* out = get_output_file();
-    fprintf(out, "\n=== Trace2Pass Report ===\n");
-    fprintf(out, "Timestamp: %s\n", timestamp);
-    fprintf(out, "Type: arithmetic_overflow\n");
-    fprintf(out, "PC: %p\n", pc);
-    fprintf(out, "Expression: %s\n", expr);
-    fprintf(out, "Operands: %lld, %lld\n", a, b);
-    fprintf(out, "========================\n\n");
+
+    if (json_output) {
+        // Output JSON format when TRACE2PASS_JSON_OUTPUT=1
+        fprintf(out, "%s\n", json);
+    } else {
+        // Output plain text format for human readability
+        fprintf(out, "\n=== Trace2Pass Report ===\n");
+        fprintf(out, "Timestamp: %s\n", timestamp);
+        fprintf(out, "Type: arithmetic_overflow\n");
+        fprintf(out, "Location: %s:%d in %s\n", file ? file : "unknown", line, function ? function : "unknown");
+        fprintf(out, "PC: %p\n", pc);
+        fprintf(out, "Expression: %s\n", expr);
+        fprintf(out, "Operands: %lld, %lld\n", a, b);
+        fprintf(out, "========================\n\n");
+    }
+
     fflush(out);
     pthread_mutex_unlock(&output_mutex);
 }
 
 // Control Flow Checks
 
-void trace2pass_report_unreachable(void* pc, const char* message) {
-    uint64_t hash = hash_report(pc, "unreachable");
-    if (bloom_contains(seen_reports, hash)) return;
-    bloom_insert(seen_reports, hash);
+void trace2pass_report_unreachable(void* pc, const char* file, int line, const char* function,
+                                     const char* message) {
+    uint64_t hash = hash_report(pc, "unreachable", file, line, function);
+    if (bloom_check_and_insert(seen_reports, hash)) return;  // Already reported
 
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
 
+    char callsite_id[32];
+    generate_callsite_id(pc, "unreachable", callsite_id, sizeof(callsite_id));
+
+    char report_id[64];
+    generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+    char file_escaped[512];
+    json_escape_string(file ? file : "unknown", file_escaped, sizeof(file_escaped));
+
+    char function_escaped[256];
+    json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
+
+    char msg_escaped[256];
+    json_escape_string(message, msg_escaped, sizeof(msg_escaped));
+
+    char json[2048];
+    snprintf(json, sizeof(json),
+        "{"
+        "\"report_id\":\"%s\","
+        "\"timestamp\":\"%s\","
+        "\"check_type\":\"unreachable_code_executed\","
+        "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
+        "\"pc\":\"0x%llx\","
+        "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
+        "\"check_details\":{\"message\":\"%s\"}"
+        "}",
+        report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
+        build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
+        msg_escaped);
+
     // Send to Collector if configured
     if (collector_url) {
-        char callsite_id[32];
-        generate_callsite_id(pc, "unreachable", callsite_id, sizeof(callsite_id));
-
-        char report_id[64];
-        generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
-
-        char msg_escaped[256];
-        json_escape_string(message, msg_escaped, sizeof(msg_escaped));
-
-        char json[2048];
-        snprintf(json, sizeof(json),
-            "{"
-            "\"report_id\":\"%s\","
-            "\"timestamp\":\"%s\","
-            "\"check_type\":\"unreachable_code_executed\","
-            "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
-            "\"pc\":\"0x%llx\","
-            "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
-            "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
-            "\"check_details\":{\"message\":\"%s\"}"
-            "}",
-            report_id, timestamp, callsite_id, (unsigned long long)pc, msg_escaped);
-
         http_post_json(collector_url, json);
     }
 
-    // Also log to stderr/file for debugging
+    // Log to stderr/file
     pthread_mutex_lock(&output_mutex);
     FILE* out = get_output_file();
-    fprintf(out, "\n=== Trace2Pass Report ===\n");
-    fprintf(out, "Timestamp: %s\n", timestamp);
-    fprintf(out, "Type: unreachable_code_executed\n");
-    fprintf(out, "PC: %p\n", pc);
-    fprintf(out, "Message: %s\n", message);
-    fprintf(out, "========================\n\n");
+
+    if (json_output) {
+        // Output JSON format when TRACE2PASS_JSON_OUTPUT=1
+        fprintf(out, "%s\n", json);
+    } else {
+        // Output plain text format for human readability
+        fprintf(out, "\n=== Trace2Pass Report ===\n");
+        fprintf(out, "Timestamp: %s\n", timestamp);
+        fprintf(out, "Type: unreachable_code_executed\n");
+        fprintf(out, "Location: %s:%d in %s\n", file ? file : "unknown", line, function ? function : "unknown");
+        fprintf(out, "PC: %p\n", pc);
+        fprintf(out, "Message: %s\n", message);
+        fprintf(out, "========================\n\n");
+    }
+
     fflush(out);
     pthread_mutex_unlock(&output_mutex);
 }
 
 // Memory Checks
 
-void trace2pass_report_bounds_violation(void* pc, void* ptr,
-                                         size_t offset, size_t size) {
-    uint64_t hash = hash_report(pc, "bounds_violation");
-    if (bloom_contains(seen_reports, hash)) return;
-    bloom_insert(seen_reports, hash);
+void trace2pass_report_bounds_violation(void* pc, const char* file, int line, const char* function,
+                                         void* ptr, size_t offset, size_t size) {
+    uint64_t hash = hash_report(pc, "bounds_violation", file, line, function);
+    if (bloom_check_and_insert(seen_reports, hash)) return;  // Already reported
 
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
 
+    char callsite_id[32];
+    generate_callsite_id(pc, "bounds", callsite_id, sizeof(callsite_id));
+
+    char report_id[64];
+    generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+    char file_escaped[512];
+    json_escape_string(file ? file : "unknown", file_escaped, sizeof(file_escaped));
+
+    char function_escaped[256];
+    json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
+
+    char json[2048];
+    snprintf(json, sizeof(json),
+        "{"
+        "\"report_id\":\"%s\","
+        "\"timestamp\":\"%s\","
+        "\"check_type\":\"bounds_violation\","
+        "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
+        "\"pc\":\"0x%llx\","
+        "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
+        "\"check_details\":{\"ptr\":\"0x%llx\",\"offset\":%zu,\"size\":%zu}"
+        "}",
+        report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
+        build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
+        (unsigned long long)ptr, offset, size);
+
     // Send to Collector if configured
     if (collector_url) {
-        char callsite_id[32];
-        generate_callsite_id(pc, "bounds", callsite_id, sizeof(callsite_id));
-
-        char report_id[64];
-        generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
-
-        char json[2048];
-        snprintf(json, sizeof(json),
-            "{"
-            "\"report_id\":\"%s\","
-            "\"timestamp\":\"%s\","
-            "\"check_type\":\"bounds_violation\","
-            "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
-            "\"pc\":\"0x%llx\","
-            "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
-            "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
-            "\"check_details\":{\"ptr\":\"0x%llx\",\"offset\":%zu,\"size\":%zu}"
-            "}",
-            report_id, timestamp, callsite_id, (unsigned long long)pc,
-            (unsigned long long)ptr, offset, size);
-
         http_post_json(collector_url, json);
     }
 
-    // Also log to stderr/file for debugging
+    // Log to stderr/file
     pthread_mutex_lock(&output_mutex);
     FILE* out = get_output_file();
-    fprintf(out, "\n=== Trace2Pass Report ===\n");
-    fprintf(out, "Timestamp: %s\n", timestamp);
-    fprintf(out, "Type: bounds_violation\n");
-    fprintf(out, "PC: %p\n", pc);
-    fprintf(out, "Pointer: %p\n", ptr);
-    fprintf(out, "Offset: %zu\n", offset);
-    fprintf(out, "Size: %zu\n", size);
-    fprintf(out, "========================\n\n");
+
+    if (json_output) {
+        // Output JSON format when TRACE2PASS_JSON_OUTPUT=1
+        fprintf(out, "%s\n", json);
+    } else {
+        // Output plain text format for human readability
+        fprintf(out, "\n=== Trace2Pass Report ===\n");
+        fprintf(out, "Timestamp: %s\n", timestamp);
+        fprintf(out, "Type: bounds_violation\n");
+        fprintf(out, "Location: %s:%d in %s\n", file ? file : "unknown", line, function ? function : "unknown");
+        fprintf(out, "PC: %p\n", pc);
+        fprintf(out, "Pointer: %p\n", ptr);
+        fprintf(out, "Offset: %zu\n", offset);
+        fprintf(out, "Size: %zu\n", size);
+        fprintf(out, "========================\n\n");
+    }
+
     fflush(out);
     pthread_mutex_unlock(&output_mutex);
 }
-void trace2pass_report_sign_conversion(void* pc, int64_t original_value,
-                                        uint64_t cast_value, uint32_t src_bits,
-                                        uint32_t dest_bits) {
-    uint64_t hash = hash_report(pc, "sign_conversion");
-    if (bloom_contains(seen_reports, hash)) return;
-    bloom_insert(seen_reports, hash);
+void trace2pass_report_sign_conversion(void* pc, const char* file, int line, const char* function,
+                                        int64_t original_value, uint64_t cast_value,
+                                        uint32_t src_bits, uint32_t dest_bits) {
+    uint64_t hash = hash_report(pc, "sign_conversion", file, line, function);
+    if (bloom_check_and_insert(seen_reports, hash)) return;  // Already reported
 
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
 
+    char callsite_id[32];
+    generate_callsite_id(pc, "sign", callsite_id, sizeof(callsite_id));
+
+    char report_id[64];
+    generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+    char file_escaped[512];
+    json_escape_string(file ? file : "unknown", file_escaped, sizeof(file_escaped));
+
+    char function_escaped[256];
+    json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
+
+    char json[2048];
+    snprintf(json, sizeof(json),
+        "{"
+        "\"report_id\":\"%s\","
+        "\"timestamp\":\"%s\","
+        "\"check_type\":\"sign_conversion\","
+        "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
+        "\"pc\":\"0x%llx\","
+        "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
+        "\"check_details\":{\"original_value\":%lld,\"cast_value\":%llu,\"src_bits\":%u,\"dest_bits\":%u}"
+        "}",
+        report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
+        build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
+        (long long)original_value, (unsigned long long)cast_value, src_bits, dest_bits);
+
     // Send to Collector if configured
     if (collector_url) {
-        char callsite_id[32];
-        generate_callsite_id(pc, "sign", callsite_id, sizeof(callsite_id));
-
-        char report_id[64];
-        generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
-
-        char json[2048];
-        snprintf(json, sizeof(json),
-            "{"
-            "\"report_id\":\"%s\","
-            "\"timestamp\":\"%s\","
-            "\"check_type\":\"sign_conversion\","
-            "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
-            "\"pc\":\"0x%llx\","
-            "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
-            "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
-            "\"check_details\":{\"original_value\":%lld,\"cast_value\":%llu,\"src_bits\":%u,\"dest_bits\":%u}"
-            "}",
-            report_id, timestamp, callsite_id, (unsigned long long)pc,
-            (long long)original_value, (unsigned long long)cast_value, src_bits, dest_bits);
-
         http_post_json(collector_url, json);
     }
 
-    // Also log to stderr/file for debugging
+    // Log to stderr/file
     pthread_mutex_lock(&output_mutex);
     FILE* out = get_output_file();
-    fprintf(out, "\n=== Trace2Pass Report ===\n");
-    fprintf(out, "Timestamp: %s\n", timestamp);
-    fprintf(out, "Type: sign_conversion\n");
-    fprintf(out, "PC: %p\n", pc);
-    fprintf(out, "Original Value (signed i%u): %lld\n", src_bits, (long long)original_value);
-    fprintf(out, "Cast Value (unsigned i%u): %llu (0x%llx)\n", dest_bits,
-            (unsigned long long)cast_value, (unsigned long long)cast_value);
-    fprintf(out, "Note: Negative signed value converted to unsigned\n");
-    fprintf(out, "========================\n\n");
+
+    if (json_output) {
+        // Output JSON format when TRACE2PASS_JSON_OUTPUT=1
+        fprintf(out, "%s\n", json);
+    } else {
+        // Output plain text format for human readability
+        fprintf(out, "\n=== Trace2Pass Report ===\n");
+        fprintf(out, "Timestamp: %s\n", timestamp);
+        fprintf(out, "Type: sign_conversion\n");
+        fprintf(out, "Location: %s:%d in %s\n", file ? file : "unknown", line, function ? function : "unknown");
+        fprintf(out, "PC: %p\n", pc);
+        fprintf(out, "Original Value (signed i%u): %lld\n", src_bits, (long long)original_value);
+        fprintf(out, "Cast Value (unsigned i%u): %llu (0x%llx)\n", dest_bits,
+                (unsigned long long)cast_value, (unsigned long long)cast_value);
+        fprintf(out, "Note: Negative signed value converted to unsigned\n");
+        fprintf(out, "========================\n\n");
+    }
+
     fflush(out);
     pthread_mutex_unlock(&output_mutex);
 }
 
-void trace2pass_report_division_by_zero(void* pc, const char* op_name,
-                                         int64_t dividend, int64_t divisor) {
-    uint64_t hash = hash_report(pc, "division_by_zero");
-    if (bloom_contains(seen_reports, hash)) return;
-    bloom_insert(seen_reports, hash);
+void trace2pass_report_division_by_zero(void* pc, const char* file, int line, const char* function,
+                                         const char* op_name, int64_t dividend, int64_t divisor) {
+    uint64_t hash = hash_report(pc, "division_by_zero", file, line, function);
+    if (bloom_check_and_insert(seen_reports, hash)) return;  // Already reported
 
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
 
+    char callsite_id[32];
+    generate_callsite_id(pc, "divzero", callsite_id, sizeof(callsite_id));
+
+    char report_id[64];
+    generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+    char file_escaped[512];
+    json_escape_string(file ? file : "unknown", file_escaped, sizeof(file_escaped));
+
+    char function_escaped[256];
+    json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
+
+    char op_escaped[64];
+    json_escape_string(op_name, op_escaped, sizeof(op_escaped));
+
+    char json[2048];
+    snprintf(json, sizeof(json),
+        "{"
+        "\"report_id\":\"%s\","
+        "\"timestamp\":\"%s\","
+        "\"check_type\":\"division_by_zero\","
+        "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
+        "\"pc\":\"0x%llx\","
+        "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
+        "\"check_details\":{\"operation\":\"%s\",\"dividend\":%lld,\"divisor\":%lld}"
+        "}",
+        report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
+        build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
+        op_escaped, (long long)dividend, (long long)divisor);
+
     // Send to Collector if configured
     if (collector_url) {
-        char callsite_id[32];
-        generate_callsite_id(pc, "divzero", callsite_id, sizeof(callsite_id));
-
-        char report_id[64];
-        generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
-
-        char op_escaped[64];
-        json_escape_string(op_name, op_escaped, sizeof(op_escaped));
-
-        char json[2048];
-        snprintf(json, sizeof(json),
-            "{"
-            "\"report_id\":\"%s\","
-            "\"timestamp\":\"%s\","
-            "\"check_type\":\"division_by_zero\","
-            "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
-            "\"pc\":\"0x%llx\","
-            "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
-            "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
-            "\"check_details\":{\"operation\":\"%s\",\"dividend\":%lld,\"divisor\":%lld}"
-            "}",
-            report_id, timestamp, callsite_id, (unsigned long long)pc,
-            op_escaped, (long long)dividend, (long long)divisor);
-
         http_post_json(collector_url, json);
     }
 
-    // Also log to stderr/file for debugging
+    // Log to stderr/file
     pthread_mutex_lock(&output_mutex);
     FILE* out = get_output_file();
-    fprintf(out, "\n=== Trace2Pass Report ===\n");
-    fprintf(out, "Timestamp: %s\n", timestamp);
-    fprintf(out, "Type: division_by_zero\n");
-    fprintf(out, "PC: %p\n", pc);
-    fprintf(out, "Operation: %s\n", op_name);
-    fprintf(out, "Dividend: %lld\n", (long long)dividend);
-    fprintf(out, "Divisor: %lld\n", (long long)divisor);
-    fprintf(out, "Note: Division or modulo by zero detected\n");
-    fprintf(out, "========================\n\n");
+
+    if (json_output) {
+        // Output JSON format when TRACE2PASS_JSON_OUTPUT=1
+        fprintf(out, "%s\n", json);
+    } else {
+        // Output plain text format for human readability
+        fprintf(out, "\n=== Trace2Pass Report ===\n");
+        fprintf(out, "Timestamp: %s\n", timestamp);
+        fprintf(out, "Type: division_by_zero\n");
+        fprintf(out, "Location: %s:%d in %s\n", file ? file : "unknown", line, function ? function : "unknown");
+        fprintf(out, "PC: %p\n", pc);
+        fprintf(out, "Operation: %s\n", op_name);
+        fprintf(out, "Dividend: %lld\n", (long long)dividend);
+        fprintf(out, "Divisor: %lld\n", (long long)divisor);
+        fprintf(out, "Note: Division or modulo by zero detected\n");
+        fprintf(out, "========================\n\n");
+    }
+
     fflush(out);
     pthread_mutex_unlock(&output_mutex);
 }
@@ -719,8 +1020,8 @@ static uint64_t hash_string(const char* str) {
     return h;
 }
 
-void trace2pass_check_pure_consistency(void* pc, const char* func_name,
-                                        int64_t arg0, int64_t arg1,
+void trace2pass_check_pure_consistency(void* pc, const char* file, int line, const char* function,
+                                        const char* func_name, int64_t arg0, int64_t arg1,
                                         int64_t result) {
     uint64_t func_hash = hash_string(func_name);
 
@@ -739,58 +1040,73 @@ void trace2pass_check_pure_consistency(void* pc, const char* func_name,
         // We've seen this call before - check consistency
         if (entry->result != result) {
             // Inconsistency detected!
-            uint64_t report_hash = hash_report(pc, "pure_inconsistency");
-            if (bloom_contains(seen_reports, report_hash)) return;
-            bloom_insert(seen_reports, report_hash);
+            uint64_t report_hash = hash_report(pc, "pure_inconsistency", file, line, function);
+            if (bloom_check_and_insert(seen_reports, report_hash)) return;  // Already reported
 
             char timestamp[32];
             get_timestamp(timestamp, sizeof(timestamp));
 
+            char callsite_id[32];
+            generate_callsite_id(pc, "pure", callsite_id, sizeof(callsite_id));
+
+            char report_id[64];
+            generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+            char file_escaped[512];
+            json_escape_string(file ? file : "unknown", file_escaped, sizeof(file_escaped));
+
+            char function_escaped[256];
+            json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
+
+            char func_escaped[128];
+            json_escape_string(func_name, func_escaped, sizeof(func_escaped));
+
+            char json[2048];
+            snprintf(json, sizeof(json),
+                "{"
+                "\"report_id\":\"%s\","
+                "\"timestamp\":\"%s\","
+                "\"check_type\":\"pure_function_inconsistency\","
+                "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
+                "\"pc\":\"0x%llx\","
+                "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
+                "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
+                "\"check_details\":{\"function\":\"%s\",\"arg0\":%lld,\"arg1\":%lld,\"previous_result\":%lld,\"current_result\":%lld}"
+                "}",
+                report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
+                build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
+                func_escaped, (long long)arg0, (long long)arg1,
+                (long long)entry->result, (long long)result);
+
             // Send to Collector if configured
             if (collector_url) {
-                char callsite_id[32];
-                generate_callsite_id(pc, "pure", callsite_id, sizeof(callsite_id));
-
-                char report_id[64];
-                generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
-
-                char func_escaped[128];
-                json_escape_string(func_name, func_escaped, sizeof(func_escaped));
-
-                char json[2048];
-                snprintf(json, sizeof(json),
-                    "{"
-                    "\"report_id\":\"%s\","
-                    "\"timestamp\":\"%s\","
-                    "\"check_type\":\"pure_function_inconsistency\","
-                    "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
-                    "\"pc\":\"0x%llx\","
-                    "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
-                    "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
-                    "\"check_details\":{\"function\":\"%s\",\"arg0\":%lld,\"arg1\":%lld,\"previous_result\":%lld,\"current_result\":%lld}"
-                    "}",
-                    report_id, timestamp, callsite_id, (unsigned long long)pc,
-                    func_escaped, (long long)arg0, (long long)arg1,
-                    (long long)entry->result, (long long)result);
-
                 http_post_json(collector_url, json);
             }
 
-            // Also log to stderr/file for debugging
+            // Log to stderr/file
             pthread_mutex_lock(&output_mutex);
             FILE* out = get_output_file();
-            fprintf(out, "\n=== Trace2Pass Report ===\n");
-            fprintf(out, "Timestamp: %s\n", timestamp);
-            fprintf(out, "Type: pure_function_inconsistency\n");
-            fprintf(out, "PC: %p\n", pc);
-            fprintf(out, "Function: %s\n", func_name);
-            fprintf(out, "Arg0: %lld\n", (long long)arg0);
-            fprintf(out, "Arg1: %lld\n", (long long)arg1);
-            fprintf(out, "Previous Result: %lld\n", (long long)entry->result);
-            fprintf(out, "Current Result: %lld\n", (long long)result);
-            fprintf(out, "Note: Pure function returned different results for same inputs\n");
-            fprintf(out, "      This may indicate a compiler optimization bug\n");
-            fprintf(out, "========================\n\n");
+
+            if (json_output) {
+                // Output JSON format when TRACE2PASS_JSON_OUTPUT=1
+                fprintf(out, "%s\n", json);
+            } else {
+                // Output plain text format for human readability
+                fprintf(out, "\n=== Trace2Pass Report ===\n");
+                fprintf(out, "Timestamp: %s\n", timestamp);
+                fprintf(out, "Type: pure_function_inconsistency\n");
+                fprintf(out, "Location: %s:%d in %s\n", file ? file : "unknown", line, function ? function : "unknown");
+                fprintf(out, "PC: %p\n", pc);
+                fprintf(out, "Function: %s\n", func_name);
+                fprintf(out, "Arg0: %lld\n", (long long)arg0);
+                fprintf(out, "Arg1: %lld\n", (long long)arg1);
+                fprintf(out, "Previous Result: %lld\n", (long long)entry->result);
+                fprintf(out, "Current Result: %lld\n", (long long)result);
+                fprintf(out, "Note: Pure function returned different results for same inputs\n");
+                fprintf(out, "      This may indicate a compiler optimization bug\n");
+                fprintf(out, "========================\n\n");
+            }
+
             fflush(out);
             pthread_mutex_unlock(&output_mutex);
         }
@@ -804,61 +1120,76 @@ void trace2pass_check_pure_consistency(void* pc, const char* func_name,
     }
 }
 
-void trace2pass_report_loop_bound_exceeded(void* pc, const char* loop_name,
-                                            uint64_t iteration_count,
+void trace2pass_report_loop_bound_exceeded(void* pc, const char* file, int line, const char* function,
+                                            const char* loop_name, uint64_t iteration_count,
                                             uint64_t threshold) {
-    uint64_t hash = hash_report(pc, "loop_bound_exceeded");
-    if (bloom_contains(seen_reports, hash)) return;
-    bloom_insert(seen_reports, hash);
+    uint64_t hash = hash_report(pc, "loop_bound_exceeded", file, line, function);
+    if (bloom_check_and_insert(seen_reports, hash)) return;  // Already reported
 
     char timestamp[32];
     get_timestamp(timestamp, sizeof(timestamp));
 
+    char callsite_id[32];
+    generate_callsite_id(pc, "loop", callsite_id, sizeof(callsite_id));
+
+    char report_id[64];
+    generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+    char file_escaped[512];
+    json_escape_string(file ? file : "unknown", file_escaped, sizeof(file_escaped));
+
+    char function_escaped[256];
+    json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
+
+    char loop_escaped[128];
+    json_escape_string(loop_name, loop_escaped, sizeof(loop_escaped));
+
+    char json[2048];
+    snprintf(json, sizeof(json),
+        "{"
+        "\"report_id\":\"%s\","
+        "\"timestamp\":\"%s\","
+        "\"check_type\":\"loop_bound_exceeded\","
+        "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
+        "\"pc\":\"0x%llx\","
+        "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
+        "\"check_details\":{\"loop_name\":\"%s\",\"iteration_count\":%llu,\"threshold\":%llu}"
+        "}",
+        report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
+        build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
+        loop_escaped, (unsigned long long)iteration_count, (unsigned long long)threshold);
+
     // Send to Collector if configured
     if (collector_url) {
-        char callsite_id[32];
-        generate_callsite_id(pc, "loop", callsite_id, sizeof(callsite_id));
-
-        char report_id[64];
-        generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
-
-        char loop_escaped[128];
-        json_escape_string(loop_name, loop_escaped, sizeof(loop_escaped));
-
-        char json[2048];
-        snprintf(json, sizeof(json),
-            "{"
-            "\"report_id\":\"%s\","
-            "\"timestamp\":\"%s\","
-            "\"check_type\":\"loop_bound_exceeded\","
-            "\"location\":{\"file\":\"unknown\",\"line\":0,\"function\":\"%s\"},"
-            "\"pc\":\"0x%llx\","
-            "\"compiler\":{\"name\":\"unknown\",\"version\":\"unknown\"},"
-            "\"build_info\":{\"optimization_level\":\"unknown\",\"flags\":[]},"
-            "\"check_details\":{\"loop_name\":\"%s\",\"iteration_count\":%llu,\"threshold\":%llu}"
-            "}",
-            report_id, timestamp, callsite_id, (unsigned long long)pc,
-            loop_escaped, (unsigned long long)iteration_count, (unsigned long long)threshold);
-
         http_post_json(collector_url, json);
     }
 
-    // Also log to stderr/file for debugging
+    // Log to stderr/file
     pthread_mutex_lock(&output_mutex);
     FILE* out = get_output_file();
-    fprintf(out, "\n=== Trace2Pass Report ===\n");
-    fprintf(out, "Timestamp: %s\n", timestamp);
-    fprintf(out, "Type: loop_bound_exceeded\n");
-    fprintf(out, "PC: %p\n", pc);
-    fprintf(out, "Loop: %s\n", loop_name);
-    fprintf(out, "Iteration Count: %llu\n", (unsigned long long)iteration_count);
-    fprintf(out, "Threshold: %llu\n", (unsigned long long)threshold);
-    fprintf(out, "Note: Loop iterated more than expected maximum\n");
-    fprintf(out, "      This may indicate:\n");
-    fprintf(out, "      - Incorrect loop bound analysis by optimizer\n");
-    fprintf(out, "      - Infinite loop that should have terminated\n");
-    fprintf(out, "      - Off-by-one error introduced by optimization\n");
-    fprintf(out, "========================\n\n");
+
+    if (json_output) {
+        // Output JSON format when TRACE2PASS_JSON_OUTPUT=1
+        fprintf(out, "%s\n", json);
+    } else {
+        // Output plain text format for human readability
+        fprintf(out, "\n=== Trace2Pass Report ===\n");
+        fprintf(out, "Timestamp: %s\n", timestamp);
+        fprintf(out, "Type: loop_bound_exceeded\n");
+        fprintf(out, "Location: %s:%d in %s\n", file ? file : "unknown", line, function ? function : "unknown");
+        fprintf(out, "PC: %p\n", pc);
+        fprintf(out, "Loop: %s\n", loop_name);
+        fprintf(out, "Iteration Count: %llu\n", (unsigned long long)iteration_count);
+        fprintf(out, "Threshold: %llu\n", (unsigned long long)threshold);
+        fprintf(out, "Note: Loop iterated more than expected maximum\n");
+        fprintf(out, "      This may indicate:\n");
+        fprintf(out, "      - Incorrect loop bound analysis by optimizer\n");
+        fprintf(out, "      - Infinite loop that should have terminated\n");
+        fprintf(out, "      - Off-by-one error introduced by optimization\n");
+        fprintf(out, "========================\n\n");
+    }
+
     fflush(out);
     pthread_mutex_unlock(&output_mutex);
 }
