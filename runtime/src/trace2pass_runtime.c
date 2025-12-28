@@ -329,6 +329,14 @@ static void create_minimal_report(char* buffer, size_t buffer_size,
 
 // Initialization
 void trace2pass_init(void) {
+    // CRITICAL: Initialize libcurl globally before any curl_easy_init() calls
+    // This is required by libcurl documentation and prevents crashes in multi-threaded programs
+    // curl_global_init() is thread-safe and idempotent (safe to call multiple times)
+    CURLcode init_result = curl_global_init(CURL_GLOBAL_DEFAULT);
+    if (init_result != CURLE_OK) {
+        fprintf(stderr, "Trace2Pass: curl_global_init() failed: %s\n", curl_easy_strerror(init_result));
+    }
+
     // Check environment variables
     const char* rate_env = getenv("TRACE2PASS_SAMPLE_RATE");
     if (rate_env) {
@@ -374,6 +382,11 @@ void trace2pass_fini(void) {
         fclose(output_file);
         output_file = NULL;
     }
+
+    // CRITICAL: Cleanup libcurl global state
+    // This must be called once when done with all curl operations
+    // Prevents resource leaks and ensures clean shutdown
+    curl_global_cleanup();
 }
 
 // Configuration
