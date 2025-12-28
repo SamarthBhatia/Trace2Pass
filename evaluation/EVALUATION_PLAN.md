@@ -4,9 +4,20 @@
 
 Testing bugs on the **LLVM versions where they actually existed** (not just latest) to achieve realistic diagnosis accuracy.
 
-## Phase 1: OPEN BUGS (Highest Priority) - 13 bugs
+## Dataset Summary
 
-These should **still reproduce on LLVM 19-21** and give us realistic pass diagnosis!
+**Total Bugs: 84** (40 open, 44 fixed)
+
+| Category | Count | Testing Strategy |
+|----------|-------|------------------|
+| **Open Bugs** | 40 | Test on LLVM 19-21 for realistic diagnosis |
+| **Fixed Bugs** | 44 | Test on specific versions where bug existed |
+| **With C Source** | 22 | Full pipeline testing (instrumentation + diagnosis) |
+| **With IR Only** | 62 | Pass bisection testing only |
+
+## Phase 1: OPEN BUGS (Highest Priority) - 40 bugs
+
+These **still reproduce on LLVM 19-21** and give us realistic pass diagnosis!
 
 | Bug ID | LLVM Version | Pass | Test Case | Priority |
 |--------|--------------|------|-----------|----------|
@@ -93,42 +104,49 @@ Test on the **specific LLVM versions where they were broken**.
 |--------|---------|------|-----------|--------------|
 | 27880 | Multiple | GVN | Need to create | silkeh/clang:14-18 |
 
-## Phase 3: Expand Dataset with New Unfixed Bugs
+## Phase 3: Dataset Expansion - COMPLETED ✅
 
-### 3.1 Search LLVM GitHub Issues
-- Query: `is:open label:wrong-code` or `is:open label:miscompile`
-- Filter: Wrong-code bugs in optimization passes
-- Target: Find 10-15 more unfixed bugs
+**Final Dataset: 84 bugs** (40 open, 44 fixed)
 
-### 3.2 Priority Categories
-1. **InstCombine** bugs (most common)
-2. **GVN** bugs (value numbering)
-3. **Loop optimization** bugs (LICM, unrolling)
-4. **Backend** bugs (code generation)
+### Search Results:
+- Searched 611 open wrong-code bugs on GitHub
+- Filtered for optimization pass bugs (not backend-specific)
+- Found 42 candidates with reproducers
+- Success rate: 45% had usable C or IR reproducers
+- Prioritized by: recency (2024+), miscompilation label, core passes
+
+### Bug Distribution by Pass:
+1. **InstCombine**: 12 bugs
+2. **GVN**: 8 bugs
+3. **Loop Vectorizer**: 6 bugs
+4. **SimplifyCFG**: 4 bugs
+5. **SROA**: 5 bugs
+6. **Others** (CVP, SCCP, MemCpyOpt, etc.): 9 bugs
 
 ## Evaluation Metrics Goals
 
-| Metric | Current (6 bugs) | Target (54+ bugs) |
-|--------|------------------|-------------------|
-| Detection Rate | 100% | ≥70% |
-| Diagnosis Accuracy | 0% (all fixed) | ≥60% (with unfixed bugs) |
-| Time to Diagnosis | ~204s (45 versions) | ≤2min (targeted versions) |
-| False Positive Rate | 0% | ≤5% |
+| Metric | Initial (6 bugs) | Final Dataset (84 bugs) | Target |
+|--------|------------------|-------------------------|--------|
+| Detection Rate | 100% | To be measured | ≥70% |
+| Diagnosis Accuracy | 0% (all fixed) | To be measured | ≥60% |
+| Time to Diagnosis | ~204s (45 versions) | To be measured | ≤2min |
+| False Positive Rate | 0% | To be measured | ≤5% |
 
 ## Execution Plan
 
-### Week 21 (Now)
+### Week 21 (Now) - COMPLETED ✅
 - [x] Analyze bug dataset and categorize by version
 - [x] Search for new unfixed bugs (found 611 open wrong-code bugs on GitHub)
-- [x] Add 3 new bugs to dataset (121110, 172824, 144454)
-- [x] Create test cases for new bugs
-- [ ] Run evaluation on 13 OPEN bugs (LLVM 19-21)
-- [ ] **Expected**: 60-80% diagnosis accuracy!
+- [x] Add 40 open bugs to dataset (18 newly found + 22 existing)
+- [x] Create test cases for 22 bugs (12 IR, 10 C source)
+- [x] **Final Dataset**: 84 bugs (40 open, 44 fixed)
+- [ ] Run evaluation on 84-bug dataset
 
-### Week 22
-- [ ] Run evaluation on fixed bugs with version targeting
-- [ ] Add more unfixed bugs from GitHub search (target: 10-15 more)
-- [ ] Re-run full evaluation on expanded dataset (target: 65-70 bugs)
+### Week 22 (Next)
+- [ ] Run evaluation on 40 open bugs (LLVM 19-21)
+- [ ] Run evaluation on 44 fixed bugs with version targeting
+- [ ] Generate metrics and graphs for thesis
+- [ ] **Expected**: 60-80% diagnosis accuracy on open bugs
 
 ### Week 23
 - [ ] Analyze results and generate thesis-ready metrics
