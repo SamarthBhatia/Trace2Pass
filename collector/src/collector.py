@@ -4,7 +4,7 @@ Trace2Pass Collector - Main Flask Application
 Provides HTTP endpoints for receiving and managing anomaly reports.
 """
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, g
 from flask_cors import CORS
 from marshmallow import ValidationError
 import logging
@@ -25,23 +25,52 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize database
-db = Database()
+# Database path (shared, but connections are per-request)
+DB_PATH = "collector.db"
+
+# Module-level database instance for backward compatibility with tests
+# DEFAULT: unconnected placeholder so tests can configure db.db_path and call connect()
+db = Database(DB_PATH)
+
+
+def get_db() -> Database:
+    """Get per-request database connection.
+
+    For production: Creates per-request Database instances via Flask's g object
+    to ensure thread-safety without check_same_thread=False.
+
+    For tests: If the module-level db has been configured to a non-default path
+    (e.g., :memory:) and is connected, reuse it to allow tests to control the
+    database. This is safe because test clients are single-threaded.
+    """
+    # If the module-level db is connected to a non-default path (test override),
+    # reuse it. This allows tests to configure :memory: databases.
+    if db.conn is not None and db.db_path != DB_PATH:
+        return db
+
+    # Otherwise, ensure a per-request connection exists in Flask's context
+    if 'db' not in g:
+        g.db = Database(DB_PATH)
+        g.db.connect()
+    return g.db
 
 
 @app.before_request
 def before_request():
-    """Establish database connection before each request."""
-    if not db.conn:
-        db.connect()
-
-
-@app.teardown_request
-def teardown_request(exception=None):
-    """Close database connection after each request."""
-    # Note: We keep connection open for simplicity in this version
-    # In production, use connection pooling
+    """Pre-create database connection for this request."""
+    # Connection is created lazily by get_db()
     pass
+
+
+@app.teardown_appcontext
+def teardown_db(exception=None):
+    """Close database connection after each request.
+
+    CRITICAL: Properly close per-request connections to avoid lock contention.
+    """
+    per_request_db = g.pop('db', None)
+    if per_request_db is not None and per_request_db.conn is not None:
+        per_request_db.conn.close()
 
 
 @app.route('/api/v1/health', methods=['GET'])
@@ -71,7 +100,7 @@ def submit_report():
         validated_data = report_schema.load(data)
 
         # Insert into database
-        report_id = db.insert_report(validated_data)
+        report_id = get_db().insert_report(validated_data)
 
         logger.info(f"Report received: {validated_data['report_id']} (DB ID: {report_id})")
 
@@ -116,11 +145,15 @@ def list_reports():
             query += " WHERE status = ?"
             params.append(status_filter)
 
-        query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
+        # Order by last_seen (most recent occurrence) to surface hot regressions
+        # timestamp is immutable (first occurrence), last_seen tracks recurring bugs
+        query += " ORDER BY last_seen DESC LIMIT ? OFFSET ?"
         params.extend([limit, offset])
 
+        db = get_db()
         rows = db.conn.execute(query, params).fetchall()
-        reports = [dict(row) for row in rows]
+        # Transform flat rows to nested schema format for downstream consumption
+        reports = [db._rehydrate_report(dict(row)) for row in rows]
 
         return jsonify({
             'reports': reports,
@@ -147,7 +180,7 @@ def get_report(report_id: str):
         404 Not Found: Report does not exist
     """
     try:
-        report = db.get_report_by_id(report_id)
+        report = get_db().get_report_by_id(report_id)
 
         if not report:
             return jsonify({'error': 'Report not found'}), 404
@@ -172,7 +205,7 @@ def get_triage_queue():
     """
     try:
         limit = int(request.args.get('limit', 100))
-        queue = db.get_prioritized_queue(limit=limit)
+        queue = get_db().get_prioritized_queue(limit=limit)
 
         return jsonify({
             'queue': queue,
@@ -200,13 +233,21 @@ def update_report(report_id: str):
         400 Bad Request: Invalid JSON
         404 Not Found: Report does not exist
     """
+    if not request.is_json:
+        return jsonify({'error': 'Content-Type must be application/json'}), 400
+
+    # Parse JSON with silent=True to avoid BadRequest exception on malformed JSON
+    data = request.get_json(silent=True)
+    if data is None:
+        return jsonify({'error': 'Invalid or malformed JSON'}), 400
+
     try:
+        db = get_db()
         # Check if report exists
         existing = db.get_report_by_id(report_id)
         if not existing:
             return jsonify({'error': 'Report not found'}), 404
 
-        data = request.get_json()
         status = data.get('status')
         diagnosis = data.get('diagnosis')
 
@@ -242,7 +283,7 @@ def get_stats():
         200 OK: Statistics object
     """
     try:
-        stats = db.get_stats()
+        stats = get_db().get_stats()
         return jsonify(stats), 200
 
     except Exception as e:
@@ -253,8 +294,12 @@ def get_stats():
 def main():
     """Run the Flask development server."""
     logger.info("Starting Trace2Pass Collector...")
+    # Database connections are now per-request via get_db()
+    # Create initial database schema
+    db = Database(DB_PATH)
     db.connect()
-    logger.info("Database connected")
+    db.close()
+    logger.info("Database schema initialized")
 
     app.run(
         host='0.0.0.0',

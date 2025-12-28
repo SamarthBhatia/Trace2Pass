@@ -436,6 +436,17 @@ void Trace2PassInstrumentorPass::insertOverflowCheck(IRBuilder<> &Builder,
 
     Builder.SetInsertPoint(ThenTerm);
 
+    // Call trace2pass_should_sample() to decide if we should report
+    // Overflow can happen frequently in normal code (hash functions, checksums)
+    FunctionCallee ShouldSampleFunc = getShouldSampleFunc(M);
+    Value *ShouldSample = Builder.CreateCall(ShouldSampleFunc);
+    Value *ShouldReport = Builder.CreateICmpNE(ShouldSample, Builder.getInt32(0), "should_report");
+
+    // Create another split for the actual report
+    Instruction *ReportTerm = SplitBlockAndInsertIfThen(ShouldReport, ThenTerm, false);
+
+    Builder.SetInsertPoint(ReportTerm);
+
     // Get the runtime report function
     FunctionCallee ReportFunc = getOverflowReportFunc(M);
 
@@ -460,9 +471,9 @@ void Trace2PassInstrumentorPass::insertOverflowCheck(IRBuilder<> &Builder,
     Builder.CreateCall(ReportFunc, {PC, Loc.File, Loc.Line, Loc.Function, ExprGlobal, LHS_i64, RHS_i64});
 
     // Reset builder to after the merge point for potential next check
-    // The split created: OrigBlock -> ThenBlock -> MergeBlock
+    // The split created: OrigBlock -> ThenBlock -> SampleBlock -> ReportBlock -> MergeBlock
     // We want to insert the next check at the start of MergeBlock
-    BasicBlock *MergeBlock = ThenTerm->getParent()->getSingleSuccessor();
+    BasicBlock *MergeBlock = ReportTerm->getParent()->getSingleSuccessor();
     if (MergeBlock) {
       Builder.SetInsertPoint(&MergeBlock->front());
     }
@@ -513,6 +524,17 @@ void Trace2PassInstrumentorPass::insertShiftCheck(IRBuilder<> &Builder,
   Instruction *ThenTerm = SplitBlockAndInsertIfThen(IsInvalid, I, false);
 
   Builder.SetInsertPoint(ThenTerm);
+
+  // Call trace2pass_should_sample() to decide if we should report
+  // Invalid shifts can happen frequently, use sampling to reduce overhead
+  FunctionCallee ShouldSampleFunc = getShouldSampleFunc(M);
+  Value *ShouldSample = Builder.CreateCall(ShouldSampleFunc);
+  Value *ShouldReport = Builder.CreateICmpNE(ShouldSample, Builder.getInt32(0), "should_report");
+
+  // Create another split for the actual report
+  Instruction *ReportTerm = SplitBlockAndInsertIfThen(ShouldReport, ThenTerm, false);
+
+  Builder.SetInsertPoint(ReportTerm);
 
   // Get the runtime report function
   FunctionCallee ReportFunc = getOverflowReportFunc(M);
@@ -578,6 +600,17 @@ bool Trace2PassInstrumentorPass::instrumentUnreachableCode(Function &F) {
     // This prevents LLVM -O2 crashes while still detecting unreachable code execution
     IRBuilder<> Builder(UI);
 
+    // Call trace2pass_should_sample() to decide if we should report
+    // Even though unreachable is a bug, sampling reduces overhead if hit repeatedly
+    FunctionCallee ShouldSampleFunc = getShouldSampleFunc(M);
+    Value *ShouldSample = Builder.CreateCall(ShouldSampleFunc);
+    Value *ShouldReport = Builder.CreateICmpNE(ShouldSample, Builder.getInt32(0), "should_report");
+
+    // Split block to conditionally execute report
+    Instruction *ThenTerm = SplitBlockAndInsertIfThen(ShouldReport, UI, false);
+
+    Builder.SetInsertPoint(ThenTerm);
+
     // Get the runtime report function
     FunctionCallee ReportFunc = getUnreachableReportFunc(M);
 
@@ -594,12 +627,11 @@ bool Trace2PassInstrumentorPass::instrumentUnreachableCode(Function &F) {
     std::string Message = "unreachable code executed";
     Value *MessageGlobal = Builder.CreateGlobalString(Message);
 
-    // Call the report function immediately before unreachable with location metadata
-    // No branching needed - if we reach this code, it's already a bug
+    // Call the report function with location metadata
     Builder.CreateCall(ReportFunc, {PC, Loc.File, Loc.Line, Loc.Function, MessageGlobal});
 
-    // The unreachable instruction remains after the report call
-    // If execution reaches here, we report it, then hit unreachable (crash/UB)
+    // The unreachable instruction remains in the merge block
+    // If execution reaches here and passes sampling, we report it
 
     Modified = true;
     NumUnreachableInstrumented++;
