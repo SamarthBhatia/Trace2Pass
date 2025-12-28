@@ -10,6 +10,7 @@
 #include <string.h>
 #include <time.h>
 #include <pthread.h>
+#include <curl/curl.h>
 
 // dladdr() for module-relative offsets (POSIX only)
 #if defined(__unix__) || defined(__APPLE__)
@@ -570,27 +571,22 @@ static int validate_url(const char* url) {
     return 1;
 }
 
-// HTTP POST to Collector using curl
-// SECURITY NOTE: This spawns an external process on every report.
-// In production, this should be replaced with libcurl or raw sockets.
-// Performance NOTE: Spawning curl adds ~50-100ms per report, but most reports
-// are filtered by bloom filter deduplication (1 report per unique PC address).
+// HTTP POST to Collector using libcurl C API (secure, no shell injection)
+// Performance NOTE: libcurl adds ~10-50ms per report (much faster than system(curl)),
+// and most reports are filtered by bloom filter deduplication (1 report per unique PC).
 // With 1% sampling rate, overhead remains <5%.
 // Returns 0 on success, -1 on failure
 static int http_post_json(const char* url, const char* json_data) {
     if (!url || !json_data) return -1;
 
-    // Validate URL to prevent shell injection
+    // Validate URL to prevent malformed requests
     if (!validate_url(url)) {
         fprintf(stderr, "Trace2Pass: Invalid or unsafe Collector URL, skipping HTTP POST\n");
         return -1;
     }
 
     // Rate limiting: Prevent DoS by limiting HTTP requests per second
-    // CRITICAL: system(curl) spawns a process per report, which could be abused
-    // for DoS. This rate limiter caps requests to prevent resource exhaustion.
-    // Even with bloom filter + sampling, an attacker could trigger many unique
-    // reports (different PCs) to bypass dedup. This is a stopgap until libcurl.
+    // Caps requests to prevent resource exhaustion even with unique reports
     #define MAX_REPORTS_PER_SECOND 10
     static pthread_mutex_t rate_limit_mutex = PTHREAD_MUTEX_INITIALIZER;
     static time_t current_window = 0;
@@ -617,40 +613,48 @@ static int http_post_json(const char* url, const char* json_data) {
     reports_in_window++;
     pthread_mutex_unlock(&rate_limit_mutex);
 
-    // TODO(Phase 4): Replace with libcurl for better security and performance
-    // Current implementation uses system() which is simple but has limitations:
-    // - Spawns external process (performance cost)
-    // - Requires curl to be installed
-    // - Limited error reporting
-    // - DoS risk (mitigated by rate limiter above)
-    // Proper implementation should use libcurl or raw HTTP over sockets
-
-    char cmd[4096];
-    char escaped[2048];
-
-    // Escape single quotes in JSON for shell (JSON itself is already escaped via json_escape_string)
-    size_t j = 0;
-    for (size_t i = 0; json_data[i] && j < sizeof(escaped) - 4; i++) {
-        if (json_data[i] == '\'') {
-            escaped[j++] = '\'';
-            escaped[j++] = '\\';
-            escaped[j++] = '\'';
-            escaped[j++] = '\'';
-        } else {
-            escaped[j++] = json_data[i];
-        }
+    // Use libcurl C API for secure HTTP POST (no shell injection risk)
+    CURL* curl = curl_easy_init();
+    if (!curl) {
+        fprintf(stderr, "Trace2Pass: curl_easy_init() failed\n");
+        return -1;
     }
-    escaped[j] = '\0';
 
-    snprintf(cmd, sizeof(cmd),
-        "curl -s -X POST '%s' "
-        "-H 'Content-Type: application/json' "
-        "-d '%s' "
-        ">/dev/null 2>&1",
-        url, escaped);
+    // Set HTTP headers
+    struct curl_slist* headers = NULL;
+    headers = curl_slist_append(headers, "Content-Type: application/json");
 
-    int ret = system(cmd);
-    return (ret == 0) ? 0 : -1;
+    // Configure CURL request
+    curl_easy_setopt(curl, CURLOPT_URL, url);                    // URL (no shell, safe)
+    curl_easy_setopt(curl, CURLOPT_POST, 1L);                    // POST method
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_data);       // JSON body (no shell, safe)
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);         // Headers
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);                 // 5 second timeout
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);                // Thread-safe signal handling
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, NULL);         // Discard response body
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, NULL);
+
+    // Disable verbose output (silent mode)
+    curl_easy_setopt(curl, CURLOPT_VERBOSE, 0L);
+
+    // Execute HTTP POST
+    CURLcode res = curl_easy_perform(curl);
+
+    // Cleanup
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
+
+    if (res != CURLE_OK) {
+        // Only log errors if verbose logging is enabled to avoid stderr spam
+        static int error_logged = 0;
+        if (!error_logged) {
+            fprintf(stderr, "Trace2Pass: HTTP POST failed: %s\n", curl_easy_strerror(res));
+            error_logged = 1;  // Log once to avoid spam
+        }
+        return -1;
+    }
+
+    return 0;
 }
 
 // Portable thread-safe random number generation
