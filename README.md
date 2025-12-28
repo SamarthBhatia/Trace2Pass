@@ -93,7 +93,7 @@ Trace2Pass is a compiler bug detection system that injects lightweight runtime c
   - Test case minimization (optional, requires creduce)
   - Automatic test script generation
 - ✅ **Evaluation Framework** (100%)
-  - Automated evaluation harness for 54 historical bugs
+  - Automated evaluation harness for 84 historical bugs (40 open, 44 fixed)
   - Test case manager (auto-fetch from GitHub/Bugzilla)
   - Full pipeline runner (compile → execute → diagnose → report)
   - Metrics collector (detection rate, accuracy, timing, false positives)
@@ -117,7 +117,7 @@ Trace2Pass is a compiler bug detection system that injects lightweight runtime c
   - Version bisection: 45 LLVM versions tested per bug (~3-4 min/bug)
   - Platform: Uses `--platform linux/amd64` for cross-architecture compatibility
   - Reports generated: Markdown, LaTeX tables, CSV data
-  - Remaining: 48 bugs from Phase 1 dataset
+  - Remaining: 76 bugs from expanded dataset (84 total - 8 evaluated)
 
 **Total Tests**: 117/117 passing (100%)
 
@@ -626,7 +626,7 @@ Trace2Pass/
 │       ├── test_full_pipeline.py                # 6 tests
 │       └── test_full_pipeline_with_reporter.py  # 9 tests
 │
-└── historical-bugs/                   # Phase 1: Bug dataset (54 bugs)
+└── historical-bugs/                   # Bug dataset (84 bugs: 40 open, 44 fixed)
     ├── llvm/                          # 34 LLVM bugs
     ├── gcc/                           # 20 GCC bugs
     └── analysis/                      # Analysis documents
@@ -670,7 +670,7 @@ The integration layer is complete and functional, but runtime reports contain pl
 **Week 21 of 24** (December 2024)
 
 ### Completed Milestones
-- ✅ **Phase 1** (Weeks 1-4): Literature review + Historical bug dataset (54 bugs)
+- ✅ **Phase 1** (Weeks 1-4): Literature review + Historical bug dataset (expanded to 84 bugs)
 - ✅ **Phase 2** (Weeks 5-10): Runtime instrumentation (<5% overhead achieved)
 - ✅ **Phase 3** (Weeks 11-18): Collector + Diagnoser with full integration testing
 - ✅ **Phase 4** (Weeks 19-21): Reporter + Evaluation complete, 8 bugs evaluated with thesis-ready results
