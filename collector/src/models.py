@@ -274,8 +274,50 @@ class Database:
         # Return top N after sorting
         return results[:limit]
 
+    def _rehydrate_report(self, flat: Dict[str, Any]) -> Dict[str, Any]:
+        """Transform flat database row into nested schema format.
+
+        Args:
+            flat: Flattened report dict from database
+
+        Returns:
+            Nested report matching the ingest schema
+        """
+        return {
+            'report_id': flat['report_id'],
+            'timestamp': flat['timestamp'],
+            'check_type': flat['check_type'],
+            'location': {
+                'file': flat['file'],
+                'line': flat['line'],
+                'function': flat['function']
+            },
+            'pc': flat.get('pc'),
+            'stacktrace': json.loads(flat['stacktrace']) if flat.get('stacktrace') else [],
+            'compiler': {
+                'name': flat['compiler_name'],
+                'version': flat['compiler_version'],
+                'target': flat['target_arch']
+            },
+            'build_info': {
+                'optimization_level': flat['optimization_level'],
+                'flags': json.loads(flat['flags']) if flat.get('flags') else [],
+                'source_hash': flat.get('source_hash'),
+                'binary_checksum': flat.get('binary_checksum')
+            },
+            'check_details': json.loads(flat['check_details']) if flat.get('check_details') else {},
+            'system_info': json.loads(flat['system_info']) if flat.get('system_info') else {},
+            'status': flat.get('status'),
+            'diagnosis': json.loads(flat['diagnosis']) if flat.get('diagnosis') else None,
+            'occurrence_count': flat.get('occurrence_count', 1),
+            'last_seen': flat.get('last_seen')
+        }
+
     def get_report_by_id(self, report_id: str) -> Optional[Dict[str, Any]]:
-        """Get a specific report by report_id."""
+        """Get a specific report by report_id.
+
+        Returns report in nested format matching the ingest schema for downstream consumption.
+        """
         row = self.conn.execute(
             "SELECT * FROM reports WHERE report_id = ?",
             (report_id,)
@@ -284,13 +326,7 @@ class Database:
         if not row:
             return None
 
-        report_dict = dict(row)
-        report_dict['stacktrace'] = json.loads(report_dict['stacktrace']) if report_dict['stacktrace'] else []
-        report_dict['flags'] = json.loads(report_dict['flags']) if report_dict['flags'] else []
-        report_dict['check_details'] = json.loads(report_dict['check_details']) if report_dict['check_details'] else {}
-        report_dict['system_info'] = json.loads(report_dict['system_info']) if report_dict['system_info'] else {}
-
-        return report_dict
+        return self._rehydrate_report(dict(row))
 
     def update_report_status(self, report_id: str, status: str, diagnosis: Optional[Dict[str, Any]] = None):
         """Update report status and optionally attach diagnosis."""
