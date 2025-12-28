@@ -181,9 +181,25 @@ Trace2PassInstrumentorPass::extractLocation(IRBuilder<> &Builder, Instruction *I
   const DebugLoc &DL = I->getDebugLoc();
 
   if (DL) {
-    // Extract file path
+    // Extract full file path (directory + filename)
+    // CRITICAL: DILocation stores directory and filename separately
+    // Must combine them to avoid conflating files with same basename (e.g., config.c)
+    StringRef Directory = DL->getDirectory();
     StringRef Filename = DL->getFilename();
-    Loc.File = Builder.CreateGlobalString(Filename.empty() ? "unknown" : Filename);
+    std::string FullPath;
+
+    if (!Directory.empty() && !Filename.empty()) {
+      // Combine directory and filename with path separator
+      FullPath = Directory.str() + "/" + Filename.str();
+    } else if (!Filename.empty()) {
+      // No directory info, use filename alone
+      FullPath = Filename.str();
+    } else {
+      // No filename at all
+      FullPath = "unknown";
+    }
+
+    Loc.File = Builder.CreateGlobalString(FullPath);
 
     // Extract line number
     unsigned Line = DL.getLine();
@@ -271,6 +287,8 @@ void Trace2PassInstrumentorPass::injectBuildMetadata(Module &M) {
   }
 
   // Create global string constants (readable by runtime via extern)
+  // CRITICAL: Use LinkOnceODRLinkage to avoid "multiple definition" linker errors
+  // Each object file will emit these symbols, and the linker merges identical definitions
   IRBuilder<> Builder(Ctx);
 
   // Optimization level global
@@ -279,7 +297,7 @@ void Trace2PassInstrumentorPass::injectBuildMetadata(Module &M) {
       M,
       OptLevelStr->getType(),
       true,  // isConstant
-      GlobalValue::ExternalLinkage,
+      GlobalValue::LinkOnceODRLinkage,  // Allows multiple identical definitions
       OptLevelStr,
       "__trace2pass_opt_level"
   );
@@ -291,7 +309,7 @@ void Trace2PassInstrumentorPass::injectBuildMetadata(Module &M) {
       M,
       FlagsStr->getType(),
       true,  // isConstant
-      GlobalValue::ExternalLinkage,
+      GlobalValue::LinkOnceODRLinkage,  // Allows multiple identical definitions
       FlagsStr,
       "__trace2pass_compile_flags"
   );
