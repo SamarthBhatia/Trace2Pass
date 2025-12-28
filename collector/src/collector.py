@@ -233,16 +233,17 @@ def update_report(report_id: str):
     if not request.is_json:
         return jsonify({'error': 'Content-Type must be application/json'}), 400
 
+    # Parse JSON with silent=True to avoid BadRequest exception on malformed JSON
+    data = request.get_json(silent=True)
+    if data is None:
+        return jsonify({'error': 'Invalid or malformed JSON'}), 400
+
     try:
         db = get_db()
         # Check if report exists
         existing = db.get_report_by_id(report_id)
         if not existing:
             return jsonify({'error': 'Report not found'}), 404
-
-        data = request.get_json()
-        if data is None:
-            return jsonify({'error': 'Invalid JSON'}), 400
 
         status = data.get('status')
         diagnosis = data.get('diagnosis')
