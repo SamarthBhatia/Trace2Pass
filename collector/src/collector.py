@@ -116,7 +116,9 @@ def list_reports():
             query += " WHERE status = ?"
             params.append(status_filter)
 
-        query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
+        # Order by last_seen (most recent occurrence) to surface hot regressions
+        # timestamp is immutable (first occurrence), last_seen tracks recurring bugs
+        query += " ORDER BY last_seen DESC LIMIT ? OFFSET ?"
         params.extend([limit, offset])
 
         rows = db.conn.execute(query, params).fetchall()
