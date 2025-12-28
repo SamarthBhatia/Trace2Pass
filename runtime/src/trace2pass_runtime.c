@@ -125,6 +125,98 @@ static void get_timestamp(char* buf, size_t len) {
     strftime(buf, len, "%Y-%m-%dT%H:%M:%SZ", tm_info);
 }
 
+// Helper: Serialize compiler flags as JSON array
+// Input: space-separated flags string like "-O2 -march=native -fno-strict-aliasing"
+// Output: JSON array written to buf like ["-O2","-march=native","-fno-strict-aliasing"]
+// Returns number of characters written, or -1 on buffer overflow
+static int serialize_flags_json(const char* flags, char* buf, size_t buf_len) {
+    if (!flags || !buf || buf_len < 3) {
+        return -1;  // Invalid input or buffer too small for "[]"
+    }
+
+    // Handle empty flags
+    if (flags[0] == '\0') {
+        if (buf_len >= 3) {
+            strcpy(buf, "[]");
+            return 2;
+        }
+        return -1;
+    }
+
+    // Start with opening bracket
+    size_t pos = 0;
+    buf[pos++] = '[';
+
+    // Work with a copy since strtok modifies the string
+    size_t flags_len = strlen(flags);
+    char* flags_copy = (char*)malloc(flags_len + 1);
+    if (!flags_copy) {
+        return -1;  // Allocation failed
+    }
+    strcpy(flags_copy, flags);
+
+    // Tokenize by whitespace
+    char* token = strtok(flags_copy, " \t\n\r");
+    int first = 1;
+
+    while (token != NULL) {
+        // Add comma separator after first element
+        if (!first) {
+            if (pos + 1 >= buf_len) {
+                free(flags_copy);
+                return -1;  // Buffer overflow
+            }
+            buf[pos++] = ',';
+        }
+        first = 0;
+
+        // Add opening quote
+        if (pos + 1 >= buf_len) {
+            free(flags_copy);
+            return -1;
+        }
+        buf[pos++] = '"';
+
+        // Copy token (flag), escaping quotes if needed
+        const char* p = token;
+        while (*p) {
+            // Simple escaping: just escape backslashes and quotes
+            if (*p == '\\' || *p == '"') {
+                if (pos + 2 >= buf_len) {
+                    free(flags_copy);
+                    return -1;
+                }
+                buf[pos++] = '\\';
+            }
+            if (pos + 1 >= buf_len) {
+                free(flags_copy);
+                return -1;
+            }
+            buf[pos++] = *p++;
+        }
+
+        // Add closing quote
+        if (pos + 1 >= buf_len) {
+            free(flags_copy);
+            return -1;
+        }
+        buf[pos++] = '"';
+
+        token = strtok(NULL, " \t\n\r");
+    }
+
+    free(flags_copy);
+
+    // Add closing bracket and null terminator
+    if (pos + 2 >= buf_len) {
+        return -1;  // Buffer overflow
+    }
+    buf[pos++] = ']';
+    buf[pos] = '\0';
+
+    return pos;
+}
+
 // Helper: Get output file
 static FILE* get_output_file(void) {
     if (output_file) return output_file;
@@ -683,6 +775,12 @@ void trace2pass_report_overflow(void* pc, const char* file, int line, const char
     char expr_escaped[256];
     json_escape_string(expr, expr_escaped, sizeof(expr_escaped));
 
+    // Serialize compiler flags as JSON array
+    char flags_json[512];
+    if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
+        strcpy(flags_json, "[]");  // Fallback on error
+    }
+
     char json[2048];
     snprintf(json, sizeof(json),
         "{"
@@ -692,11 +790,12 @@ void trace2pass_report_overflow(void* pc, const char* file, int line, const char
         "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":[]},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":%s},"
         "\"check_details\":{\"expr\":\"%s\",\"operands\":[%lld,%lld]}"
         "}",
         report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
         build_opt_level ? build_opt_level : "unknown",
+        flags_json,
         expr_escaped, (long long)a, (long long)b);
 
     // Send to Collector if configured
@@ -752,6 +851,12 @@ void trace2pass_report_unreachable(void* pc, const char* file, int line, const c
     char msg_escaped[256];
     json_escape_string(message, msg_escaped, sizeof(msg_escaped));
 
+    // Serialize compiler flags as JSON array
+    char flags_json[512];
+    if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
+        strcpy(flags_json, "[]");  // Fallback on error
+    }
+
     char json[2048];
     snprintf(json, sizeof(json),
         "{"
@@ -761,11 +866,12 @@ void trace2pass_report_unreachable(void* pc, const char* file, int line, const c
         "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":[]},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":%s},"
         "\"check_details\":{\"message\":\"%s\"}"
         "}",
         report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
         build_opt_level ? build_opt_level : "unknown",
+        flags_json,
         msg_escaped);
 
     // Send to Collector if configured
@@ -817,6 +923,12 @@ void trace2pass_report_bounds_violation(void* pc, const char* file, int line, co
     char function_escaped[256];
     json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
 
+    // Serialize compiler flags as JSON array
+    char flags_json[512];
+    if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
+        strcpy(flags_json, "[]");  // Fallback on error
+    }
+
     char json[2048];
     snprintf(json, sizeof(json),
         "{"
@@ -826,11 +938,12 @@ void trace2pass_report_bounds_violation(void* pc, const char* file, int line, co
         "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":[]},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":%s},"
         "\"check_details\":{\"ptr\":\"0x%llx\",\"offset\":%zu,\"size\":%zu}"
         "}",
         report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
         build_opt_level ? build_opt_level : "unknown",
+        flags_json,
         (unsigned long long)ptr, offset, size);
 
     // Send to Collector if configured
@@ -882,6 +995,12 @@ void trace2pass_report_sign_conversion(void* pc, const char* file, int line, con
     char function_escaped[256];
     json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
 
+    // Serialize compiler flags as JSON array
+    char flags_json[512];
+    if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
+        strcpy(flags_json, "[]");  // Fallback on error
+    }
+
     char json[2048];
     snprintf(json, sizeof(json),
         "{"
@@ -891,11 +1010,12 @@ void trace2pass_report_sign_conversion(void* pc, const char* file, int line, con
         "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":[]},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":%s},"
         "\"check_details\":{\"original_value\":%lld,\"cast_value\":%llu,\"src_bits\":%u,\"dest_bits\":%u}"
         "}",
         report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
         build_opt_level ? build_opt_level : "unknown",
+        flags_json,
         (long long)original_value, (unsigned long long)cast_value, src_bits, dest_bits);
 
     // Send to Collector if configured
@@ -951,6 +1071,12 @@ void trace2pass_report_division_by_zero(void* pc, const char* file, int line, co
     char op_escaped[64];
     json_escape_string(op_name, op_escaped, sizeof(op_escaped));
 
+    // Serialize compiler flags as JSON array
+    char flags_json[512];
+    if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
+        strcpy(flags_json, "[]");  // Fallback on error
+    }
+
     char json[2048];
     snprintf(json, sizeof(json),
         "{"
@@ -960,11 +1086,12 @@ void trace2pass_report_division_by_zero(void* pc, const char* file, int line, co
         "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":[]},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":%s},"
         "\"check_details\":{\"operation\":\"%s\",\"dividend\":%lld,\"divisor\":%lld}"
         "}",
         report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
         build_opt_level ? build_opt_level : "unknown",
+        flags_json,
         op_escaped, (long long)dividend, (long long)divisor);
 
     // Send to Collector if configured
@@ -1144,6 +1271,12 @@ void trace2pass_report_loop_bound_exceeded(void* pc, const char* file, int line,
     char loop_escaped[128];
     json_escape_string(loop_name, loop_escaped, sizeof(loop_escaped));
 
+    // Serialize compiler flags as JSON array
+    char flags_json[512];
+    if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
+        strcpy(flags_json, "[]");  // Fallback on error
+    }
+
     char json[2048];
     snprintf(json, sizeof(json),
         "{"
@@ -1153,11 +1286,12 @@ void trace2pass_report_loop_bound_exceeded(void* pc, const char* file, int line,
         "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":[]},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":%s},"
         "\"check_details\":{\"loop_name\":\"%s\",\"iteration_count\":%llu,\"threshold\":%llu}"
         "}",
         report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
         build_opt_level ? build_opt_level : "unknown",
+        flags_json,
         loop_escaped, (unsigned long long)iteration_count, (unsigned long long)threshold);
 
     // Send to Collector if configured
