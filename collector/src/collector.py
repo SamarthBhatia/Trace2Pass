@@ -36,14 +36,19 @@ db = Database(DB_PATH)
 def get_db() -> Database:
     """Get per-request database connection.
 
-    ALWAYS creates a new Database instance per request using Flask's g object.
-    This ensures thread-safety without check_same_thread=False.
+    For production: Creates per-request Database instances via Flask's g object
+    to ensure thread-safety without check_same_thread=False.
 
-    The module-level 'db' variable exists for backward compatibility with tests
-    that directly use collector.db, but get_db() never returns it to maintain
-    strict per-request isolation.
+    For tests: If the module-level db has been configured to a non-default path
+    (e.g., :memory:) and is connected, reuse it to allow tests to control the
+    database. This is safe because test clients are single-threaded.
     """
-    # Ensure a per-request connection exists in Flask's context
+    # If the module-level db is connected to a non-default path (test override),
+    # reuse it. This allows tests to configure :memory: databases.
+    if db.conn is not None and db.db_path != DB_PATH:
+        return db
+
+    # Otherwise, ensure a per-request connection exists in Flask's context
     if 'db' not in g:
         g.db = Database(DB_PATH)
         g.db.connect()
