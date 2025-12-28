@@ -245,6 +245,72 @@ static FILE* get_output_file(void) {
     return stderr;
 }
 
+// Helper: Create truncated flags JSON with hash for deduplication
+// When full flags exceed buffer, include hash to preserve distinguishing data
+// Returns: formatted JSON array like ["-O2", "...", "<hash:a1b2c3d4>"]
+static void create_truncated_flags_json(const char* full_flags, char* buf, size_t buf_len) {
+    if (!full_flags || !buf || buf_len < 30) {
+        // Buffer too small even for minimal representation
+        if (buf && buf_len >= 3) {
+            strcpy(buf, "[]");
+        }
+        return;
+    }
+
+    // Compute hash of full flags string for deduplication
+    // Simple FNV-1a hash (fast, good distribution, no crypto needed)
+    uint32_t hash = 2166136261u;
+    for (const char* p = full_flags; *p; p++) {
+        hash ^= (uint8_t)(*p);
+        hash *= 16777619u;
+    }
+
+    // Try to serialize as much as possible, then add hash
+    // Strategy: Fill buffer with first N flags, then append hash marker
+    char temp_buf[2048];
+    int written = serialize_flags_json(full_flags, temp_buf, sizeof(temp_buf));
+
+    if (written < 0) {
+        // Serialization failed - try minimal approach
+        // Format: ["<flags:hash>"] where hash uniquely identifies this flag set
+        snprintf(buf, buf_len, "[\"<flags:%08x>\"]", hash);
+        return;
+    }
+
+    // Serialization succeeded in temp buffer - now try to fit with hash appended
+    // We want format: ["-O2", "-O3", ..., "<hash:12345678>"]
+    // Reserve space for: ,<hash:12345678>] (about 20 chars)
+    size_t hash_marker_space = 22;
+
+    if ((size_t)written + hash_marker_space <= buf_len) {
+        // Everything fits! Just copy it all
+        memcpy(buf, temp_buf, written);
+        buf[written] = '\0';
+        return;
+    }
+
+    // Need to truncate - find last complete flag before hash marker space
+    // temp_buf contains valid JSON array, so work backwards to find last ","
+    size_t copy_limit = buf_len - hash_marker_space;
+    size_t last_comma = 0;
+
+    // Find last ',' before the copy limit
+    for (size_t i = 1; i < copy_limit && i < (size_t)written; i++) {
+        if (temp_buf[i] == ',') {
+            last_comma = i;
+        }
+    }
+
+    if (last_comma > 0) {
+        // Copy up to last complete flag, then add hash marker and close
+        memcpy(buf, temp_buf, last_comma);
+        snprintf(buf + last_comma, buf_len - last_comma, ",\"<hash:%08x>\"]", hash);
+    } else {
+        // Couldn't find comma - just use hash
+        snprintf(buf, buf_len, "[\"<flags:%08x>\"]", hash);
+    }
+}
+
 // Helper: Create minimal fallback report when main report exceeds buffer size
 // Ensures we always send valid JSON even if full report is too large
 static void create_minimal_report(char* buffer, size_t buffer_size,
@@ -820,9 +886,10 @@ void trace2pass_report_overflow(void* pc, const char* file, int line, const char
     // 2048-byte buffer to accommodate verbose compile commands
     char flags_json[2048];
     if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
-        // Buffer overflow - log warning and use truncated marker
-        fprintf(stderr, "⚠️  Trace2Pass: Compiler flags too long, truncating for deduplication\n");
-        strcpy(flags_json, "[\"<truncated>\"]");
+        // Buffer overflow - create truncated representation with hash
+        // This preserves distinguishing data for deduplication (different builds get different hashes)
+        fprintf(stderr, "⚠️  Trace2Pass: Compiler flags too long, using truncated flags with hash\n");
+        create_truncated_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json));
     }
 
     // Final JSON buffer sized to accommodate:
@@ -912,9 +979,10 @@ void trace2pass_report_unreachable(void* pc, const char* file, int line, const c
     // 2048-byte buffer to accommodate verbose compile commands
     char flags_json[2048];
     if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
-        // Buffer overflow - log warning and use truncated marker
-        fprintf(stderr, "⚠️  Trace2Pass: Compiler flags too long, truncating for deduplication\n");
-        strcpy(flags_json, "[\"<truncated>\"]");
+        // Buffer overflow - create truncated representation with hash
+        // This preserves distinguishing data for deduplication (different builds get different hashes)
+        fprintf(stderr, "⚠️  Trace2Pass: Compiler flags too long, using truncated flags with hash\n");
+        create_truncated_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json));
     }
 
     // Final JSON buffer sized to accommodate:
@@ -1000,9 +1068,10 @@ void trace2pass_report_bounds_violation(void* pc, const char* file, int line, co
     // 2048-byte buffer to accommodate verbose compile commands
     char flags_json[2048];
     if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
-        // Buffer overflow - log warning and use truncated marker
-        fprintf(stderr, "⚠️  Trace2Pass: Compiler flags too long, truncating for deduplication\n");
-        strcpy(flags_json, "[\"<truncated>\"]");
+        // Buffer overflow - create truncated representation with hash
+        // This preserves distinguishing data for deduplication (different builds get different hashes)
+        fprintf(stderr, "⚠️  Trace2Pass: Compiler flags too long, using truncated flags with hash\n");
+        create_truncated_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json));
     }
 
     // Final JSON buffer sized to accommodate:
@@ -1088,9 +1157,10 @@ void trace2pass_report_sign_conversion(void* pc, const char* file, int line, con
     // 2048-byte buffer to accommodate verbose compile commands
     char flags_json[2048];
     if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
-        // Buffer overflow - log warning and use truncated marker
-        fprintf(stderr, "⚠️  Trace2Pass: Compiler flags too long, truncating for deduplication\n");
-        strcpy(flags_json, "[\"<truncated>\"]");
+        // Buffer overflow - create truncated representation with hash
+        // This preserves distinguishing data for deduplication (different builds get different hashes)
+        fprintf(stderr, "⚠️  Trace2Pass: Compiler flags too long, using truncated flags with hash\n");
+        create_truncated_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json));
     }
 
     // Final JSON buffer sized to accommodate:
@@ -1180,9 +1250,10 @@ void trace2pass_report_division_by_zero(void* pc, const char* file, int line, co
     // 2048-byte buffer to accommodate verbose compile commands
     char flags_json[2048];
     if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
-        // Buffer overflow - log warning and use truncated marker
-        fprintf(stderr, "⚠️  Trace2Pass: Compiler flags too long, truncating for deduplication\n");
-        strcpy(flags_json, "[\"<truncated>\"]");
+        // Buffer overflow - create truncated representation with hash
+        // This preserves distinguishing data for deduplication (different builds get different hashes)
+        fprintf(stderr, "⚠️  Trace2Pass: Compiler flags too long, using truncated flags with hash\n");
+        create_truncated_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json));
     }
 
     // Final JSON buffer sized to accommodate:
@@ -1397,9 +1468,10 @@ void trace2pass_report_loop_bound_exceeded(void* pc, const char* file, int line,
     // 2048-byte buffer to accommodate verbose compile commands
     char flags_json[2048];
     if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
-        // Buffer overflow - log warning and use truncated marker
-        fprintf(stderr, "⚠️  Trace2Pass: Compiler flags too long, truncating for deduplication\n");
-        strcpy(flags_json, "[\"<truncated>\"]");
+        // Buffer overflow - create truncated representation with hash
+        // This preserves distinguishing data for deduplication (different builds get different hashes)
+        fprintf(stderr, "⚠️  Trace2Pass: Compiler flags too long, using truncated flags with hash\n");
+        create_truncated_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json));
     }
 
     // Final JSON buffer sized to accommodate:
