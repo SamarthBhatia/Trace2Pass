@@ -126,10 +126,12 @@ static void get_timestamp(char* buf, size_t len) {
 }
 
 // Helper: Serialize compiler flags as JSON array
-// Input: space-separated flags string like "-O2 -march=native -fno-strict-aliasing"
-// Output: JSON array written to buf like ["-O2","-march=native","-fno-strict-aliasing"]
+// Input: space-separated flags string with optional quoted sections
+//        e.g., "-O2 -DMSG=\"hello world\" -march=native"
+// Output: JSON array: ["-O2","-DMSG=\"hello world\"","-march=native"]
 // Returns number of characters written, or -1 on buffer overflow
-// THREAD-SAFE: Uses strtok_r (POSIX) or manual parsing (fallback) instead of strtok
+// THREAD-SAFE: Manual parsing, no global state
+// QUOTE-AWARE: Handles single/double quotes to preserve spaces in flag values
 static int serialize_flags_json(const char* flags, char* buf, size_t buf_len) {
     if (!flags || !buf || buf_len < 3) {
         return -1;  // Invalid input or buffer too small for "[]"
@@ -144,75 +146,94 @@ static int serialize_flags_json(const char* flags, char* buf, size_t buf_len) {
         return -1;
     }
 
-    // Start with opening bracket
     size_t pos = 0;
     buf[pos++] = '[';
 
-    // Work with a copy since strtok_r modifies the string
-    size_t flags_len = strlen(flags);
-    char* flags_copy = (char*)malloc(flags_len + 1);
-    if (!flags_copy) {
-        return -1;  // Allocation failed
-    }
-    strcpy(flags_copy, flags);
+    const char* p = flags;
+    int first_token = 1;
 
-    // Tokenize by whitespace using thread-safe strtok_r
-    char* saveptr = NULL;  // strtok_r state
-    char* token = strtok_r(flags_copy, " \t\n\r", &saveptr);
-    int first = 1;
+    while (*p) {
+        // Skip leading whitespace
+        while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') {
+            p++;
+        }
+        if (*p == '\0') break;
 
-    while (token != NULL) {
-        // Add comma separator after first element
-        if (!first) {
-            if (pos + 1 >= buf_len) {
-                free(flags_copy);
-                return -1;  // Buffer overflow
-            }
+        // Add comma before subsequent tokens
+        if (!first_token) {
+            if (pos + 1 >= buf_len) return -1;
             buf[pos++] = ',';
         }
-        first = 0;
+        first_token = 0;
 
-        // Add opening quote
-        if (pos + 1 >= buf_len) {
-            free(flags_copy);
-            return -1;
-        }
+        // Add opening quote for this JSON string
+        if (pos + 1 >= buf_len) return -1;
         buf[pos++] = '"';
 
-        // Copy token (flag), escaping quotes if needed
-        const char* p = token;
-        while (*p) {
-            // Simple escaping: just escape backslashes and quotes
-            if (*p == '\\' || *p == '"') {
-                if (pos + 2 >= buf_len) {
-                    free(flags_copy);
-                    return -1;
+        // Parse one flag, respecting quotes
+        char in_quote = '\0';  // Track which quote character we're inside (' or ")
+        while (*p && (in_quote || (*p != ' ' && *p != '\t' && *p != '\n' && *p != '\r'))) {
+            char c = *p++;
+
+            // Handle quote characters
+            if (in_quote) {
+                // Inside quotes - check for closing quote
+                if (c == in_quote) {
+                    // Check if it's escaped
+                    if (p > flags + 1 && *(p - 2) == '\\') {
+                        // Escaped quote - include both backslash and quote
+                        // (backslash was already added in previous iteration)
+                        if (pos + 1 >= buf_len) return -1;
+                        buf[pos++] = c;
+                    } else {
+                        // Unescaped closing quote - exit quote mode
+                        in_quote = '\0';
+                        // Include the quote character in the output
+                        if (pos + 1 >= buf_len) return -1;
+                        buf[pos++] = c;
+                    }
+                } else {
+                    // Regular character inside quotes
+                    // Escape JSON special characters
+                    if (c == '"' || c == '\\') {
+                        if (pos + 2 >= buf_len) return -1;
+                        buf[pos++] = '\\';
+                    }
+                    if (pos + 1 >= buf_len) return -1;
+                    buf[pos++] = c;
                 }
-                buf[pos++] = '\\';
+            } else {
+                // Not inside quotes
+                if (c == '"' || c == '\'') {
+                    // Opening quote - enter quote mode
+                    in_quote = c;
+                    // Include the quote character in the output
+                    if (c == '"') {
+                        // Double quote needs escaping for JSON
+                        if (pos + 2 >= buf_len) return -1;
+                        buf[pos++] = '\\';
+                    }
+                    if (pos + 1 >= buf_len) return -1;
+                    buf[pos++] = c;
+                } else {
+                    // Regular character - escape JSON special characters
+                    if (c == '"' || c == '\\') {
+                        if (pos + 2 >= buf_len) return -1;
+                        buf[pos++] = '\\';
+                    }
+                    if (pos + 1 >= buf_len) return -1;
+                    buf[pos++] = c;
+                }
             }
-            if (pos + 1 >= buf_len) {
-                free(flags_copy);
-                return -1;
-            }
-            buf[pos++] = *p++;
         }
 
-        // Add closing quote
-        if (pos + 1 >= buf_len) {
-            free(flags_copy);
-            return -1;
-        }
+        // Add closing quote for this JSON string
+        if (pos + 1 >= buf_len) return -1;
         buf[pos++] = '"';
-
-        token = strtok_r(NULL, " \t\n\r", &saveptr);
     }
-
-    free(flags_copy);
 
     // Add closing bracket and null terminator
-    if (pos + 2 >= buf_len) {
-        return -1;  // Buffer overflow
-    }
+    if (pos + 2 >= buf_len) return -1;
     buf[pos++] = ']';
     buf[pos] = '\0';
 
@@ -778,9 +799,12 @@ void trace2pass_report_overflow(void* pc, const char* file, int line, const char
     json_escape_string(expr, expr_escaped, sizeof(expr_escaped));
 
     // Serialize compiler flags as JSON array
-    char flags_json[512];
+    // 2048-byte buffer to accommodate verbose compile commands
+    char flags_json[2048];
     if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
-        strcpy(flags_json, "[]");  // Fallback on error
+        // Buffer overflow - log warning and use truncated marker
+        fprintf(stderr, "⚠️  Trace2Pass: Compiler flags too long, truncating for deduplication\n");
+        strcpy(flags_json, "[\"<truncated>\"]");
     }
 
     char json[2048];
@@ -854,9 +878,12 @@ void trace2pass_report_unreachable(void* pc, const char* file, int line, const c
     json_escape_string(message, msg_escaped, sizeof(msg_escaped));
 
     // Serialize compiler flags as JSON array
-    char flags_json[512];
+    // 2048-byte buffer to accommodate verbose compile commands
+    char flags_json[2048];
     if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
-        strcpy(flags_json, "[]");  // Fallback on error
+        // Buffer overflow - log warning and use truncated marker
+        fprintf(stderr, "⚠️  Trace2Pass: Compiler flags too long, truncating for deduplication\n");
+        strcpy(flags_json, "[\"<truncated>\"]");
     }
 
     char json[2048];
@@ -926,9 +953,12 @@ void trace2pass_report_bounds_violation(void* pc, const char* file, int line, co
     json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
 
     // Serialize compiler flags as JSON array
-    char flags_json[512];
+    // 2048-byte buffer to accommodate verbose compile commands
+    char flags_json[2048];
     if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
-        strcpy(flags_json, "[]");  // Fallback on error
+        // Buffer overflow - log warning and use truncated marker
+        fprintf(stderr, "⚠️  Trace2Pass: Compiler flags too long, truncating for deduplication\n");
+        strcpy(flags_json, "[\"<truncated>\"]");
     }
 
     char json[2048];
@@ -998,9 +1028,12 @@ void trace2pass_report_sign_conversion(void* pc, const char* file, int line, con
     json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
 
     // Serialize compiler flags as JSON array
-    char flags_json[512];
+    // 2048-byte buffer to accommodate verbose compile commands
+    char flags_json[2048];
     if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
-        strcpy(flags_json, "[]");  // Fallback on error
+        // Buffer overflow - log warning and use truncated marker
+        fprintf(stderr, "⚠️  Trace2Pass: Compiler flags too long, truncating for deduplication\n");
+        strcpy(flags_json, "[\"<truncated>\"]");
     }
 
     char json[2048];
@@ -1074,9 +1107,12 @@ void trace2pass_report_division_by_zero(void* pc, const char* file, int line, co
     json_escape_string(op_name, op_escaped, sizeof(op_escaped));
 
     // Serialize compiler flags as JSON array
-    char flags_json[512];
+    // 2048-byte buffer to accommodate verbose compile commands
+    char flags_json[2048];
     if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
-        strcpy(flags_json, "[]");  // Fallback on error
+        // Buffer overflow - log warning and use truncated marker
+        fprintf(stderr, "⚠️  Trace2Pass: Compiler flags too long, truncating for deduplication\n");
+        strcpy(flags_json, "[\"<truncated>\"]");
     }
 
     char json[2048];
@@ -1274,9 +1310,12 @@ void trace2pass_report_loop_bound_exceeded(void* pc, const char* file, int line,
     json_escape_string(loop_name, loop_escaped, sizeof(loop_escaped));
 
     // Serialize compiler flags as JSON array
-    char flags_json[512];
+    // 2048-byte buffer to accommodate verbose compile commands
+    char flags_json[2048];
     if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
-        strcpy(flags_json, "[]");  // Fallback on error
+        // Buffer overflow - log warning and use truncated marker
+        fprintf(stderr, "⚠️  Trace2Pass: Compiler flags too long, truncating for deduplication\n");
+        strcpy(flags_json, "[\"<truncated>\"]");
     }
 
     char json[2048];
