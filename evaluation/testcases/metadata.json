@@ -82,31 +82,491 @@
   "gcc-110726": {
     "bug_id": "gcc-110726",
     "compiler": "gcc",
-    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/gcc-110726.c",
+    "source_file": null,
     "expected_pass": "Tree Optimization",
     "optimization_level": "-O2",
-    "status": "manual",
+    "status": "failed_fetch",
     "url": "https://gcc.gnu.org/bugzilla/show_bug.cgi?id=110726",
-    "notes": "GCC 14 regression with 'a |= a == 0' pattern"
+    "notes": "GCC 14 regression found testing LLVM-16"
   },
   "gcc-108308": {
     "bug_id": "gcc-108308",
     "compiler": "gcc",
-    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/gcc-108308.c",
+    "source_file": null,
     "expected_pass": "Tree Optimization",
-    "optimization_level": "-Os",
-    "status": "manual",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
     "url": "https://gcc.gnu.org/bugzilla/show_bug.cgi?id=108308",
-    "notes": "GCC 13 regression at -Os with -fno-tree-ccp"
+    "notes": "GCC 13 regression on x86_64 with CCP disabled"
   },
   "gcc-115388": {
     "bug_id": "gcc-115388",
     "compiler": "gcc",
-    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/gcc-115388.c",
+    "source_file": null,
     "expected_pass": "Tree Optimization",
-    "optimization_level": "-O3",
-    "status": "manual",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
     "url": "https://gcc.gnu.org/bugzilla/show_bug.cgi?id=115388",
-    "notes": "GCC 15 regression at -O3 on x86_64"
+    "notes": "GCC 15 regression June 2024"
+  },
+  "llvm-64188": {
+    "bug_id": "llvm-64188",
+    "compiler": "llvm",
+    "source_file": null,
+    "expected_pass": "LICM",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://github.com/llvm/llvm-project/issues/64188",
+    "notes": "LICM incorrectly moves non-atomic write after release write on Armv8 (M1, ThunderX2)"
+  },
+  "llvm-72831": {
+    "bug_id": "llvm-72831",
+    "compiler": "llvm",
+    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/llvm-72831.c",
+    "expected_pass": "DSE",
+    "optimization_level": "-O2",
+    "status": "verified",
+    "url": "https://github.com/llvm/llvm-project/issues/72831",
+    "notes": "Bisected to DSEPass, recent regression Nov 2023"
+  },
+  "llvm-72855": {
+    "bug_id": "llvm-72855",
+    "compiler": "llvm",
+    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/llvm-72855.c",
+    "expected_pass": "Unknown",
+    "optimization_level": "-O2",
+    "status": "verified",
+    "url": "https://github.com/llvm/llvm-project/issues/72855",
+    "notes": "Recent regression Nov 2023, wrong code at -O1"
+  },
+  "llvm-67088": {
+    "bug_id": "llvm-67088",
+    "compiler": "llvm",
+    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/llvm-67088.c",
+    "expected_pass": "Unknown",
+    "optimization_level": "-O2",
+    "status": "verified",
+    "url": "https://github.com/llvm/llvm-project/issues/67088",
+    "notes": "Segmentation fault under large code model Sept 2023"
+  },
+  "llvm-89230": {
+    "bug_id": "llvm-89230",
+    "compiler": "llvm",
+    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/llvm-89230.c",
+    "expected_pass": "AArch64 Backend",
+    "optimization_level": "-O2",
+    "status": "verified",
+    "url": "https://github.com/llvm/llvm-project/issues/89230",
+    "notes": "AArch64 backend issue affecting all optimization levels Apr 2024"
+  },
+  "llvm-97600": {
+    "bug_id": "llvm-97600",
+    "compiler": "llvm",
+    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/llvm-97600.c",
+    "expected_pass": "LICM",
+    "optimization_level": "-O2",
+    "status": "verified",
+    "url": "https://github.com/llvm/llvm-project/issues/97600",
+    "notes": "Alias analysis error causing LICM miscompilation July 2024"
+  },
+  "llvm-40569": {
+    "bug_id": "llvm-40569",
+    "compiler": "llvm",
+    "source_file": null,
+    "expected_pass": "X87 Backend",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://github.com/llvm/llvm-project/issues/40569",
+    "notes": "X87 codegen treats fp_extend incorrectly with 32-bit float"
+  },
+  "llvm-137588": {
+    "bug_id": "llvm-137588",
+    "compiler": "llvm",
+    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/llvm-137588.c",
+    "expected_pass": "Unknown",
+    "optimization_level": "-O2",
+    "status": "verified",
+    "url": "https://github.com/llvm/llvm-project/issues/137588",
+    "notes": "Infinite loop at -O0 but not at -O1+"
+  },
+  "llvm-49667": {
+    "bug_id": "llvm-49667",
+    "compiler": "llvm",
+    "source_file": null,
+    "expected_pass": "SLP Vectorizer",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://github.com/llvm/llvm-project/issues/49667",
+    "notes": "SLP vectorization producing incorrect results"
+  },
+  "llvm-67134": {
+    "bug_id": "llvm-67134",
+    "compiler": "llvm",
+    "source_file": null,
+    "expected_pass": "Frontend",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://github.com/llvm/llvm-project/issues/67134",
+    "notes": "Crash in SourceLocExpr::EvaluateInContext with C++20 features"
+  },
+  "llvm-101994": {
+    "bug_id": "llvm-101994",
+    "compiler": "llvm",
+    "source_file": null,
+    "expected_pass": "Backend",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://github.com/llvm/llvm-project/issues/101994",
+    "notes": "Internal compiler error during Windows packaging for 19.1.0-rc2"
+  },
+  "llvm-123151": {
+    "bug_id": "llvm-123151",
+    "compiler": "llvm",
+    "source_file": null,
+    "expected_pass": "InstCombine",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://github.com/llvm/llvm-project/issues/123151",
+    "notes": "Reduces ICMP on pointers to offset comparison with wrong sign handling"
+  },
+  "llvm-115454": {
+    "bug_id": "llvm-115454",
+    "compiler": "llvm",
+    "source_file": null,
+    "expected_pass": "InstCombine",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://github.com/llvm/llvm-project/issues/115454",
+    "notes": "InstCombine optimization error Nov 2024"
+  },
+  "llvm-115458": {
+    "bug_id": "llvm-115458",
+    "compiler": "llvm",
+    "source_file": null,
+    "expected_pass": "InstCombine",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://github.com/llvm/llvm-project/issues/115458",
+    "notes": "mul (sext X), Y -> select transformation incorrect Nov 2024"
+  },
+  "llvm-59836": {
+    "bug_id": "llvm-59836",
+    "compiler": "llvm",
+    "source_file": null,
+    "expected_pass": "InstCombine",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://github.com/llvm/llvm-project/issues/59836",
+    "notes": "General InstCombine miscompile Jan 2023"
+  },
+  "llvm-64598": {
+    "bug_id": "llvm-64598",
+    "compiler": "llvm",
+    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/llvm-64598.c",
+    "expected_pass": "GVN",
+    "optimization_level": "-O2",
+    "status": "verified",
+    "url": "https://github.com/llvm/llvm-project/issues/64598",
+    "notes": "Recent GVN regression Aug 2023"
+  },
+  "llvm-53218": {
+    "bug_id": "llvm-53218",
+    "compiler": "llvm",
+    "source_file": null,
+    "expected_pass": "NewGVN",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://github.com/llvm/llvm-project/issues/53218",
+    "notes": "Equal instructions modulo attributes miscompiled 2022-2023"
+  },
+  "llvm-127511": {
+    "bug_id": "llvm-127511",
+    "compiler": "llvm",
+    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/llvm-127511.c",
+    "expected_pass": "GVN",
+    "optimization_level": "-O2",
+    "status": "verified",
+    "url": "https://github.com/llvm/llvm-project/issues/127511",
+    "notes": "x86-64 GVN optimization producing wrong code"
+  },
+  "llvm-116668": {
+    "bug_id": "llvm-116668",
+    "compiler": "llvm",
+    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/llvm-116668.c",
+    "expected_pass": "GVN",
+    "optimization_level": "-O2",
+    "status": "verified",
+    "url": "https://github.com/llvm/llvm-project/issues/116668",
+    "notes": "Local variable not preserved between setjmp/longjmp with GVN"
+  },
+  "llvm-27880": {
+    "bug_id": "llvm-27880",
+    "compiler": "llvm",
+    "source_file": null,
+    "expected_pass": "GVN",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://github.com/llvm/llvm-project/issues/27880",
+    "notes": "GVN propagateEquality propagates wrong equality with icmp"
+  },
+  "llvm-116583": {
+    "bug_id": "llvm-116583",
+    "compiler": "llvm",
+    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/llvm-116583.c",
+    "expected_pass": "Inlining",
+    "optimization_level": "-O2",
+    "status": "verified",
+    "url": "https://github.com/llvm/llvm-project/issues/116583",
+    "notes": "Inlined inalloca allocas break stack access after unwinding"
+  },
+  "llvm-122537": {
+    "bug_id": "llvm-122537",
+    "compiler": "llvm",
+    "source_file": null,
+    "expected_pass": "GVN + TBAA",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://github.com/llvm/llvm-project/issues/122537",
+    "notes": "RISC-V miscompiles 2D array allocation when inlined"
+  },
+  "llvm-65205": {
+    "bug_id": "llvm-65205",
+    "compiler": "llvm",
+    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/llvm-65205.c",
+    "expected_pass": "Inlining",
+    "optimization_level": "-O2",
+    "status": "verified",
+    "url": "https://github.com/llvm/llvm-project/issues/65205",
+    "notes": "Inlining callees with compatible target attributes broken"
+  },
+  "llvm-121110": {
+    "bug_id": "llvm-121110",
+    "compiler": "llvm",
+    "source_file": null,
+    "expected_pass": "Unknown",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://github.com/llvm/llvm-project/issues/121110",
+    "notes": "General miscompilation at size optimization Dec 2024"
+  },
+  "llvm-119646": {
+    "bug_id": "llvm-119646",
+    "compiler": "llvm",
+    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/llvm-119646.c",
+    "expected_pass": "Unknown",
+    "optimization_level": "-O2",
+    "status": "verified",
+    "url": "https://github.com/llvm/llvm-project/issues/119646",
+    "notes": "Another -Os miscompilation Dec 2024"
+  },
+  "llvm-113058": {
+    "bug_id": "llvm-113058",
+    "compiler": "llvm",
+    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/llvm-113058.c",
+    "expected_pass": "RISC-V Backend",
+    "optimization_level": "-O2",
+    "status": "verified",
+    "url": "https://github.com/llvm/llvm-project/issues/113058",
+    "notes": "RVV intrinsics producing wrong code"
+  },
+  "llvm-64253": {
+    "bug_id": "llvm-64253",
+    "compiler": "llvm",
+    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/llvm-64253.c",
+    "expected_pass": "Backend",
+    "optimization_level": "-O2",
+    "status": "verified",
+    "url": "https://github.com/llvm/llvm-project/issues/64253",
+    "notes": "mingw target miscompilation Aug 2023"
+  },
+  "llvm-102597": {
+    "bug_id": "llvm-102597",
+    "compiler": "llvm",
+    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/llvm-102597.c",
+    "expected_pass": "SCEV/IndVarSimplify",
+    "optimization_level": "-O2",
+    "status": "verified",
+    "url": "https://github.com/llvm/llvm-project/issues/102597",
+    "notes": "Incorrect handling of 128-bit integers in computeConstantDifference Aug 2024"
+  },
+  "llvm-114194": {
+    "bug_id": "llvm-114194",
+    "compiler": "llvm",
+    "source_file": null,
+    "expected_pass": "LiveRangeShrink",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://github.com/llvm/llvm-project/issues/114194",
+    "notes": "Hoists reloads before landingpad breaking exception handling Oct 2024"
+  },
+  "gcc-109973": {
+    "bug_id": "gcc-109973",
+    "compiler": "gcc",
+    "source_file": null,
+    "expected_pass": "Backend",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://gcc.gnu.org/bugzilla/show_bug.cgi?id=109973",
+    "notes": "GCC 13.1 regression in AVX2 vectorization"
+  },
+  "gcc-111048": {
+    "bug_id": "gcc-111048",
+    "compiler": "gcc",
+    "source_file": null,
+    "expected_pass": "Backend",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://gcc.gnu.org/bugzilla/show_bug.cgi?id=111048",
+    "notes": "GCC 14 regression in AVX2 code generation"
+  },
+  "gcc-113070": {
+    "bug_id": "gcc-113070",
+    "compiler": "gcc",
+    "source_file": null,
+    "expected_pass": "Backend",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://gcc.gnu.org/bugzilla/show_bug.cgi?id=113070",
+    "notes": "AArch64 backend issue with PGO/LTO Jan 2024"
+  },
+  "gcc-114206": {
+    "bug_id": "gcc-114206",
+    "compiler": "gcc",
+    "source_file": null,
+    "expected_pass": "Tree Optimization",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://gcc.gnu.org/bugzilla/show_bug.cgi?id=114206",
+    "notes": "Wrong code generation March 2024"
+  },
+  "gcc-117341": {
+    "bug_id": "gcc-117341",
+    "compiler": "gcc",
+    "source_file": null,
+    "expected_pass": "Unknown",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://gcc.gnu.org/bugzilla/show_bug.cgi?id=117341",
+    "notes": "Multiple GCC versions affected Oct 2024"
+  },
+  "gcc-103006": {
+    "bug_id": "gcc-103006",
+    "compiler": "gcc",
+    "source_file": null,
+    "expected_pass": "Tree Optimization",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://gcc.gnu.org/bugzilla/show_bug.cgi?id=103006",
+    "notes": "Long-standing regression affecting multiple versions"
+  },
+  "gcc-112793": {
+    "bug_id": "gcc-112793",
+    "compiler": "gcc",
+    "source_file": null,
+    "expected_pass": "Tree Vectorization",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://gcc.gnu.org/pipermail/gcc-bugs/2024-May/865676.html",
+    "notes": "Building stellarium triggers vectorization ICE"
+  },
+  "gcc-108110": {
+    "bug_id": "gcc-108110",
+    "compiler": "gcc",
+    "source_file": null,
+    "expected_pass": "IPA",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://gcc.gnu.org/pipermail/gcc-bugs/2023-January/807845.html",
+    "notes": "IPA optimization crash with znver3 Jan 2023"
+  },
+  "gcc-115815": {
+    "bug_id": "gcc-115815",
+    "compiler": "gcc",
+    "source_file": null,
+    "expected_pass": "IPA",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://gcc.gnu.org/pipermail/gcc-bugs/2024-October/885648.html",
+    "notes": "IPA parameter manipulation crash with LTO Oct 2024"
+  },
+  "gcc-114415": {
+    "bug_id": "gcc-114415",
+    "compiler": "gcc",
+    "source_file": null,
+    "expected_pass": "Scheduler",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://gcc.gnu.org/pipermail/gcc-patches/2024-March/647847.html",
+    "notes": "Scheduler moved stack-modifying instructions before stack reservation Apr 2024"
+  },
+  "gcc-114551": {
+    "bug_id": "gcc-114551",
+    "compiler": "gcc",
+    "source_file": null,
+    "expected_pass": "Tree Optimization",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://gcc.gnu.org/bugzilla/show_bug.cgi?id=114551",
+    "notes": "Loop splitting with undefined overflow issues Apr 2024"
+  },
+  "gcc-114552": {
+    "bug_id": "gcc-114552",
+    "compiler": "gcc",
+    "source_file": null,
+    "expected_pass": "Middle-end",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://gcc.gnu.org/bugzilla/show_bug.cgi?id=114552",
+    "notes": "emit_push_insn incorrectly handles constant initializers Apr 2024"
+  },
+  "gcc-115492": {
+    "bug_id": "gcc-115492",
+    "compiler": "gcc",
+    "source_file": null,
+    "expected_pass": "Tree Optimization",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://gcc.gnu.org/bugzilla/show_bug.cgi?id=115492",
+    "notes": "GCC 15 regression since r15-204 June 2024"
+  },
+  "gcc-116940": {
+    "bug_id": "gcc-116940",
+    "compiler": "gcc",
+    "source_file": null,
+    "expected_pass": "Backend",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://gcc.gnu.org/bugzilla/show_bug.cgi?id=116940",
+    "notes": "Vector compare and negation wrong code since r15-1742"
+  },
+  "gcc-115347": {
+    "bug_id": "gcc-115347",
+    "compiler": "gcc",
+    "source_file": null,
+    "expected_pass": "Tree Optimization",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://gcc.gnu.org/bugzilla/show_bug.cgi?id=115347",
+    "notes": "Loop distribution with zero-distance inner loop dependencies"
+  },
+  "gcc-115494": {
+    "bug_id": "gcc-115494",
+    "compiler": "gcc",
+    "source_file": null,
+    "expected_pass": "Tree Optimization",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://gcc.gnu.org/bugzilla/show_bug.cgi?id=115494",
+    "notes": "GCC 14/15 regression since r14-3485 June 2024"
+  },
+  "gcc-118132": {
+    "bug_id": "gcc-118132",
+    "compiler": "gcc",
+    "source_file": null,
+    "expected_pass": "Tree Vectorization",
+    "optimization_level": "-O2",
+    "status": "failed_fetch",
+    "url": "https://gcc.gnu.org/bugzilla/show_bug.cgi?id=118132",
+    "notes": "Obsolete vectorized code causes performance regression Dec 2024"
   }
 }
