@@ -28,6 +28,11 @@ logger = logging.getLogger(__name__)
 # Database path (shared, but connections are per-request)
 DB_PATH = "collector.db"
 
+# Module-level database instance for backward compatibility with tests
+# IMPORTANT: This should NOT be used in request handlers - use get_db() instead
+# Tests can import and use this, or call get_db() within app context
+db = Database(DB_PATH)
+
 
 def get_db() -> Database:
     """Get per-request database connection.

@@ -229,13 +229,7 @@ class Database:
         current_time = time.time()
 
         for row in rows:
-            report_dict = dict(row)
-
-            # Parse JSON fields
-            report_dict['stacktrace'] = json.loads(report_dict['stacktrace']) if report_dict['stacktrace'] else []
-            report_dict['flags'] = json.loads(report_dict['flags']) if report_dict['flags'] else []
-            report_dict['check_details'] = json.loads(report_dict['check_details']) if report_dict['check_details'] else {}
-            report_dict['system_info'] = json.loads(report_dict['system_info']) if report_dict['system_info'] else {}
+            flat_dict = dict(row)
 
             # Compute recency factor (1.0 for <24h, decays to 0.5 for >7 days)
             # CRITICAL: Use last_seen, not timestamp!
@@ -244,7 +238,7 @@ class Database:
             # This ensures a bug spiking NOW gets high priority even if first seen weeks ago.
             try:
                 # Use last_seen if available, fall back to timestamp
-                time_field = report_dict.get('last_seen') or report_dict['timestamp']
+                time_field = flat_dict.get('last_seen') or flat_dict['timestamp']
                 # CRITICAL: Python 3.9/3.10 don't support 'Z' suffix in fromisoformat()
                 # Replace 'Z' with '+00:00' for compatibility (Z suffix support added in Python 3.11)
                 if time_field.endswith('Z'):
@@ -264,8 +258,13 @@ class Database:
                 recency = 0.5  # Default for invalid timestamps
 
             # Compute priority score: (frequency × severity) × recency
-            severity = severity_weights.get(report_dict['check_type'], 0.5)
-            report_dict['priority_score'] = report_dict['frequency'] * severity * recency
+            severity = severity_weights.get(flat_dict['check_type'], 0.5)
+            priority_score = flat_dict['frequency'] * severity * recency
+
+            # Rehydrate to nested schema format for consistent API shape
+            report_dict = self._rehydrate_report(flat_dict)
+            # Add priority score to the rehydrated report
+            report_dict['priority_score'] = priority_score
 
             results.append(report_dict)
 
@@ -284,21 +283,36 @@ class Database:
         Returns:
             Nested report matching the ingest schema
         """
+        # Parse location field: "file:line:function"
+        location_str = flat['location']
+        location_parts = location_str.rsplit(':', 2)  # Split from right to handle colons in paths
+        if len(location_parts) == 3:
+            file_name, line_str, function_name = location_parts
+            try:
+                line_num = int(line_str)
+            except ValueError:
+                line_num = 0
+        else:
+            # Fallback if location format is unexpected
+            file_name = location_str
+            line_num = 0
+            function_name = 'unknown'
+
         return {
             'report_id': flat['report_id'],
             'timestamp': flat['timestamp'],
             'check_type': flat['check_type'],
             'location': {
-                'file': flat['file'],
-                'line': flat['line'],
-                'function': flat['function']
+                'file': file_name,
+                'line': line_num,
+                'function': function_name
             },
             'pc': flat.get('pc'),
             'stacktrace': json.loads(flat['stacktrace']) if flat.get('stacktrace') else [],
             'compiler': {
                 'name': flat['compiler_name'],
-                'version': flat['compiler_version'],
-                'target': flat['target_arch']
+                'version': flat['compiler_version']
+                # Note: target_arch column doesn't exist yet, omitted
             },
             'build_info': {
                 'optimization_level': flat['optimization_level'],
@@ -310,7 +324,7 @@ class Database:
             'system_info': json.loads(flat['system_info']) if flat.get('system_info') else {},
             'status': flat.get('status'),
             'diagnosis': json.loads(flat['diagnosis']) if flat.get('diagnosis') else None,
-            'occurrence_count': flat.get('occurrence_count', 1),
+            'frequency': flat.get('frequency', 1),
             'last_seen': flat.get('last_seen')
         }
 
