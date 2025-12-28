@@ -244,6 +244,22 @@ static FILE* get_output_file(void) {
     return stderr;
 }
 
+// Helper: Create minimal fallback report when main report exceeds buffer size
+// Ensures we always send valid JSON even if full report is too large
+static void create_minimal_report(char* buffer, size_t buffer_size,
+                                   const char* report_id, const char* timestamp,
+                                   const char* check_type) {
+    snprintf(buffer, buffer_size,
+        "{"
+        "\"report_id\":\"%s\","
+        "\"timestamp\":\"%s\","
+        "\"check_type\":\"%s\","
+        "\"error\":\"report_truncated\","
+        "\"message\":\"Full report exceeded buffer size. File path, function name, or compiler flags too long.\""
+        "}",
+        report_id, timestamp, check_type);
+}
+
 // Initialization
 void trace2pass_init(void) {
     // Check environment variables
@@ -813,7 +829,7 @@ void trace2pass_report_overflow(void* pc, const char* file, int line, const char
     // - Other fields (~200 bytes)
     // Total: ~3700 bytes, use 4096 for safety margin
     char json[4096];
-    snprintf(json, sizeof(json),
+    int json_len = snprintf(json, sizeof(json),
         "{"
         "\"report_id\":\"%s\","
         "\"timestamp\":\"%s\","
@@ -828,6 +844,12 @@ void trace2pass_report_overflow(void* pc, const char* file, int line, const char
         build_opt_level ? build_opt_level : "unknown",
         flags_json,
         expr_escaped, (long long)a, (long long)b);
+
+    // Check if output was truncated (snprintf returns chars that WOULD be written)
+    if (json_len >= (int)sizeof(json)) {
+        fprintf(stderr, "⚠️  Trace2Pass: Report too large (%d bytes), using minimal fallback\n", json_len);
+        create_minimal_report(json, sizeof(json), report_id, timestamp, "arithmetic_overflow");
+    }
 
     // Send to Collector if configured
     if (collector_url) {
@@ -899,7 +921,7 @@ void trace2pass_report_unreachable(void* pc, const char* file, int line, const c
     // - Other fields (~200 bytes)
     // Total: ~3700 bytes, use 4096 for safety margin
     char json[4096];
-    snprintf(json, sizeof(json),
+    int json_len = snprintf(json, sizeof(json),
         "{"
         "\"report_id\":\"%s\","
         "\"timestamp\":\"%s\","
@@ -914,6 +936,12 @@ void trace2pass_report_unreachable(void* pc, const char* file, int line, const c
         build_opt_level ? build_opt_level : "unknown",
         flags_json,
         msg_escaped);
+
+    // Check if output was truncated
+    if (json_len >= (int)sizeof(json)) {
+        fprintf(stderr, "⚠️  Trace2Pass: Report too large (%d bytes), using minimal fallback\n", json_len);
+        create_minimal_report(json, sizeof(json), report_id, timestamp, "unreachable_code_executed");
+    }
 
     // Send to Collector if configured
     if (collector_url) {
@@ -981,7 +1009,7 @@ void trace2pass_report_bounds_violation(void* pc, const char* file, int line, co
     // - Other fields (~200 bytes)
     // Total: ~3700 bytes, use 4096 for safety margin
     char json[4096];
-    snprintf(json, sizeof(json),
+    int json_len = snprintf(json, sizeof(json),
         "{"
         "\"report_id\":\"%s\","
         "\"timestamp\":\"%s\","
@@ -996,6 +1024,12 @@ void trace2pass_report_bounds_violation(void* pc, const char* file, int line, co
         build_opt_level ? build_opt_level : "unknown",
         flags_json,
         (unsigned long long)ptr, offset, size);
+
+    // Check if output was truncated
+    if (json_len >= (int)sizeof(json)) {
+        fprintf(stderr, "⚠️  Trace2Pass: Report too large (%d bytes), using minimal fallback\n", json_len);
+        create_minimal_report(json, sizeof(json), report_id, timestamp, "bounds_violation");
+    }
 
     // Send to Collector if configured
     if (collector_url) {
@@ -1063,7 +1097,7 @@ void trace2pass_report_sign_conversion(void* pc, const char* file, int line, con
     // - Other fields (~200 bytes)
     // Total: ~3700 bytes, use 4096 for safety margin
     char json[4096];
-    snprintf(json, sizeof(json),
+    int json_len = snprintf(json, sizeof(json),
         "{"
         "\"report_id\":\"%s\","
         "\"timestamp\":\"%s\","
@@ -1078,6 +1112,12 @@ void trace2pass_report_sign_conversion(void* pc, const char* file, int line, con
         build_opt_level ? build_opt_level : "unknown",
         flags_json,
         (long long)original_value, (unsigned long long)cast_value, src_bits, dest_bits);
+
+    // Check if output was truncated
+    if (json_len >= (int)sizeof(json)) {
+        fprintf(stderr, "⚠️  Trace2Pass: Report too large (%d bytes), using minimal fallback\n", json_len);
+        create_minimal_report(json, sizeof(json), report_id, timestamp, "sign_conversion");
+    }
 
     // Send to Collector if configured
     if (collector_url) {
@@ -1149,7 +1189,7 @@ void trace2pass_report_division_by_zero(void* pc, const char* file, int line, co
     // - Other fields (~200 bytes)
     // Total: ~3700 bytes, use 4096 for safety margin
     char json[4096];
-    snprintf(json, sizeof(json),
+    int json_len = snprintf(json, sizeof(json),
         "{"
         "\"report_id\":\"%s\","
         "\"timestamp\":\"%s\","
@@ -1164,6 +1204,12 @@ void trace2pass_report_division_by_zero(void* pc, const char* file, int line, co
         build_opt_level ? build_opt_level : "unknown",
         flags_json,
         op_escaped, (long long)dividend, (long long)divisor);
+
+    // Check if output was truncated
+    if (json_len >= (int)sizeof(json)) {
+        fprintf(stderr, "⚠️  Trace2Pass: Report too large (%d bytes), using minimal fallback\n", json_len);
+        create_minimal_report(json, sizeof(json), report_id, timestamp, "division_by_zero");
+    }
 
     // Send to Collector if configured
     if (collector_url) {
@@ -1360,7 +1406,7 @@ void trace2pass_report_loop_bound_exceeded(void* pc, const char* file, int line,
     // - Other fields (~200 bytes)
     // Total: ~3700 bytes, use 4096 for safety margin
     char json[4096];
-    snprintf(json, sizeof(json),
+    int json_len = snprintf(json, sizeof(json),
         "{"
         "\"report_id\":\"%s\","
         "\"timestamp\":\"%s\","
@@ -1375,6 +1421,12 @@ void trace2pass_report_loop_bound_exceeded(void* pc, const char* file, int line,
         build_opt_level ? build_opt_level : "unknown",
         flags_json,
         loop_escaped, (unsigned long long)iteration_count, (unsigned long long)threshold);
+
+    // Check if output was truncated
+    if (json_len >= (int)sizeof(json)) {
+        fprintf(stderr, "⚠️  Trace2Pass: Report too large (%d bytes), using minimal fallback\n", json_len);
+        create_minimal_report(json, sizeof(json), report_id, timestamp, "loop_bound_exceeded");
+    }
 
     // Send to Collector if configured
     if (collector_url) {
