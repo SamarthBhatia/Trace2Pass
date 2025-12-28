@@ -222,10 +222,12 @@ def test_end_to_end_with_known_bug(full_system, known_bug_llvm_64598):
                 print(f"  Report {i+1}: {r['check_type']} in {r['location']['function']}")
 
         # STEP 5: Run diagnoser on the real report
+        # The diagnoser compiles source with different compiler versions and tests
+        # test_command must contain {binary} placeholder that gets replaced during bisection
         diagnosis = diagnose.full_pipeline_cmd(
-            bug["source"],
-            binary,
-            '-O2'
+            source_file=bug["source"],
+            test_command='{binary}',  # Binary returns 0 if correct, 1 if buggy
+            optimization_level='-O2'
         )
 
         # STEP 6: Verify diagnosis
