@@ -106,73 +106,89 @@ def test_end_to_end_with_known_bug(full_system, known_bug_llvm_64598):
     Full end-to-end test with LLVM bug #64598.
 
     Flow:
-    1. Compile source with instrumentation
-    2. Run and detect anomaly
-    3. Submit report to collector
+    1. Compile source WITH instrumentation pass
+    2. Run instrumented binary (runtime detects anomaly and POSTs to collector)
+    3. Verify collector received real report from runtime
     4. Run diagnoser on report
     5. Verify diagnosis identifies InstCombine
     """
     bug = known_bug_llvm_64598
     collector_url = full_system["collector_url"]
 
-    # STEP 1: Compile source (without instrumentation for now, as we don't need it for this test)
+    # STEP 1: Compile source WITH instrumentation
     binary = bug["source"].replace('.c', '_test')
+    instrumentor_path = REPO_ROOT / "instrumentor" / "build" / "Trace2PassInstrumentor.so"
+    runtime_lib_path = REPO_ROOT / "runtime" / "build" / "libTrace2PassRuntime.a"
 
+    # Check if instrumentation pass exists
+    if not instrumentor_path.exists():
+        pytest.skip(f"Instrumentor not built: {instrumentor_path}")
+
+    # Check if runtime library exists
+    if not runtime_lib_path.exists():
+        pytest.skip(f"Runtime library not built: {runtime_lib_path}")
+
+    # Compile with instrumentation pass loaded and runtime library linked
     result = subprocess.run(
-        ['clang', '-O2', bug["source"], '-o', binary],
-        capture_output=True
+        [
+            'clang',
+            f'-fplugin={instrumentor_path}',
+            '-O2',
+            bug["source"],
+            '-o', binary,
+            str(runtime_lib_path),
+            '-lcurl'  # Runtime library needs curl for HTTP POST
+        ],
+        capture_output=True,
+        text=True
     )
 
     if result.returncode != 0:
-        pytest.skip(f"Compilation failed: {result.stderr}")
+        pytest.skip(f"Compilation with instrumentation failed: {result.stderr}")
 
     try:
-        # STEP 2: Run binary
-        result = subprocess.run([binary], capture_output=True, text=True, timeout=5)
-        output = result.stdout.strip()
-        exit_code = result.returncode
+        # STEP 2: Run instrumented binary with collector URL set
+        # Runtime will automatically detect overflow and POST to collector
+        env = os.environ.copy()
+        env['TRACE2PASS_COLLECTOR_URL'] = f"{collector_url}/api/v1/report"
 
-        # STEP 3: Create anomaly report (simulating what runtime would do)
-        report = {
-            "report_id": f"integration-test-{bug['bug_id']}",
-            "timestamp": "2025-12-23T12:00:00Z",
-            "check_type": "arithmetic_overflow",
-            "location": {
-                "file": bug["source"],
-                "line": 9,
-                "function": "buggy_division"
-            },
-            "compiler": {
-                "name": "clang",
-                "version": "16.0.6",
-                "target": "x86_64-linux-gnu"
-            },
-            "build_info": {
-                "optimization_level": "-O2",
-                "flags": ["-O2"]
-            },
-            "check_details": {
-                "expression": "x / 4",
-                "expected": "-536870912",
-                "actual": output
-            }
-        }
-
-        # STEP 4: Submit to collector
-        response = requests.post(
-            f"{collector_url}/api/v1/report",
-            json=report
+        result = subprocess.run(
+            [binary],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            env=env
         )
-        assert response.status_code == 201
 
-        # STEP 5: Run diagnoser
+        # Give collector time to receive and process the report
+        time.sleep(0.5)
+
+        # STEP 3: Verify collector received a real report from runtime
+        # Query all reports from collector
+        response = requests.get(f"{collector_url}/api/v1/reports")
+        assert response.status_code == 200
+
+        reports = response.json()['reports']
+        assert len(reports) > 0, "No reports received from instrumented binary"
+
+        # Find the report for our test (should be arithmetic_overflow)
+        test_report = None
+        for report in reports:
+            if report['check_type'] == 'arithmetic_overflow':
+                test_report = report
+                break
+
+        assert test_report is not None, "No arithmetic_overflow report found"
+        assert test_report['location']['function'] == 'buggy_division'
+
+        # STEP 4: Run diagnoser on the real report
         diagnosis = diagnose.full_pipeline_cmd(
             bug["source"],
-            '{binary}',
+            binary,
             '-O2'
         )
 
-        # STEP 6: Verify diagnosis
+        # STEP 5: Verify diagnosis
         assert "verdict" in diagnosis
         assert "ub_detection" in diagnosis
 
