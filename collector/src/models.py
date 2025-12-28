@@ -245,9 +245,10 @@ class Database:
             try:
                 # Use last_seen if available, fall back to timestamp
                 time_field = report_dict.get('last_seen') or report_dict['timestamp']
-                # CRITICAL: We now always write timezone-aware timestamps with +00:00 (commit d2c7d71),
-                # so the .replace('Z', '+00:00') is unnecessary and could corrupt imported legacy data.
-                # datetime.fromisoformat() handles both 'Z' and '+00:00' formats correctly.
+                # CRITICAL: Python 3.9/3.10 don't support 'Z' suffix in fromisoformat()
+                # Replace 'Z' with '+00:00' for compatibility (Z suffix support added in Python 3.11)
+                if time_field.endswith('Z'):
+                    time_field = time_field[:-1] + '+00:00'
                 report_time = datetime.fromisoformat(time_field).timestamp()
                 age_hours = (current_time - report_time) / 3600
 
