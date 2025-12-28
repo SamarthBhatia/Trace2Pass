@@ -107,10 +107,11 @@ def test_end_to_end_with_known_bug(full_system, known_bug_llvm_64598):
 
     Flow:
     1. Compile source WITH instrumentation pass
-    2. Run instrumented binary (runtime detects anomaly and POSTs to collector)
-    3. Verify collector received real report from runtime
-    4. Run diagnoser on report
-    5. Verify diagnosis identifies InstCombine
+    2. Record initial collector state (baseline report count)
+    3. Run instrumented binary (runtime detects anomaly and POSTs to collector)
+    4. Verify collector received exactly ONE NEW report from THIS execution
+    5. Run diagnoser on the real report
+    6. Verify diagnosis identifies InstCombine
     """
     bug = known_bug_llvm_64598
     collector_url = full_system["collector_url"]
@@ -147,7 +148,14 @@ def test_end_to_end_with_known_bug(full_system, known_bug_llvm_64598):
         pytest.skip(f"Compilation with instrumentation failed: {result.stderr}")
 
     try:
-        # STEP 2: Run instrumented binary with collector URL set
+        # STEP 2: Record initial state before running binary
+        # Get baseline report count to verify we receive a NEW report
+        response = requests.get(f"{collector_url}/api/v1/reports")
+        assert response.status_code == 200
+        initial_reports = response.json()['reports']
+        initial_count = len(initial_reports)
+
+        # STEP 3: Run instrumented binary with collector URL set
         # Runtime will automatically detect overflow and POST to collector
         env = os.environ.copy()
         env['TRACE2PASS_COLLECTOR_URL'] = f"{collector_url}/api/v1/report"
@@ -160,35 +168,57 @@ def test_end_to_end_with_known_bug(full_system, known_bug_llvm_64598):
             env=env
         )
 
+        # Debug: Print runtime output if no report received
+        if result.stdout:
+            print(f"\n[DEBUG] Binary stdout: {result.stdout}")
+        if result.stderr:
+            print(f"\n[DEBUG] Binary stderr: {result.stderr}")
+        print(f"\n[DEBUG] Binary exit code: {result.returncode}")
+
         # Give collector time to receive and process the report
         time.sleep(0.5)
 
-        # STEP 3: Verify collector received a real report from runtime
+        # STEP 4: Verify collector received a NEW report from THIS execution
         # Query all reports from collector
         response = requests.get(f"{collector_url}/api/v1/reports")
         assert response.status_code == 200
 
-        reports = response.json()['reports']
-        assert len(reports) > 0, "No reports received from instrumented binary"
+        current_reports = response.json()['reports']
+        current_count = len(current_reports)
 
-        # Find the report for our test (should be arithmetic_overflow)
-        test_report = None
-        for report in reports:
-            if report['check_type'] == 'arithmetic_overflow':
-                test_report = report
-                break
+        # CRITICAL: Verify we got exactly ONE new report from this execution
+        assert current_count == initial_count + 1, \
+            f"Expected 1 new report, but got {current_count - initial_count} " \
+            f"(initial: {initial_count}, current: {current_count})"
 
-        assert test_report is not None, "No arithmetic_overflow report found"
-        assert test_report['location']['function'] == 'buggy_division'
+        # Find the NEW report (not in initial set)
+        initial_ids = {r['report_id'] for r in initial_reports}
+        new_reports = [r for r in current_reports if r['report_id'] not in initial_ids]
 
-        # STEP 4: Run diagnoser on the real report
+        assert len(new_reports) == 1, \
+            f"Expected exactly 1 new report, but got {len(new_reports)}"
+
+        test_report = new_reports[0]
+
+        # Verify the report came from our test execution
+        assert test_report['check_type'] == 'arithmetic_overflow', \
+            f"Expected arithmetic_overflow, got {test_report['check_type']}"
+        assert test_report['location']['function'] == 'buggy_division', \
+            f"Expected buggy_division function, got {test_report['location']['function']}"
+
+        # Verify source file is from our test (contains temp directory path)
+        assert bug["source"] in test_report['location']['file'] or \
+               'buggy_division' in test_report['location']['function'], \
+            f"Report doesn't match our test execution: {test_report['location']}"
+
+        # STEP 5: Run diagnoser on the real report
         diagnosis = diagnose.full_pipeline_cmd(
             bug["source"],
             binary,
             '-O2'
         )
 
-        # STEP 5: Verify diagnosis
+        # STEP 6: Verify diagnosis
         assert "verdict" in diagnosis
         assert "ub_detection" in diagnosis
 
