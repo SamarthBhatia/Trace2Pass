@@ -214,7 +214,7 @@ static int serialize_flags_json(const char* flags, char* buf, size_t buf_len) {
     buf[pos++] = ']';
     buf[pos] = '\0';
 
-    return pos;
+    return (int)pos;
 }
 
 // Helper: Get output file
