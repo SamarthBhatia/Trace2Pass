@@ -10,6 +10,7 @@ import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Dict, List, Any
+from urllib.parse import quote as url_quote, unquote as url_unquote
 
 
 class Database:
@@ -24,6 +25,7 @@ class Database:
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row  # Return dict-like rows
         self._create_tables()
+        self._migrate_location_format()
 
     def _create_tables(self):
         """Create database schema."""
@@ -60,6 +62,55 @@ class Database:
         """
         self.conn.executescript(schema)
         self.conn.commit()
+
+    def _migrate_location_format(self):
+        """Migrate old colon-delimited locations to URL-encoded pipe format.
+
+        This handles backwards compatibility for existing database entries that use
+        the old "file:line:function" format, which breaks for C++ symbols (::) and
+        Windows paths (C:\).
+
+        New format: "file|line|function" with URL encoding for special chars
+        """
+        try:
+            # Check if migration is needed by looking for colon-delimited entries
+            rows = self.conn.execute(
+                "SELECT id, location FROM reports WHERE location NOT LIKE '%|%' LIMIT 1"
+            ).fetchall()
+
+            if not rows:
+                return  # No migration needed
+
+            # Migrate all colon-delimited entries
+            all_rows = self.conn.execute(
+                "SELECT id, location FROM reports WHERE location NOT LIKE '%|%'"
+            ).fetchall()
+
+            for row in all_rows:
+                old_location = row['location']
+                # Try to parse the old format as best we can
+                # This will still fail for C++ symbols, but at least preserves data
+                parts = old_location.rsplit(':', 2)
+                if len(parts) == 3:
+                    file_name, line_str, function_name = parts
+                else:
+                    # Can't parse - skip this entry
+                    continue
+
+                # Re-encode with URL-safe pipe format
+                # URL-encode each component to escape pipes and other special chars
+                new_location = f"{url_quote(file_name, safe='')}|{url_quote(line_str, safe='')}|{url_quote(function_name, safe='')}"
+
+                self.conn.execute(
+                    "UPDATE reports SET location = ? WHERE id = ?",
+                    (new_location, row['id'])
+                )
+
+            self.conn.commit()
+        except Exception as e:
+            # Migration failure shouldn't break the app
+            import logging
+            logging.warning(f"Location format migration failed: {e}")
 
     def close(self):
         """Close database connection."""
@@ -106,8 +157,12 @@ class Database:
             return report_id
         else:
             # Insert new report
-            # Use pipe delimiter to avoid ambiguity with C++ symbols (::) and Windows paths (C:\)
-            location = f"{report['location']['file']}|{report['location']['line']}|{report['location']['function']}"
+            # Use pipe delimiter with URL encoding to handle any characters in paths/symbols
+            # URL-encode each component to escape pipes, colons, and other special chars
+            file_name = url_quote(report['location']['file'], safe='')
+            line = url_quote(str(report['location']['line']), safe='')
+            function = url_quote(report['location']['function'], safe='')
+            location = f"{file_name}|{line}|{function}"
 
             self.conn.execute(
                 """
@@ -177,8 +232,12 @@ class Database:
         # - If instrumentor embeds metadata: function = actual function name
         # - If metadata missing: function = call-site ID (site_XXXXXXXX)
         # Note: call-site IDs are process-specific and change between runs
-        # Use pipe delimiter to match storage format and avoid ambiguity
-        location = f"{file_name}|{line}|{function}"
+        # Use pipe delimiter with URL encoding to match storage format
+        # URL-encode to prevent collisions with delimiter characters
+        file_encoded = url_quote(file_name, safe='')
+        line_encoded = url_quote(str(line), safe='')
+        function_encoded = url_quote(function, safe='')
+        location = f"{file_encoded}|{line_encoded}|{function_encoded}"
 
         compiler_version = report['compiler']['version']
         check_type = report['check_type']
@@ -290,15 +349,18 @@ class Database:
         Returns:
             Nested report matching the ingest schema
         """
-        # Parse location field: "file|line|function"
-        # Uses pipe delimiter to avoid ambiguity with C++ symbols (::) and Windows paths (C:\)
+        # Parse location field: "file|line|function" with URL encoding
+        # Uses pipe delimiter with URL encoding to handle any special characters
         location_str = flat['location']
 
-        # Try new pipe-delimited format first
+        # Parse pipe-delimited format with URL decoding
         if '|' in location_str:
             location_parts = location_str.split('|', 2)
             if len(location_parts) == 3:
-                file_name, line_str, function_name = location_parts
+                # URL-decode each component
+                file_name = url_unquote(location_parts[0])
+                line_str = url_unquote(location_parts[1])
+                function_name = url_unquote(location_parts[2])
                 try:
                     line_num = int(line_str)
                 except ValueError:
@@ -309,20 +371,11 @@ class Database:
                 line_num = 0
                 function_name = 'unknown'
         else:
-            # Fallback: old colon-delimited format (for backward compatibility)
-            # This will still fail for C++ symbols and Windows paths, but maintains
-            # compatibility with existing database entries
-            location_parts = location_str.rsplit(':', 2)
-            if len(location_parts) == 3:
-                file_name, line_str, function_name = location_parts
-                try:
-                    line_num = int(line_str)
-                except ValueError:
-                    line_num = 0
-            else:
-                file_name = location_str
-                line_num = 0
-                function_name = 'unknown'
+            # No pipe found - this should not happen after migration
+            # Fallback: treat as raw string
+            file_name = location_str
+            line_num = 0
+            function_name = 'unknown'
 
         return {
             'report_id': flat['report_id'],

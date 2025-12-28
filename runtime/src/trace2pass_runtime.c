@@ -172,30 +172,32 @@ static int serialize_flags_json(const char* flags, char* buf, size_t buf_len) {
 
         // Parse one flag, respecting quotes for tokenization but stripping them from output
         // Quotes are shell syntax (to preserve spaces), not part of the actual flag value
+        // Handle backslash escapes: \x → include x literally
         char in_quote = '\0';  // Track which quote character we're inside (' or ")
         while (*p && (in_quote || (*p != ' ' && *p != '\t' && *p != '\n' && *p != '\r'))) {
             char c = *p++;
+
+            // Handle backslash escapes
+            if (c == '\\' && *p) {
+                // Backslash followed by another character - treat as escape sequence
+                char next = *p++;
+                // Include the escaped character literally (with JSON escaping if needed)
+                if (next == '"' || next == '\\') {
+                    if (pos + 2 >= buf_len) return -1;
+                    buf[pos++] = '\\';
+                }
+                if (pos + 1 >= buf_len) return -1;
+                buf[pos++] = next;
+                continue;
+            }
 
             // Handle quote characters
             if (in_quote) {
                 // Inside quotes - check for closing quote
                 if (c == in_quote) {
-                    // Check if it's escaped
-                    if (p > flags + 1 && *(p - 2) == '\\') {
-                        // Escaped quote within quotes - include the quote character
-                        // (strip the backslash since it was shell escaping)
-                        if (c == '"' || c == '\\') {
-                            // Needs JSON escaping
-                            if (pos + 2 >= buf_len) return -1;
-                            buf[pos++] = '\\';
-                        }
-                        if (pos + 1 >= buf_len) return -1;
-                        buf[pos++] = c;
-                    } else {
-                        // Unescaped closing quote - exit quote mode
-                        // STRIP the quote character (it's shell syntax, not part of flag value)
-                        in_quote = '\0';
-                    }
+                    // Unescaped closing quote - exit quote mode
+                    // STRIP the quote character (it's shell syntax, not part of flag value)
+                    in_quote = '\0';
                 } else {
                     // Regular character inside quotes - include it with JSON escaping
                     if (c == '"' || c == '\\') {
