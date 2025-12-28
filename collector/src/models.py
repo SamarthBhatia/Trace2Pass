@@ -67,8 +67,11 @@ class Database:
         """Migrate old colon-delimited locations to URL-encoded pipe format.
 
         This handles backwards compatibility for existing database entries that use
-        the old "file:line:function" format, which breaks for C++ symbols (::) and
-        Windows paths (C:\).
+        the old "file:line:function" format.
+
+        LIMITATION: C++ symbols (std::vector::push_back) and Windows paths (C:\src\file.c)
+        cannot be reliably parsed from the old colon format. These entries will be kept
+        as-is with a marker to indicate they're unparseable legacy data.
 
         New format: "file|line|function" with URL encoding for special chars
         """
@@ -86,27 +89,50 @@ class Database:
                 "SELECT id, location FROM reports WHERE location NOT LIKE '%|%'"
             ).fetchall()
 
+            migrated_count = 0
+            failed_count = 0
+
             for row in all_rows:
                 old_location = row['location']
                 # Try to parse the old format as best we can
-                # This will still fail for C++ symbols, but at least preserves data
+                # This will fail for C++ symbols and Windows paths
                 parts = old_location.rsplit(':', 2)
                 if len(parts) == 3:
                     file_name, line_str, function_name = parts
+                    # Validate that line_str is actually a number
+                    try:
+                        int(line_str)
+                        # Looks parseable - migrate it
+                        new_location = f"{url_quote(file_name, safe='')}|{url_quote(line_str, safe='')}|{url_quote(function_name, safe='')}"
+                        self.conn.execute(
+                            "UPDATE reports SET location = ? WHERE id = ?",
+                            (new_location, row['id'])
+                        )
+                        migrated_count += 1
+                    except ValueError:
+                        # Line number is not a number - this is a C++ symbol or similar
+                        # Keep as-is but add marker prefix so _rehydrate_report knows it's unparseable
+                        new_location = f"LEGACY_UNPARSEABLE|{old_location}"
+                        self.conn.execute(
+                            "UPDATE reports SET location = ? WHERE id = ?",
+                            (new_location, row['id'])
+                        )
+                        failed_count += 1
                 else:
-                    # Can't parse - skip this entry
-                    continue
-
-                # Re-encode with URL-safe pipe format
-                # URL-encode each component to escape pipes and other special chars
-                new_location = f"{url_quote(file_name, safe='')}|{url_quote(line_str, safe='')}|{url_quote(function_name, safe='')}"
-
-                self.conn.execute(
-                    "UPDATE reports SET location = ? WHERE id = ?",
-                    (new_location, row['id'])
-                )
+                    # Can't parse - mark as unparseable
+                    new_location = f"LEGACY_UNPARSEABLE|{old_location}"
+                    self.conn.execute(
+                        "UPDATE reports SET location = ? WHERE id = ?",
+                        (new_location, row['id'])
+                    )
+                    failed_count += 1
 
             self.conn.commit()
+
+            if migrated_count > 0 or failed_count > 0:
+                import logging
+                logging.info(f"Location migration: {migrated_count} migrated, {failed_count} marked as unparseable")
+
         except Exception as e:
             # Migration failure shouldn't break the app
             import logging
@@ -128,7 +154,7 @@ class Database:
         Returns:
             Report ID if inserted/updated, None on error
         """
-        # Compute deduplication hash
+        # Compute deduplication hash (store encoded components alongside location)
         dedupe_hash = self._compute_dedupe_hash(report)
 
         # Check if report already exists
@@ -232,19 +258,18 @@ class Database:
         # - If instrumentor embeds metadata: function = actual function name
         # - If metadata missing: function = call-site ID (site_XXXXXXXX)
         # Note: call-site IDs are process-specific and change between runs
-        # Use pipe delimiter with URL encoding to match storage format
-        # URL-encode to prevent collisions with delimiter characters
-        file_encoded = url_quote(file_name, safe='')
-        line_encoded = url_quote(str(line), safe='')
-        function_encoded = url_quote(function, safe='')
-        location = f"{file_encoded}|{line_encoded}|{function_encoded}"
+
+        # CRITICAL: Use OLD colon-delimited format for hash to maintain backward compatibility
+        # Even though we store locations with URL-encoded pipes, the hash must use the
+        # original format so that new reports match legacy dedupe_hash values in the database
+        location = f"{file_name}:{line}:{function}"
 
         compiler_version = report['compiler']['version']
         check_type = report['check_type']
         flags = ','.join(sorted(report['build_info'].get('flags', [])))
 
-        # Use pipe for all delimiters to avoid ambiguity with paths/symbols/flags
-        key = f"{location}|{check_type}|{compiler_version}|{flags}"
+        # Use colon delimiters to match legacy hash format
+        key = f"{location}:{check_type}:{compiler_version}:{flags}"
         return hashlib.sha256(key.encode()).hexdigest()
 
     def get_prioritized_queue(self, limit: int = 100) -> List[Dict[str, Any]]:
@@ -353,8 +378,16 @@ class Database:
         # Uses pipe delimiter with URL encoding to handle any special characters
         location_str = flat['location']
 
+        # Check for unparseable legacy entries marked by migration
+        if location_str.startswith('LEGACY_UNPARSEABLE|'):
+            # Migration couldn't parse this (C++ symbols, Windows paths, etc.)
+            # Extract original string and mark as unparseable
+            original_location = location_str[len('LEGACY_UNPARSEABLE|'):]
+            file_name = original_location
+            line_num = 0
+            function_name = 'unparseable'
         # Parse pipe-delimited format with URL decoding
-        if '|' in location_str:
+        elif '|' in location_str:
             location_parts = location_str.split('|', 2)
             if len(location_parts) == 3:
                 # URL-decode each component
