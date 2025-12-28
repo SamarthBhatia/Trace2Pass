@@ -69,6 +69,42 @@ class PipelineRunner:
         result_dir.mkdir(parents=True, exist_ok=True)
         return result_dir
 
+    def _compile_without_instrumentation(self, source_file: str, output: str, opt_level: str) -> tuple:
+        """
+        Fallback: Compile without instrumentation when pass/runtime not available.
+
+        Returns: (success: bool, compile_time: float, error: str)
+        """
+        start_time = time.time()
+
+        try:
+            cmd = [
+                'clang',
+                opt_level,
+                '-g',
+                source_file,
+                '-o', output
+            ]
+
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+
+            compile_time = time.time() - start_time
+
+            if result.returncode == 0:
+                return (True, compile_time, '')
+            else:
+                return (False, compile_time, result.stderr)
+
+        except subprocess.TimeoutExpired:
+            return (False, 60.0, 'Compilation timeout')
+        except Exception as e:
+            return (False, time.time() - start_time, str(e))
+
     def _compile_with_instrumentation(self, source_file: str, output: str, opt_level: str) -> tuple:
         """
         Compile source file with instrumentation.
@@ -78,14 +114,29 @@ class PipelineRunner:
         start_time = time.time()
 
         try:
-            # For now, use standard compilation (instrumentation pass integration pending)
-            # In full implementation, this would use: clang -Xclang -load -Xclang PassInstrumentor.so
+            # Paths to Trace2Pass instrumentation and runtime
+            instrumentor_path = project_root / "instrumentor" / "build" / "Trace2PassInstrumentor.so"
+            runtime_lib_path = project_root / "runtime" / "build" / "libTrace2PassRuntime.a"
+
+            # Check if instrumentation components exist
+            if not instrumentor_path.exists():
+                # Fall back to non-instrumented compilation if pass not built
+                return self._compile_without_instrumentation(source_file, output, opt_level)
+
+            if not runtime_lib_path.exists():
+                # Fall back to non-instrumented compilation if runtime not built
+                return self._compile_without_instrumentation(source_file, output, opt_level)
+
+            # Compile with Trace2Pass instrumentation pass loaded and runtime library linked
             cmd = [
                 'clang',
+                f'-fplugin={instrumentor_path}',
                 opt_level,
                 '-g',
                 source_file,
-                '-o', output
+                '-o', output,
+                str(runtime_lib_path),
+                '-lcurl'  # Runtime library needs curl for HTTP POST
             ]
 
             result = subprocess.run(
