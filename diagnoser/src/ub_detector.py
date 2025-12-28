@@ -55,7 +55,9 @@ class UBDetector:
         self,
         source_file: str,
         test_input: Optional[str] = None,
-        expected_output: Optional[str] = None
+        expected_output: Optional[str] = None,
+        opt_level: Optional[str] = None,
+        compiler_flags: Optional[List[str]] = None
     ) -> UBDetectionResult:
         """
         Detect whether anomaly is due to UB or compiler bug.
@@ -64,6 +66,8 @@ class UBDetector:
             source_file: Path to source file to test
             test_input: Optional input to pass to program
             expected_output: Optional expected output (from -O0 or known-good)
+            opt_level: Production optimization level (e.g., "-O2") to ensure testing
+            compiler_flags: Production compiler flags for exact reproduction
 
         Returns:
             UBDetectionResult with verdict and confidence
@@ -73,12 +77,13 @@ class UBDetector:
 
         details = {}
 
-        # Signal 1: UBSan check
+        # Signal 1: UBSan check (always at -O0 with -fsanitize=undefined)
         ubsan_clean = self._check_ubsan(source_file, test_input, details)
 
         # Signal 2: Optimization sensitivity
+        # If production opt_level provided, ensure it's tested
         optimization_sensitive = self._check_optimization_sensitivity(
-            source_file, test_input, expected_output, details
+            source_file, test_input, expected_output, details, opt_level, compiler_flags
         )
 
         # Signal 3: Multi-compiler differential (optional, if GCC available)
@@ -241,10 +246,15 @@ class UBDetector:
         source_file: str,
         test_input: Optional[str],
         expected_output: Optional[str],
-        details: Dict[str, Any]
+        details: Dict[str, Any],
+        production_opt_level: Optional[str] = None,
+        production_flags: Optional[List[str]] = None
     ) -> bool:
         """
         Check if behavior changes with optimization level.
+
+        If production_opt_level is provided, ensures that level is tested.
+        If production_flags are provided, compiles with exact production configuration.
 
         Returns:
             True if -O0/-O1 agree but -O2/-O3 differ (compiler bug signal)
@@ -253,15 +263,31 @@ class UBDetector:
             details['optimization'] = {'error': 'clang not available'}
             return False
 
+        # Default opt levels to test
         opt_levels = ["-O0", "-O1", "-O2", "-O3"]
+
+        # If production opt_level provided and not in defaults, add it
+        if production_opt_level and production_opt_level not in opt_levels:
+            opt_levels.append(production_opt_level)
+
         outputs = {}
 
         for opt in opt_levels:
             binary = os.path.join(self.work_dir, f"test{opt}")
 
+            # Build compilation command
+            # CRITICAL: Always include opt flag to ensure correct optimization level
+            # If this is the production opt level and we have production flags, add them too
+            if opt == production_opt_level and production_flags:
+                # Prepend opt flag even with production_flags to ensure optimization level is honored
+                # (production_flags may not include -O* explicitly)
+                compile_cmd = [self.clang, opt] + production_flags + [source_file, "-o", binary]
+            else:
+                compile_cmd = [self.clang, opt, source_file, "-o", binary]
+
             # Compile
             compile_result = subprocess.run(
-                [self.clang, opt, source_file, "-o", binary],
+                compile_cmd,
                 capture_output=True,
                 text=True
             )
@@ -531,31 +557,83 @@ def analyze_report(report: Dict[str, Any]) -> UBDetectionResult:
     """
     Analyze an anomaly report from the Collector.
 
+    This function handles REAL production reports from instrumented binaries.
+    It uses the actual source file, compiler flags, and optimization level
+    from the report to run UB detection.
+
     Args:
-        report: Report dictionary from Collector API
+        report: Report dictionary from Collector API with fields:
+            - location: {file, line, function}
+            - build_info: {optimization_level, flags, source_hash}
+            - check_type: Type of anomaly detected
+            - check_details: Additional context
 
     Returns:
         UBDetectionResult with verdict and confidence
 
-    Note:
-        This implementation generates a minimal reproducer from the report's
-        check_details and runs UBSan on it. In production, this should be
-        enhanced to fetch actual source code and test inputs.
-
-    Limitations (Phase 4 TODO):
-        1. Should fetch source code using report['build_info']['source_hash']
-        2. Should replay actual test inputs that triggered the anomaly
-        3. Should use actual compiler flags from report['build_info']['flags']
-        4. Currently generates synthetic reproducers which may not perfectly
-           represent the original bug
+    Strategy:
+        1. Try to analyze the actual source file from report['location']['file']
+        2. Use actual compiler flags from report['build_info']['flags']
+        3. Use actual optimization level from report['build_info']['optimization_level']
+        4. Fall back to synthetic reproducer only if source file unavailable
     """
     import tempfile
     import os
 
     check_type = report.get('check_type', '')
-    check_details = report.get('check_details', {})
+    location = report.get('location', {})
+    build_info = report.get('build_info', {})
 
-    # Generate minimal reproducer based on check type
+    source_file = location.get('file')
+    opt_level = build_info.get('optimization_level', '-O2')
+    compiler_flags = build_info.get('flags', [])
+
+    # STRATEGY 1: Use actual source file if available
+    if source_file and os.path.exists(source_file):
+        # Production path: Analyze the ACTUAL source file with ACTUAL flags
+        try:
+            detector = UBDetector()
+
+            # Run UB detection with actual production compilation configuration
+            # This ensures we test with the exact opt level and flags that triggered the anomaly
+            result = detector.detect(
+                source_file=source_file,
+                test_input=None,  # Runtime inputs not available from report
+                expected_output=None,  # Expected output not available
+                opt_level=opt_level,  # Pass production optimization level
+                compiler_flags=compiler_flags  # Pass production compiler flags
+            )
+
+            # Add production report metadata
+            if not result.details:
+                result.details = {}
+            result.details['source'] = 'production_report'
+            result.details['report_id'] = report.get('report_id', 'unknown')
+            result.details['source_file'] = source_file
+            result.details['optimization_level'] = opt_level
+            result.details['compiler_flags'] = compiler_flags
+            result.details['check_type'] = check_type
+            result.details['anomaly_location'] = {
+                'file': location.get('file'),
+                'line': location.get('line'),
+                'function': location.get('function')
+            }
+
+            return result
+
+        except Exception as e:
+            # Source file exists but analysis failed - log and fall back
+            import logging
+            logging.warning(f"Failed to analyze production source file {source_file}: {e}")
+            # Fall through to synthetic reproducer
+
+    # STRATEGY 2: Fall back to synthetic reproducer
+    # This happens when:
+    # - Source file path not in report
+    # - Source file doesn't exist (production deployment, different machine)
+    # - Source analysis failed for some reason
+
+    check_details = report.get('check_details', {})
     reproducer_code = _generate_reproducer(check_type, check_details)
 
     if not reproducer_code:
@@ -568,7 +646,9 @@ def analyze_report(report: Dict[str, Any]) -> UBDetectionResult:
             multi_compiler_differs=False,
             details={
                 "error": f"Cannot generate reproducer for check_type={check_type}",
-                "report_id": report.get('report_id', 'unknown')
+                "report_id": report.get('report_id', 'unknown'),
+                "source": "no_reproducer_available",
+                "reason": "Source file not available and synthetic reproducer generation failed"
             }
         )
 
@@ -585,16 +665,32 @@ def analyze_report(report: Dict[str, Any]) -> UBDetectionResult:
         # Just check if UBSan detects UB in the code itself
         result = detector.detect(
             source_file=reproducer_file,
-            test_input=None,  # No runtime input needed for these synthetic tests
+            test_input=None,  # No runtime input for synthetic reproducers
             expected_output=None  # No expected output
         )
 
-        # Add original report metadata to result details
+        # Add metadata indicating this is a synthetic analysis
         if not result.details:
             result.details = {}
-        result.details['synthetic_reproducer'] = True
-        result.details['original_report_id'] = report.get('report_id', 'unknown')
-        result.details['original_check_type'] = report.get('check_type', 'unknown')
+        result.details['source'] = 'synthetic_reproducer'
+        result.details['report_id'] = report.get('report_id', 'unknown')
+        result.details['check_type'] = check_type
+        result.details['reproducer_file'] = reproducer_file
+        result.details['warning'] = (
+            "Analysis based on synthetic reproducer. "
+            "Original source file not available - may not perfectly represent bug."
+        )
+
+        # Add original report context
+        result.details['original_location'] = {
+            'file': location.get('file', 'unknown'),
+            'line': location.get('line', 0),
+            'function': location.get('function', 'unknown')
+        }
+        result.details['original_build_info'] = {
+            'optimization_level': opt_level,
+            'flags': compiler_flags
+        }
 
         detector.cleanup()
         return result

@@ -14,22 +14,50 @@ import os
 # Add src directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from collector import app, db
+from collector import app
+from models import Database
 
 
 @pytest.fixture
-def client():
-    """Create test client."""
+def test_db():
+    """Create a fresh in-memory database for each test.
+
+    Returns a new Database instance with ':memory:' backend.
+    Thread-safe: Each test gets its own isolated database.
+    """
+    db = Database(':memory:')
+    db.connect()
+    yield db
+    db.close()
+
+
+@pytest.fixture
+def client(test_db, monkeypatch, request):
+    """Create test client with injected test database.
+
+    Uses dependency injection to override get_db() so that all requests
+    use the test database instead of mutating the global singleton.
+    This ensures thread-safety and proper isolation between tests.
+
+    Explicitly saves and restores the original get_db() to prevent leakage
+    to code outside pytest or subsequent tests.
+    """
     app.config['TESTING'] = True
 
-    # Use in-memory database for tests
-    db.db_path = ':memory:'
-    db.connect()
+    # Save original get_db() before override
+    import collector as collector_module
+    original_get_db = collector_module.get_db
+
+    # Override get_db() to return our test database
+    monkeypatch.setattr(collector_module, 'get_db', lambda: test_db)
+
+    # Add explicit finalizer to restore original (redundant with monkeypatch, but explicit)
+    def restore_get_db():
+        collector_module.get_db = original_get_db
+    request.addfinalizer(restore_get_db)
 
     with app.test_client() as client:
         yield client
-
-    db.close()
 
 
 @pytest.fixture
@@ -151,7 +179,7 @@ class TestReportSubmission:
 class TestDeduplication:
     """Test deduplication logic."""
 
-    def test_duplicate_reports_increment_frequency(self, client, sample_report):
+    def test_duplicate_reports_increment_frequency(self, client, sample_report, test_db):
         """Test that duplicate reports increment frequency counter."""
         # Submit first report
         response1 = client.post(
@@ -175,10 +203,10 @@ class TestDeduplication:
 
         # Verify frequency = 2
         report_id = sample_report['report_id']
-        stored = db.get_report_by_id(report_id)
+        stored = test_db.get_report_by_id(report_id)
         assert stored['frequency'] == 2
 
-    def test_different_locations_not_deduplicated(self, client, sample_report):
+    def test_different_locations_not_deduplicated(self, client, sample_report, test_db):
         """Test that different locations create separate reports."""
         # Submit first report
         response1 = client.post(
@@ -205,7 +233,7 @@ class TestDeduplication:
         assert response2.status_code == 201
 
         # Verify two separate reports exist
-        stats = db.get_stats()
+        stats = test_db.get_stats()
         assert stats['unique_bugs'] == 2
 
 

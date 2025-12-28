@@ -94,9 +94,13 @@ def submit_report():
     if not request.is_json:
         return jsonify({'error': 'Content-Type must be application/json'}), 400
 
+    # Parse JSON with silent=True to avoid BadRequest exception on malformed JSON
+    data = request.get_json(silent=True)
+    if data is None:
+        return jsonify({'error': 'Invalid or malformed JSON'}), 400
+
     try:
         # Validate incoming JSON against schema
-        data = request.get_json()
         validated_data = report_schema.load(data)
 
         # Insert into database
