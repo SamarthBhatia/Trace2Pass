@@ -386,7 +386,7 @@ class Database:
             file_name = original_location
             line_num = 0
             function_name = 'unparseable'
-        # Parse pipe-delimited format with URL decoding
+        # Parse pipe-delimited format with URL decoding (post-migration)
         elif '|' in location_str:
             location_parts = location_str.split('|', 2)
             if len(location_parts) == 3:
@@ -404,11 +404,25 @@ class Database:
                 line_num = 0
                 function_name = 'unknown'
         else:
-            # No pipe found - this should not happen after migration
-            # Fallback: treat as raw string
-            file_name = location_str
-            line_num = 0
-            function_name = 'unknown'
+            # No pipe found - try legacy colon-delimited format
+            # This handles databases where migration couldn't run (read-only, failed update)
+            # Parse "file:line:function" using rsplit from the right
+            location_parts = location_str.rsplit(':', 2)
+            if len(location_parts) == 3:
+                file_name, line_str, function_name = location_parts
+                try:
+                    line_num = int(line_str)
+                except ValueError:
+                    # Line is not a number - probably a C++ symbol or Windows path
+                    # Treat whole string as unparseable
+                    file_name = location_str
+                    line_num = 0
+                    function_name = 'legacy_unparsed'
+            else:
+                # Can't parse at all - treat as raw string
+                file_name = location_str
+                line_num = 0
+                function_name = 'unknown'
 
         return {
             'report_id': flat['report_id'],

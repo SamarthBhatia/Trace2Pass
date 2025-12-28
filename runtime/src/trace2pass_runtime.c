@@ -805,7 +805,14 @@ void trace2pass_report_overflow(void* pc, const char* file, int line, const char
         strcpy(flags_json, "[\"<truncated>\"]");
     }
 
-    char json[2048];
+    // Final JSON buffer sized to accommodate:
+    // - Fixed structure (~400 bytes)
+    // - Escaped file path (~512 bytes)
+    // - Escaped function name (~512 bytes)
+    // - flags_json (up to 2048 bytes)
+    // - Other fields (~200 bytes)
+    // Total: ~3700 bytes, use 4096 for safety margin
+    char json[4096];
     snprintf(json, sizeof(json),
         "{"
         "\"report_id\":\"%s\","
@@ -884,7 +891,14 @@ void trace2pass_report_unreachable(void* pc, const char* file, int line, const c
         strcpy(flags_json, "[\"<truncated>\"]");
     }
 
-    char json[2048];
+    // Final JSON buffer sized to accommodate:
+    // - Fixed structure (~400 bytes)
+    // - Escaped file path (~512 bytes)
+    // - Escaped function name (~512 bytes)
+    // - flags_json (up to 2048 bytes)
+    // - Other fields (~200 bytes)
+    // Total: ~3700 bytes, use 4096 for safety margin
+    char json[4096];
     snprintf(json, sizeof(json),
         "{"
         "\"report_id\":\"%s\","
@@ -959,7 +973,14 @@ void trace2pass_report_bounds_violation(void* pc, const char* file, int line, co
         strcpy(flags_json, "[\"<truncated>\"]");
     }
 
-    char json[2048];
+    // Final JSON buffer sized to accommodate:
+    // - Fixed structure (~400 bytes)
+    // - Escaped file path (~512 bytes)
+    // - Escaped function name (~512 bytes)
+    // - flags_json (up to 2048 bytes)
+    // - Other fields (~200 bytes)
+    // Total: ~3700 bytes, use 4096 for safety margin
+    char json[4096];
     snprintf(json, sizeof(json),
         "{"
         "\"report_id\":\"%s\","
@@ -1034,7 +1055,14 @@ void trace2pass_report_sign_conversion(void* pc, const char* file, int line, con
         strcpy(flags_json, "[\"<truncated>\"]");
     }
 
-    char json[2048];
+    // Final JSON buffer sized to accommodate:
+    // - Fixed structure (~400 bytes)
+    // - Escaped file path (~512 bytes)
+    // - Escaped function name (~512 bytes)
+    // - flags_json (up to 2048 bytes)
+    // - Other fields (~200 bytes)
+    // Total: ~3700 bytes, use 4096 for safety margin
+    char json[4096];
     snprintf(json, sizeof(json),
         "{"
         "\"report_id\":\"%s\","
@@ -1113,7 +1141,14 @@ void trace2pass_report_division_by_zero(void* pc, const char* file, int line, co
         strcpy(flags_json, "[\"<truncated>\"]");
     }
 
-    char json[2048];
+    // Final JSON buffer sized to accommodate:
+    // - Fixed structure (~400 bytes)
+    // - Escaped file path (~512 bytes)
+    // - Escaped function name (~512 bytes)
+    // - flags_json (up to 2048 bytes)
+    // - Other fields (~200 bytes)
+    // Total: ~3700 bytes, use 4096 for safety margin
+    char json[4096];
     snprintf(json, sizeof(json),
         "{"
         "\"report_id\":\"%s\","
@@ -1224,7 +1259,8 @@ void trace2pass_check_pure_consistency(void* pc, const char* file, int line, con
             char func_escaped[128];
             json_escape_string(func_name, func_escaped, sizeof(func_escaped));
 
-            char json[2048];
+            // Large buffer to accommodate long paths and function names
+            char json[4096];
             snprintf(json, sizeof(json),
                 "{"
                 "\"report_id\":\"%s\","
@@ -1316,7 +1352,14 @@ void trace2pass_report_loop_bound_exceeded(void* pc, const char* file, int line,
         strcpy(flags_json, "[\"<truncated>\"]");
     }
 
-    char json[2048];
+    // Final JSON buffer sized to accommodate:
+    // - Fixed structure (~400 bytes)
+    // - Escaped file path (~512 bytes)
+    // - Escaped function name (~512 bytes)
+    // - flags_json (up to 2048 bytes)
+    // - Other fields (~200 bytes)
+    // Total: ~3700 bytes, use 4096 for safety margin
+    char json[4096];
     snprintf(json, sizeof(json),
         "{"
         "\"report_id\":\"%s\","
