@@ -213,10 +213,14 @@ class Database:
         }
 
         # Fetch more than limit since we'll re-sort after computing priority
+        # CRITICAL: Order candidates by meaningful signal to avoid missing hot bugs
+        # Using last_seen DESC ensures we consider recently-active reports first,
+        # not just the oldest entries by rowid
         rows = self.conn.execute(
             """
             SELECT * FROM reports
             WHERE status = 'new'
+            ORDER BY last_seen DESC
             LIMIT ?
             """,
             (limit * 2,)  # Over-fetch to ensure good coverage after re-sorting

@@ -29,8 +29,7 @@ logger = logging.getLogger(__name__)
 DB_PATH = "collector.db"
 
 # Module-level database instance for backward compatibility with tests
-# IMPORTANT: This should NOT be used in request handlers - use get_db() instead
-# Tests can import and use this, or call get_db() within app context
+# DEFAULT: unconnected placeholder so tests can configure db.db_path and call connect()
 db = Database(DB_PATH)
 
 
@@ -42,11 +41,11 @@ def get_db() -> Database:
     This ensures thread-safety without check_same_thread=False while maintaining
     backward compatibility with tests that configure db.db_path.
     """
-    # Check if module-level db is already connected (test compatibility)
+    # If tests have already connected the module-level db (e.g., in-memory), reuse it
     if db.conn is not None:
         return db
 
-    # Otherwise, use per-request connection
+    # Otherwise, ensure a per-request connection exists in Flask's context
     if 'db' not in g:
         g.db = Database(DB_PATH)
         g.db.connect()
@@ -66,9 +65,9 @@ def teardown_db(exception=None):
 
     CRITICAL: Properly close per-request connections to avoid lock contention.
     """
-    db = g.pop('db', None)
-    if db is not None and db.conn is not None:
-        db.conn.close()
+    per_request_db = g.pop('db', None)
+    if per_request_db is not None and per_request_db.conn is not None:
+        per_request_db.conn.close()
 
 
 @app.route('/api/v1/health', methods=['GET'])
@@ -231,6 +230,9 @@ def update_report(report_id: str):
         400 Bad Request: Invalid JSON
         404 Not Found: Report does not exist
     """
+    if not request.is_json:
+        return jsonify({'error': 'Content-Type must be application/json'}), 400
+
     try:
         db = get_db()
         # Check if report exists
@@ -239,6 +241,9 @@ def update_report(report_id: str):
             return jsonify({'error': 'Report not found'}), 404
 
         data = request.get_json()
+        if data is None:
+            return jsonify({'error': 'Invalid JSON'}), 400
+
         status = data.get('status')
         diagnosis = data.get('diagnosis')
 

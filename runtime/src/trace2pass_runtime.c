@@ -129,6 +129,7 @@ static void get_timestamp(char* buf, size_t len) {
 // Input: space-separated flags string like "-O2 -march=native -fno-strict-aliasing"
 // Output: JSON array written to buf like ["-O2","-march=native","-fno-strict-aliasing"]
 // Returns number of characters written, or -1 on buffer overflow
+// THREAD-SAFE: Uses strtok_r (POSIX) or manual parsing (fallback) instead of strtok
 static int serialize_flags_json(const char* flags, char* buf, size_t buf_len) {
     if (!flags || !buf || buf_len < 3) {
         return -1;  // Invalid input or buffer too small for "[]"
@@ -147,7 +148,7 @@ static int serialize_flags_json(const char* flags, char* buf, size_t buf_len) {
     size_t pos = 0;
     buf[pos++] = '[';
 
-    // Work with a copy since strtok modifies the string
+    // Work with a copy since strtok_r modifies the string
     size_t flags_len = strlen(flags);
     char* flags_copy = (char*)malloc(flags_len + 1);
     if (!flags_copy) {
@@ -155,8 +156,9 @@ static int serialize_flags_json(const char* flags, char* buf, size_t buf_len) {
     }
     strcpy(flags_copy, flags);
 
-    // Tokenize by whitespace
-    char* token = strtok(flags_copy, " \t\n\r");
+    // Tokenize by whitespace using thread-safe strtok_r
+    char* saveptr = NULL;  // strtok_r state
+    char* token = strtok_r(flags_copy, " \t\n\r", &saveptr);
     int first = 1;
 
     while (token != NULL) {
@@ -202,7 +204,7 @@ static int serialize_flags_json(const char* flags, char* buf, size_t buf_len) {
         }
         buf[pos++] = '"';
 
-        token = strtok(NULL, " \t\n\r");
+        token = strtok_r(NULL, " \t\n\r", &saveptr);
     }
 
     free(flags_copy);
