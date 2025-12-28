@@ -10,6 +10,7 @@ import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Dict, List, Any
+from urllib.parse import quote as url_quote, unquote as url_unquote
 
 
 class Database:
@@ -24,6 +25,7 @@ class Database:
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row  # Return dict-like rows
         self._create_tables()
+        self._migrate_location_format()
 
     def _create_tables(self):
         """Create database schema."""
@@ -61,6 +63,81 @@ class Database:
         self.conn.executescript(schema)
         self.conn.commit()
 
+    def _migrate_location_format(self):
+        """Migrate old colon-delimited locations to URL-encoded pipe format.
+
+        This handles backwards compatibility for existing database entries that use
+        the old "file:line:function" format.
+
+        LIMITATION: C++ symbols (std::vector::push_back) and Windows paths (C:\src\file.c)
+        cannot be reliably parsed from the old colon format. These entries will be kept
+        as-is with a marker to indicate they're unparseable legacy data.
+
+        New format: "file|line|function" with URL encoding for special chars
+        """
+        try:
+            # Check if migration is needed by looking for colon-delimited entries
+            rows = self.conn.execute(
+                "SELECT id, location FROM reports WHERE location NOT LIKE '%|%' LIMIT 1"
+            ).fetchall()
+
+            if not rows:
+                return  # No migration needed
+
+            # Migrate all colon-delimited entries
+            all_rows = self.conn.execute(
+                "SELECT id, location FROM reports WHERE location NOT LIKE '%|%'"
+            ).fetchall()
+
+            migrated_count = 0
+            failed_count = 0
+
+            for row in all_rows:
+                old_location = row['location']
+                # Try to parse the old format as best we can
+                # This will fail for C++ symbols and Windows paths
+                parts = old_location.rsplit(':', 2)
+                if len(parts) == 3:
+                    file_name, line_str, function_name = parts
+                    # Validate that line_str is actually a number
+                    try:
+                        int(line_str)
+                        # Looks parseable - migrate it
+                        new_location = f"{url_quote(file_name, safe='')}|{url_quote(line_str, safe='')}|{url_quote(function_name, safe='')}"
+                        self.conn.execute(
+                            "UPDATE reports SET location = ? WHERE id = ?",
+                            (new_location, row['id'])
+                        )
+                        migrated_count += 1
+                    except ValueError:
+                        # Line number is not a number - this is a C++ symbol or similar
+                        # Keep as-is but add marker prefix so _rehydrate_report knows it's unparseable
+                        new_location = f"LEGACY_UNPARSEABLE|{old_location}"
+                        self.conn.execute(
+                            "UPDATE reports SET location = ? WHERE id = ?",
+                            (new_location, row['id'])
+                        )
+                        failed_count += 1
+                else:
+                    # Can't parse - mark as unparseable
+                    new_location = f"LEGACY_UNPARSEABLE|{old_location}"
+                    self.conn.execute(
+                        "UPDATE reports SET location = ? WHERE id = ?",
+                        (new_location, row['id'])
+                    )
+                    failed_count += 1
+
+            self.conn.commit()
+
+            if migrated_count > 0 or failed_count > 0:
+                import logging
+                logging.info(f"Location migration: {migrated_count} migrated, {failed_count} marked as unparseable")
+
+        except Exception as e:
+            # Migration failure shouldn't break the app
+            import logging
+            logging.warning(f"Location format migration failed: {e}")
+
     def close(self):
         """Close database connection."""
         if self.conn:
@@ -77,7 +154,7 @@ class Database:
         Returns:
             Report ID if inserted/updated, None on error
         """
-        # Compute deduplication hash
+        # Compute deduplication hash (store encoded components alongside location)
         dedupe_hash = self._compute_dedupe_hash(report)
 
         # Check if report already exists
@@ -106,7 +183,12 @@ class Database:
             return report_id
         else:
             # Insert new report
-            location = f"{report['location']['file']}:{report['location']['line']}:{report['location']['function']}"
+            # Use pipe delimiter with URL encoding to handle any characters in paths/symbols
+            # URL-encode each component to escape pipes, colons, and other special chars
+            file_name = url_quote(report['location']['file'], safe='')
+            line = url_quote(str(report['location']['line']), safe='')
+            function = url_quote(report['location']['function'], safe='')
+            location = f"{file_name}|{line}|{function}"
 
             self.conn.execute(
                 """
@@ -176,12 +258,17 @@ class Database:
         # - If instrumentor embeds metadata: function = actual function name
         # - If metadata missing: function = call-site ID (site_XXXXXXXX)
         # Note: call-site IDs are process-specific and change between runs
+
+        # CRITICAL: Use OLD colon-delimited format for hash to maintain backward compatibility
+        # Even though we store locations with URL-encoded pipes, the hash must use the
+        # original format so that new reports match legacy dedupe_hash values in the database
         location = f"{file_name}:{line}:{function}"
 
         compiler_version = report['compiler']['version']
         check_type = report['check_type']
         flags = ','.join(sorted(report['build_info'].get('flags', [])))
 
+        # Use colon delimiters to match legacy hash format
         key = f"{location}:{check_type}:{compiler_version}:{flags}"
         return hashlib.sha256(key.encode()).hexdigest()
 
@@ -213,10 +300,14 @@ class Database:
         }
 
         # Fetch more than limit since we'll re-sort after computing priority
+        # CRITICAL: Order candidates by meaningful signal to avoid missing hot bugs
+        # Using last_seen DESC ensures we consider recently-active reports first,
+        # not just the oldest entries by rowid
         rows = self.conn.execute(
             """
             SELECT * FROM reports
             WHERE status = 'new'
+            ORDER BY last_seen DESC
             LIMIT ?
             """,
             (limit * 2,)  # Over-fetch to ensure good coverage after re-sorting
@@ -229,13 +320,7 @@ class Database:
         current_time = time.time()
 
         for row in rows:
-            report_dict = dict(row)
-
-            # Parse JSON fields
-            report_dict['stacktrace'] = json.loads(report_dict['stacktrace']) if report_dict['stacktrace'] else []
-            report_dict['flags'] = json.loads(report_dict['flags']) if report_dict['flags'] else []
-            report_dict['check_details'] = json.loads(report_dict['check_details']) if report_dict['check_details'] else {}
-            report_dict['system_info'] = json.loads(report_dict['system_info']) if report_dict['system_info'] else {}
+            flat_dict = dict(row)
 
             # Compute recency factor (1.0 for <24h, decays to 0.5 for >7 days)
             # CRITICAL: Use last_seen, not timestamp!
@@ -244,10 +329,11 @@ class Database:
             # This ensures a bug spiking NOW gets high priority even if first seen weeks ago.
             try:
                 # Use last_seen if available, fall back to timestamp
-                time_field = report_dict.get('last_seen') or report_dict['timestamp']
-                # CRITICAL: We now always write timezone-aware timestamps with +00:00 (commit d2c7d71),
-                # so the .replace('Z', '+00:00') is unnecessary and could corrupt imported legacy data.
-                # datetime.fromisoformat() handles both 'Z' and '+00:00' formats correctly.
+                time_field = flat_dict.get('last_seen') or flat_dict['timestamp']
+                # CRITICAL: Python 3.9/3.10 don't support 'Z' suffix in fromisoformat()
+                # Replace 'Z' with '+00:00' for compatibility (Z suffix support added in Python 3.11)
+                if time_field.endswith('Z'):
+                    time_field = time_field[:-1] + '+00:00'
                 report_time = datetime.fromisoformat(time_field).timestamp()
                 age_hours = (current_time - report_time) / 3600
 
@@ -263,8 +349,13 @@ class Database:
                 recency = 0.5  # Default for invalid timestamps
 
             # Compute priority score: (frequency × severity) × recency
-            severity = severity_weights.get(report_dict['check_type'], 0.5)
-            report_dict['priority_score'] = report_dict['frequency'] * severity * recency
+            severity = severity_weights.get(flat_dict['check_type'], 0.5)
+            priority_score = flat_dict['frequency'] * severity * recency
+
+            # Rehydrate to nested schema format for consistent API shape
+            report_dict = self._rehydrate_report(flat_dict)
+            # Add priority score to the rehydrated report
+            report_dict['priority_score'] = priority_score
 
             results.append(report_dict)
 
@@ -274,8 +365,100 @@ class Database:
         # Return top N after sorting
         return results[:limit]
 
+    def _rehydrate_report(self, flat: Dict[str, Any]) -> Dict[str, Any]:
+        """Transform flat database row into nested schema format.
+
+        Args:
+            flat: Flattened report dict from database
+
+        Returns:
+            Nested report matching the ingest schema
+        """
+        # Parse location field: "file|line|function" with URL encoding
+        # Uses pipe delimiter with URL encoding to handle any special characters
+        location_str = flat['location']
+
+        # Check for unparseable legacy entries marked by migration
+        if location_str.startswith('LEGACY_UNPARSEABLE|'):
+            # Migration couldn't parse this (C++ symbols, Windows paths, etc.)
+            # Extract original string and mark as unparseable
+            original_location = location_str[len('LEGACY_UNPARSEABLE|'):]
+            file_name = original_location
+            line_num = 0
+            function_name = 'unparseable'
+        # Parse pipe-delimited format with URL decoding (post-migration)
+        elif '|' in location_str:
+            location_parts = location_str.split('|', 2)
+            if len(location_parts) == 3:
+                # URL-decode each component
+                file_name = url_unquote(location_parts[0])
+                line_str = url_unquote(location_parts[1])
+                function_name = url_unquote(location_parts[2])
+                try:
+                    line_num = int(line_str)
+                except ValueError:
+                    line_num = 0
+            else:
+                # Malformed pipe-delimited format
+                file_name = location_str
+                line_num = 0
+                function_name = 'unknown'
+        else:
+            # No pipe found - try legacy colon-delimited format
+            # This handles databases where migration couldn't run (read-only, failed update)
+            # Parse "file:line:function" using rsplit from the right
+            location_parts = location_str.rsplit(':', 2)
+            if len(location_parts) == 3:
+                file_name, line_str, function_name = location_parts
+                try:
+                    line_num = int(line_str)
+                except ValueError:
+                    # Line is not a number - probably a C++ symbol or Windows path
+                    # Treat whole string as unparseable
+                    file_name = location_str
+                    line_num = 0
+                    function_name = 'legacy_unparsed'
+            else:
+                # Can't parse at all - treat as raw string
+                file_name = location_str
+                line_num = 0
+                function_name = 'unknown'
+
+        return {
+            'report_id': flat['report_id'],
+            'timestamp': flat['timestamp'],
+            'check_type': flat['check_type'],
+            'location': {
+                'file': file_name,
+                'line': line_num,
+                'function': function_name
+            },
+            'pc': flat.get('pc'),
+            'stacktrace': json.loads(flat['stacktrace']) if flat.get('stacktrace') else [],
+            'compiler': {
+                'name': flat['compiler_name'],
+                'version': flat['compiler_version']
+                # Note: target_arch column doesn't exist yet, omitted
+            },
+            'build_info': {
+                'optimization_level': flat['optimization_level'],
+                'flags': json.loads(flat['flags']) if flat.get('flags') else [],
+                'source_hash': flat.get('source_hash'),
+                'binary_checksum': flat.get('binary_checksum')
+            },
+            'check_details': json.loads(flat['check_details']) if flat.get('check_details') else {},
+            'system_info': json.loads(flat['system_info']) if flat.get('system_info') else {},
+            'status': flat.get('status'),
+            'diagnosis': json.loads(flat['diagnosis']) if flat.get('diagnosis') else None,
+            'frequency': flat.get('frequency', 1),
+            'last_seen': flat.get('last_seen')
+        }
+
     def get_report_by_id(self, report_id: str) -> Optional[Dict[str, Any]]:
-        """Get a specific report by report_id."""
+        """Get a specific report by report_id.
+
+        Returns report in nested format matching the ingest schema for downstream consumption.
+        """
         row = self.conn.execute(
             "SELECT * FROM reports WHERE report_id = ?",
             (report_id,)
@@ -284,13 +467,7 @@ class Database:
         if not row:
             return None
 
-        report_dict = dict(row)
-        report_dict['stacktrace'] = json.loads(report_dict['stacktrace']) if report_dict['stacktrace'] else []
-        report_dict['flags'] = json.loads(report_dict['flags']) if report_dict['flags'] else []
-        report_dict['check_details'] = json.loads(report_dict['check_details']) if report_dict['check_details'] else {}
-        report_dict['system_info'] = json.loads(report_dict['system_info']) if report_dict['system_info'] else {}
-
-        return report_dict
+        return self._rehydrate_report(dict(row))
 
     def update_report_status(self, report_id: str, status: str, diagnosis: Optional[Dict[str, Any]] = None):
         """Update report status and optionally attach diagnosis."""

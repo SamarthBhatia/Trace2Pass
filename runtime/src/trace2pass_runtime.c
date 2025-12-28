@@ -125,6 +125,119 @@ static void get_timestamp(char* buf, size_t len) {
     strftime(buf, len, "%Y-%m-%dT%H:%M:%SZ", tm_info);
 }
 
+// Helper: Serialize compiler flags as JSON array
+// Input: space-separated flags string with optional quoted sections
+//        e.g., "-O2 -DMSG=\"hello world\" -march=native"
+// Output: JSON array: ["-O2","-DMSG=\"hello world\"","-march=native"]
+// Returns number of characters written, or -1 on buffer overflow
+// THREAD-SAFE: Manual parsing, no global state
+// QUOTE-AWARE: Handles single/double quotes to preserve spaces in flag values
+static int serialize_flags_json(const char* flags, char* buf, size_t buf_len) {
+    if (!flags || !buf || buf_len < 3) {
+        return -1;  // Invalid input or buffer too small for "[]"
+    }
+
+    // Handle empty flags
+    if (flags[0] == '\0') {
+        if (buf_len >= 3) {
+            strcpy(buf, "[]");
+            return 2;
+        }
+        return -1;
+    }
+
+    size_t pos = 0;
+    buf[pos++] = '[';
+
+    const char* p = flags;
+    int first_token = 1;
+
+    while (*p) {
+        // Skip leading whitespace
+        while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') {
+            p++;
+        }
+        if (*p == '\0') break;
+
+        // Add comma before subsequent tokens
+        if (!first_token) {
+            if (pos + 1 >= buf_len) return -1;
+            buf[pos++] = ',';
+        }
+        first_token = 0;
+
+        // Add opening quote for this JSON string
+        if (pos + 1 >= buf_len) return -1;
+        buf[pos++] = '"';
+
+        // Parse one flag, respecting quotes for tokenization but stripping them from output
+        // Quotes are shell syntax (to preserve spaces), not part of the actual flag value
+        // Handle backslash escapes: \x → include x literally
+        char in_quote = '\0';  // Track which quote character we're inside (' or ")
+        while (*p && (in_quote || (*p != ' ' && *p != '\t' && *p != '\n' && *p != '\r'))) {
+            char c = *p++;
+
+            // Handle backslash escapes
+            if (c == '\\' && *p) {
+                // Backslash followed by another character - treat as escape sequence
+                char next = *p++;
+                // Include the escaped character literally (with JSON escaping if needed)
+                if (next == '"' || next == '\\') {
+                    if (pos + 2 >= buf_len) return -1;
+                    buf[pos++] = '\\';
+                }
+                if (pos + 1 >= buf_len) return -1;
+                buf[pos++] = next;
+                continue;
+            }
+
+            // Handle quote characters
+            if (in_quote) {
+                // Inside quotes - check for closing quote
+                if (c == in_quote) {
+                    // Unescaped closing quote - exit quote mode
+                    // STRIP the quote character (it's shell syntax, not part of flag value)
+                    in_quote = '\0';
+                } else {
+                    // Regular character inside quotes - include it with JSON escaping
+                    if (c == '"' || c == '\\') {
+                        if (pos + 2 >= buf_len) return -1;
+                        buf[pos++] = '\\';
+                    }
+                    if (pos + 1 >= buf_len) return -1;
+                    buf[pos++] = c;
+                }
+            } else {
+                // Not inside quotes
+                if (c == '"' || c == '\'') {
+                    // Opening quote - enter quote mode
+                    // STRIP the quote character (it's shell syntax, not part of flag value)
+                    in_quote = c;
+                } else {
+                    // Regular character - include it with JSON escaping
+                    if (c == '"' || c == '\\') {
+                        if (pos + 2 >= buf_len) return -1;
+                        buf[pos++] = '\\';
+                    }
+                    if (pos + 1 >= buf_len) return -1;
+                    buf[pos++] = c;
+                }
+            }
+        }
+
+        // Add closing quote for this JSON string
+        if (pos + 1 >= buf_len) return -1;
+        buf[pos++] = '"';
+    }
+
+    // Add closing bracket and null terminator
+    if (pos + 2 >= buf_len) return -1;
+    buf[pos++] = ']';
+    buf[pos] = '\0';
+
+    return (int)pos;
+}
+
 // Helper: Get output file
 static FILE* get_output_file(void) {
     if (output_file) return output_file;
@@ -683,7 +796,23 @@ void trace2pass_report_overflow(void* pc, const char* file, int line, const char
     char expr_escaped[256];
     json_escape_string(expr, expr_escaped, sizeof(expr_escaped));
 
-    char json[2048];
+    // Serialize compiler flags as JSON array
+    // 2048-byte buffer to accommodate verbose compile commands
+    char flags_json[2048];
+    if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
+        // Buffer overflow - log warning and use truncated marker
+        fprintf(stderr, "⚠️  Trace2Pass: Compiler flags too long, truncating for deduplication\n");
+        strcpy(flags_json, "[\"<truncated>\"]");
+    }
+
+    // Final JSON buffer sized to accommodate:
+    // - Fixed structure (~400 bytes)
+    // - Escaped file path (~512 bytes)
+    // - Escaped function name (~512 bytes)
+    // - flags_json (up to 2048 bytes)
+    // - Other fields (~200 bytes)
+    // Total: ~3700 bytes, use 4096 for safety margin
+    char json[4096];
     snprintf(json, sizeof(json),
         "{"
         "\"report_id\":\"%s\","
@@ -692,11 +821,12 @@ void trace2pass_report_overflow(void* pc, const char* file, int line, const char
         "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":%s},"
         "\"check_details\":{\"expr\":\"%s\",\"operands\":[%lld,%lld]}"
         "}",
         report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
-        build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
+        build_opt_level ? build_opt_level : "unknown",
+        flags_json,
         expr_escaped, (long long)a, (long long)b);
 
     // Send to Collector if configured
@@ -752,7 +882,23 @@ void trace2pass_report_unreachable(void* pc, const char* file, int line, const c
     char msg_escaped[256];
     json_escape_string(message, msg_escaped, sizeof(msg_escaped));
 
-    char json[2048];
+    // Serialize compiler flags as JSON array
+    // 2048-byte buffer to accommodate verbose compile commands
+    char flags_json[2048];
+    if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
+        // Buffer overflow - log warning and use truncated marker
+        fprintf(stderr, "⚠️  Trace2Pass: Compiler flags too long, truncating for deduplication\n");
+        strcpy(flags_json, "[\"<truncated>\"]");
+    }
+
+    // Final JSON buffer sized to accommodate:
+    // - Fixed structure (~400 bytes)
+    // - Escaped file path (~512 bytes)
+    // - Escaped function name (~512 bytes)
+    // - flags_json (up to 2048 bytes)
+    // - Other fields (~200 bytes)
+    // Total: ~3700 bytes, use 4096 for safety margin
+    char json[4096];
     snprintf(json, sizeof(json),
         "{"
         "\"report_id\":\"%s\","
@@ -761,11 +907,12 @@ void trace2pass_report_unreachable(void* pc, const char* file, int line, const c
         "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":%s},"
         "\"check_details\":{\"message\":\"%s\"}"
         "}",
         report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
-        build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
+        build_opt_level ? build_opt_level : "unknown",
+        flags_json,
         msg_escaped);
 
     // Send to Collector if configured
@@ -817,7 +964,23 @@ void trace2pass_report_bounds_violation(void* pc, const char* file, int line, co
     char function_escaped[256];
     json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
 
-    char json[2048];
+    // Serialize compiler flags as JSON array
+    // 2048-byte buffer to accommodate verbose compile commands
+    char flags_json[2048];
+    if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
+        // Buffer overflow - log warning and use truncated marker
+        fprintf(stderr, "⚠️  Trace2Pass: Compiler flags too long, truncating for deduplication\n");
+        strcpy(flags_json, "[\"<truncated>\"]");
+    }
+
+    // Final JSON buffer sized to accommodate:
+    // - Fixed structure (~400 bytes)
+    // - Escaped file path (~512 bytes)
+    // - Escaped function name (~512 bytes)
+    // - flags_json (up to 2048 bytes)
+    // - Other fields (~200 bytes)
+    // Total: ~3700 bytes, use 4096 for safety margin
+    char json[4096];
     snprintf(json, sizeof(json),
         "{"
         "\"report_id\":\"%s\","
@@ -826,11 +989,12 @@ void trace2pass_report_bounds_violation(void* pc, const char* file, int line, co
         "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":%s},"
         "\"check_details\":{\"ptr\":\"0x%llx\",\"offset\":%zu,\"size\":%zu}"
         "}",
         report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
-        build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
+        build_opt_level ? build_opt_level : "unknown",
+        flags_json,
         (unsigned long long)ptr, offset, size);
 
     // Send to Collector if configured
@@ -882,7 +1046,23 @@ void trace2pass_report_sign_conversion(void* pc, const char* file, int line, con
     char function_escaped[256];
     json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
 
-    char json[2048];
+    // Serialize compiler flags as JSON array
+    // 2048-byte buffer to accommodate verbose compile commands
+    char flags_json[2048];
+    if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
+        // Buffer overflow - log warning and use truncated marker
+        fprintf(stderr, "⚠️  Trace2Pass: Compiler flags too long, truncating for deduplication\n");
+        strcpy(flags_json, "[\"<truncated>\"]");
+    }
+
+    // Final JSON buffer sized to accommodate:
+    // - Fixed structure (~400 bytes)
+    // - Escaped file path (~512 bytes)
+    // - Escaped function name (~512 bytes)
+    // - flags_json (up to 2048 bytes)
+    // - Other fields (~200 bytes)
+    // Total: ~3700 bytes, use 4096 for safety margin
+    char json[4096];
     snprintf(json, sizeof(json),
         "{"
         "\"report_id\":\"%s\","
@@ -891,11 +1071,12 @@ void trace2pass_report_sign_conversion(void* pc, const char* file, int line, con
         "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":%s},"
         "\"check_details\":{\"original_value\":%lld,\"cast_value\":%llu,\"src_bits\":%u,\"dest_bits\":%u}"
         "}",
         report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
-        build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
+        build_opt_level ? build_opt_level : "unknown",
+        flags_json,
         (long long)original_value, (unsigned long long)cast_value, src_bits, dest_bits);
 
     // Send to Collector if configured
@@ -951,7 +1132,23 @@ void trace2pass_report_division_by_zero(void* pc, const char* file, int line, co
     char op_escaped[64];
     json_escape_string(op_name, op_escaped, sizeof(op_escaped));
 
-    char json[2048];
+    // Serialize compiler flags as JSON array
+    // 2048-byte buffer to accommodate verbose compile commands
+    char flags_json[2048];
+    if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
+        // Buffer overflow - log warning and use truncated marker
+        fprintf(stderr, "⚠️  Trace2Pass: Compiler flags too long, truncating for deduplication\n");
+        strcpy(flags_json, "[\"<truncated>\"]");
+    }
+
+    // Final JSON buffer sized to accommodate:
+    // - Fixed structure (~400 bytes)
+    // - Escaped file path (~512 bytes)
+    // - Escaped function name (~512 bytes)
+    // - flags_json (up to 2048 bytes)
+    // - Other fields (~200 bytes)
+    // Total: ~3700 bytes, use 4096 for safety margin
+    char json[4096];
     snprintf(json, sizeof(json),
         "{"
         "\"report_id\":\"%s\","
@@ -960,11 +1157,12 @@ void trace2pass_report_division_by_zero(void* pc, const char* file, int line, co
         "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":%s},"
         "\"check_details\":{\"operation\":\"%s\",\"dividend\":%lld,\"divisor\":%lld}"
         "}",
         report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
-        build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
+        build_opt_level ? build_opt_level : "unknown",
+        flags_json,
         op_escaped, (long long)dividend, (long long)divisor);
 
     // Send to Collector if configured
@@ -1061,7 +1259,8 @@ void trace2pass_check_pure_consistency(void* pc, const char* file, int line, con
             char func_escaped[128];
             json_escape_string(func_name, func_escaped, sizeof(func_escaped));
 
-            char json[2048];
+            // Large buffer to accommodate long paths and function names
+            char json[4096];
             snprintf(json, sizeof(json),
                 "{"
                 "\"report_id\":\"%s\","
@@ -1070,11 +1269,11 @@ void trace2pass_check_pure_consistency(void* pc, const char* file, int line, con
                 "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
                 "\"pc\":\"0x%llx\","
                 "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-                "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
+                "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":[]},"
                 "\"check_details\":{\"function\":\"%s\",\"arg0\":%lld,\"arg1\":%lld,\"previous_result\":%lld,\"current_result\":%lld}"
                 "}",
                 report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
-                build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
+                build_opt_level ? build_opt_level : "unknown",
                 func_escaped, (long long)arg0, (long long)arg1,
                 (long long)entry->result, (long long)result);
 
@@ -1144,7 +1343,23 @@ void trace2pass_report_loop_bound_exceeded(void* pc, const char* file, int line,
     char loop_escaped[128];
     json_escape_string(loop_name, loop_escaped, sizeof(loop_escaped));
 
-    char json[2048];
+    // Serialize compiler flags as JSON array
+    // 2048-byte buffer to accommodate verbose compile commands
+    char flags_json[2048];
+    if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
+        // Buffer overflow - log warning and use truncated marker
+        fprintf(stderr, "⚠️  Trace2Pass: Compiler flags too long, truncating for deduplication\n");
+        strcpy(flags_json, "[\"<truncated>\"]");
+    }
+
+    // Final JSON buffer sized to accommodate:
+    // - Fixed structure (~400 bytes)
+    // - Escaped file path (~512 bytes)
+    // - Escaped function name (~512 bytes)
+    // - flags_json (up to 2048 bytes)
+    // - Other fields (~200 bytes)
+    // Total: ~3700 bytes, use 4096 for safety margin
+    char json[4096];
     snprintf(json, sizeof(json),
         "{"
         "\"report_id\":\"%s\","
@@ -1153,11 +1368,12 @@ void trace2pass_report_loop_bound_exceeded(void* pc, const char* file, int line,
         "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
         "\"pc\":\"0x%llx\","
         "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
-        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":\"%s\"},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":%s},"
         "\"check_details\":{\"loop_name\":\"%s\",\"iteration_count\":%llu,\"threshold\":%llu}"
         "}",
         report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
-        build_opt_level ? build_opt_level : "unknown", build_compile_flags ? build_compile_flags : "",
+        build_opt_level ? build_opt_level : "unknown",
+        flags_json,
         loop_escaped, (unsigned long long)iteration_count, (unsigned long long)threshold);
 
     // Send to Collector if configured
