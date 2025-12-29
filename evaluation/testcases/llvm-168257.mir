@@ -1,0 +1,46 @@
+# LLVM Bug #168257: RISC-V global-isel legalizer creates invalid basic blocks
+# https://github.com/llvm/llvm-project/issues/168257
+#
+# Version: LLVM (RISC-V backend with global-isel)
+# Status: OPEN
+# Pass: Legalizer
+#
+# Expected: Valid machine IR with proper basic block structure
+# Actual:   Second basic block has allocatable live-ins but isn't entry/landing-pad
+#
+# Root Cause: Legalizer creates bb.2 with $x10/$x11 live-ins, violating
+# "MBB has allocatable live-in, but isn't entry, landing-pad, or inlineasm-br-indirect-target"
+#
+# Test: llc -x mir -mtriple=riscv64 -verify-machineinstrs -global-isel
+
+--- |
+  define i64 @test_64bit_ops(i64 %a, i64 %b) {
+  entry:
+    %shl = shl i64 %a, 32
+    %or = or i64 %shl, %b
+    ret i64 %or
+  }
+...
+---
+name:            test_64bit_ops
+alignment:       4
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: gpr }
+  - { id: 1, class: gpr }
+  - { id: 2, class: gpr }
+  - { id: 3, class: gpr }
+liveins:
+  - { reg: '$x10', virtual-reg: '%0' }
+  - { reg: '$x11', virtual-reg: '%1' }
+body:             |
+  bb.0.entry:
+    liveins: $x10, $x11
+
+    %0:gpr = COPY $x10
+    %1:gpr = COPY $x11
+    %2:gpr = SLLI %0, 32
+    %3:gpr = OR %2, %1
+    %4:gpr = COPY %3
+    PseudoRET implicit $x10
+...
