@@ -1,6 +1,6 @@
 # Trace2Pass Evaluation Framework
 
-Automated evaluation framework for measuring Trace2Pass performance on 54 historical compiler bugs.
+Automated evaluation framework for measuring Trace2Pass performance on 70+ historical compiler bugs (84-bug dataset, 83.3% coverage).
 
 ## Overview
 
@@ -52,7 +52,7 @@ open reports/charts/overall_metrics.png
 Automatically fetch minimal reproducers from bug URLs:
 
 ```bash
-# Fetch all 54 test cases
+# Fetch all 70+ test cases
 python evaluate.py fetch --all
 
 # Fetch specific bugs
