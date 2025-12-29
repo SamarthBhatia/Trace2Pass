@@ -187,7 +187,7 @@ def version_bisect_cmd(source_file: str, test_command: str,
     # Surface diagnostic errors (front-end regressions, incompatible code)
     diagnostic_errors = {
         ver: info for ver, info in result.details.items()
-        if info.get('compile_error_type') == 'diagnostic'
+        if isinstance(info, dict) and info.get('compile_error_type') == 'diagnostic'
     }
     if diagnostic_errors:
         print(f"\n⚠️  {len(diagnostic_errors)} version(s) skipped due to diagnostic compile errors:")
