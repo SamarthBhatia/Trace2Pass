@@ -214,7 +214,8 @@ def version_bisect_cmd(source_file: str, test_command: str,
 
 def pass_bisect_cmd(source_file: str, test_command: str,
                     optimization_level: str = "-O2",
-                    compiler_version: Optional[str] = None) -> Dict[str, Any]:
+                    compiler_version: Optional[str] = None,
+                    use_docker: bool = False) -> Dict[str, Any]:
     """
     Run pass bisection to identify the specific optimization pass responsible.
 
@@ -233,6 +234,8 @@ def pass_bisect_cmd(source_file: str, test_command: str,
                          If None, uses system default clang
                          CRITICAL: Should be set to first_bad_version from version bisection
                          to analyze the correct compiler's pass pipeline
+        use_docker: Use Docker containers for LLVM tools (default: False)
+                   When True, runs pass bisection inside Docker containers
 
     Returns:
         Pass bisection result dictionary
@@ -275,7 +278,16 @@ def pass_bisect_cmd(source_file: str, test_command: str,
     # CRITICAL: If compiler_version is specified (e.g., from version bisection),
     # we MUST use that specific version for pass bisection. Otherwise, we'd be
     # analyzing the wrong compiler's pass pipeline.
-    if compiler_version:
+
+    # When using Docker, skip local tool detection
+    if use_docker and compiler_version:
+        # Docker mode: tools are in container
+        major_version = compiler_version.split('.')[0]
+        clang_path = "clang"
+        opt_path = "opt"
+        llc_path = "llc"
+        print(f"Using Docker with LLVM {major_version}")
+    elif compiler_version:
         # Normalize to major version (e.g., "17.0.3" -> "17")
         # Most systems have clang-17, not clang-17.0.3
         major_version = compiler_version.split('.')[0]
@@ -389,7 +401,9 @@ def pass_bisect_cmd(source_file: str, test_command: str,
             clang_path=clang_path,
             opt_path=opt_path,
             llc_path=llc_path,
-            opt_level=optimization_level
+            opt_level=optimization_level,
+            use_docker=use_docker,
+            docker_version=major_version if use_docker else None
         )
         result = bisector.bisect(source_file, test_func)
 
@@ -518,48 +532,21 @@ def full_pipeline_cmd(source_file: str, test_command: str,
     # Stage 3: Pass Bisection
     print("Stage 3/3: Pass Bisection...")
 
-    # CRITICAL: Only skip pass bisection if BOTH conditions are met:
-    # 1. Version bisection successfully found a regression (has first_bad_version)
-    # 2. Version bisection used Docker (local toolchain likely unavailable)
-    #
-    # If version bisection failed or didn't find a regression, attempt pass bisection
-    # anyway - the user may have local toolchain even if Docker was requested.
+    # Extract version bisection results for pass bisection
     first_bad_version = version_result.get('first_bad_version')
     actually_used_docker = version_result.get('used_docker', False)
 
-    if actually_used_docker and first_bad_version:
-        print("⚠️  WARNING: Pass bisection skipped (Docker-based version bisection detected)")
-        print("   Pass bisection requires local LLVM toolchain installation:")
-        major_version = first_bad_version.split('.')[0]
-        print(f"   - clang-{major_version}")
-        print(f"   - opt-{major_version}")
-        print(f"   - llc-{major_version}")
-        print()
-        print("   Options:")
-        print("   1. Install matching LLVM toolchain locally for pass-level analysis")
-        print("   2. Use version bisection results to narrow down the regression")
-        print()
-
-        # Build recommendation (we know first_bad_version exists here)
-        recommendation = (f"Version bisection identified regression in {first_bad_version}. "
-                        f"Install local LLVM {major_version} toolchain for pass-level analysis.")
-
-        return {
-            "verdict": "incomplete",
-            "reason": "Pass bisection skipped: requires local LLVM toolchain (Docker-based pass bisection not yet implemented)",
-            "ub_detection": ub_result,
-            "version_bisection": version_result,
-            "recommendation": recommendation
-        }
-
     # CRITICAL: Pass the first_bad_version to pass bisection so it analyzes
     # the correct compiler version's pass pipeline, not the system default
-    # (first_bad_version already extracted above)
+    # If version bisection used Docker, continue using Docker for pass bisection
 
     # Wrap pass_bisect_cmd call to catch any unexpected exceptions
     try:
-        pass_result = pass_bisect_cmd(source_file, test_command, optimization_level,
-                                      compiler_version=first_bad_version)
+        pass_result = pass_bisect_cmd(
+            source_file, test_command, optimization_level,
+            compiler_version=first_bad_version,
+            use_docker=actually_used_docker
+        )
     except Exception as e:
         # Unexpected exception from pass_bisect_cmd - return structured error
         error_msg = f"Pass bisection raised exception: {str(e)}"

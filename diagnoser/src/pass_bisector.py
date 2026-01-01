@@ -48,7 +48,9 @@ class PassBisector:
         llc_path: str = "llc",
         opt_level: str = "-O2",
         timeout_sec: int = 30,
-        verbose: bool = False
+        verbose: bool = False,
+        use_docker: bool = False,
+        docker_version: Optional[str] = None
     ):
         """
         Initialize pass bisector.
@@ -60,6 +62,8 @@ class PassBisector:
             opt_level: Optimization level to extract pipeline from
             timeout_sec: Timeout for each compilation/execution
             verbose: Print debugging information
+            use_docker: Use Docker containers for LLVM tools (default: False)
+            docker_version: LLVM version for Docker image (e.g., "15" for silkeh/clang:15)
         """
         self.clang_path = clang_path
         self.opt_path = opt_path
@@ -67,15 +71,44 @@ class PassBisector:
         self.opt_level = opt_level
         self.timeout_sec = timeout_sec
         self.verbose = verbose
+        self.use_docker = use_docker
+        self.docker_version = docker_version
 
         # Verify that clang, opt, and llc are from the same LLVM version
         # Mismatched versions lead to meaningless pass bisection results
-        self._verify_tool_versions()
+        # Skip verification when using Docker (tools are in container)
+        if not self.use_docker:
+            self._verify_tool_versions()
 
     def _log(self, msg: str):
         """Print log message if verbose mode enabled."""
         if self.verbose:
             print(f"[PassBisector] {msg}")
+
+    def _run_command(self, cmd: List[str], **kwargs) -> subprocess.CompletedProcess:
+        """
+        Run a command, optionally inside a Docker container.
+
+        Args:
+            cmd: Command to execute (list of arguments)
+            **kwargs: Additional arguments to pass to subprocess.run
+
+        Returns:
+            subprocess.CompletedProcess result
+        """
+        if self.use_docker and self.docker_version:
+            # Wrap command in Docker execution
+            # Mount current directory to /workspace in container
+            docker_cmd = [
+                "docker", "run", "--rm",
+                "-v", f"{os.getcwd()}:/workspace",
+                "-w", "/workspace",
+                f"silkeh/clang:{self.docker_version}"
+            ] + cmd
+            return subprocess.run(docker_cmd, **kwargs)
+        else:
+            # Run command directly
+            return subprocess.run(cmd, **kwargs)
 
     def _get_tool_version(self, tool_path: str) -> Optional[str]:
         """
@@ -88,7 +121,7 @@ class PassBisector:
             Version string (e.g., "17.0.6") or None if unable to determine
         """
         try:
-            result = subprocess.run(
+            result = self._run_command(
                 [tool_path, "--version"],
                 capture_output=True,
                 text=True,
@@ -228,7 +261,7 @@ class PassBisector:
             # Compile to LLVM IR
             ir_file = os.path.join(tmpdir, "input.ll")
             try:
-                subprocess.run(
+                self._run_command(
                     [self.clang_path, "-S", "-emit-llvm", "-Xclang", "-disable-O0-optnone",
                      source_file, "-o", ir_file],
                     check=True,
@@ -240,7 +273,7 @@ class PassBisector:
 
             # Get pipeline passes using -print-pipeline-passes
             try:
-                result = subprocess.run(
+                result = self._run_command(
                     [self.opt_path, self.opt_level, "-print-pipeline-passes",
                      ir_file, "-disable-output"],
                     capture_output=True,
@@ -289,7 +322,7 @@ class PassBisector:
         # Compile to LLVM IR (unoptimized)
         ir_file = os.path.join(tmpdir, f"test_{num_passes}.ll")
         try:
-            subprocess.run(
+            self._run_command(
                 [self.clang_path, "-S", "-emit-llvm", "-Xclang", "-disable-O0-optnone",
                  source_file, "-o", ir_file],
                 check=True,
@@ -308,7 +341,7 @@ class PassBisector:
             opt_ir_file = os.path.join(tmpdir, f"optimized_{num_passes}.ll")
 
             try:
-                subprocess.run(
+                self._run_command(
                     [self.opt_path, f"-passes={pass_list}", ir_file, "-o", opt_ir_file],
                     check=True,
                     capture_output=True,
@@ -324,7 +357,7 @@ class PassBisector:
         # Compile IR to binary
         binary_file = os.path.join(tmpdir, f"test_{num_passes}")
         try:
-            subprocess.run(
+            self._run_command(
                 [self.clang_path, ir_file, "-o", binary_file],
                 check=True,
                 capture_output=True,
