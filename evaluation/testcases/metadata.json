@@ -72,7 +72,7 @@
   "llvm-60622": {
     "bug_id": "llvm-60622",
     "compiler": "llvm",
-    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/llvm-60622.c",
+    "source_file": "testcases/llvm-60622.cpp",
     "expected_pass": "Loop Optimization",
     "optimization_level": "-O2",
     "status": "verified",
@@ -312,7 +312,7 @@
   "llvm-116583": {
     "bug_id": "llvm-116583",
     "compiler": "llvm",
-    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/llvm-116583.c",
+    "source_file": "testcases/llvm-116583.cpp",
     "expected_pass": "Inlining",
     "optimization_level": "-O2",
     "status": "verified",
@@ -372,7 +372,7 @@
   "llvm-64253": {
     "bug_id": "llvm-64253",
     "compiler": "llvm",
-    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/llvm-64253.c",
+    "source_file": "testcases/llvm-64253.cpp",
     "expected_pass": "Backend",
     "optimization_level": "-O2",
     "status": "verified",
