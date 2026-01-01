@@ -342,10 +342,10 @@
   "llvm-121110": {
     "bug_id": "llvm-121110",
     "compiler": "llvm",
-    "source_file": null,
-    "expected_pass": "Unknown",
-    "optimization_level": "-O2",
-    "status": "failed_fetch",
+    "source_file": "testcases/llvm-121110.c",
+    "expected_pass": "Vector-combine",
+    "optimization_level": "-Os",
+    "status": "manual",
     "url": "https://github.com/llvm/llvm-project/issues/121110",
     "notes": "General miscompilation at size optimization Dec 2024"
   },

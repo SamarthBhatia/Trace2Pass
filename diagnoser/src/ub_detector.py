@@ -5,7 +5,7 @@ Distinguishes compiler bugs from undefined behavior in user code using multiple 
 
 Strategy:
 1. UBSan check - Recompile with -fsanitize=undefined
-2. Optimization sensitivity - Test at -O0, -O1, -O2, -O3
+2. Optimization sensitivity - Test at -O0, -O1, -O2, -O3, -Os, -Oz
 3. Multi-compiler differential - Compare GCC vs Clang
 4. Confidence scoring - Combine signals to estimate likelihood
 """
@@ -253,7 +253,7 @@ class UBDetector:
             details['optimization'] = {'error': 'clang not available'}
             return False
 
-        opt_levels = ["-O0", "-O1", "-O2", "-O3"]
+        opt_levels = ["-O0", "-O1", "-O2", "-O3", "-Os", "-Oz"]
         outputs = {}
 
         for opt in opt_levels:
