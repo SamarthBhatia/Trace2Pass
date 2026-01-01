@@ -292,72 +292,95 @@ class UBDetector:
 
         # If expected_output is provided, check if any optimization level produces wrong output
         if expected_output is not None:
-            # CRITICAL: Check for compile failures/timeouts before comparing stdout
-            # If -O0 compiles but -O2 fails to compile, that's a compiler bug
-            o0_output = outputs.get('-O0', {})
-            o2_output = outputs.get('-O2', {})
+            # Check -O0 baseline first
+            if '-O0' not in outputs:
+                return False  # No baseline to compare against
 
+            o0_output = outputs['-O0']
             o0_failed = o0_output.get('compile_failed') or o0_output.get('timeout')
-            o2_failed = o2_output.get('compile_failed') or o2_output.get('timeout')
-
-            # If -O0 compiles but -O2 fails to compile → optimizer crash (compiler bug)
-            if not o0_failed and o2_failed:
-                return True  # Optimization-sensitive compiler bug
 
             # If -O0 fails to compile → can't determine (baseline doesn't work)
-            # Return None to signal that we couldn't determine optimization sensitivity
-            # (as opposed to False, which means "tested and not optimization-sensitive")
             if o0_failed:
                 return None  # Couldn't determine (baseline unusable)
 
-            # Both compiled successfully - compare outputs
             o0_correct = o0_output.get('stdout') == expected_output
-            o2_correct = o2_output.get('stdout') == expected_output
 
-            # If -O0 is correct but -O2 is wrong, this is optimization-sensitive compiler bug
-            if o0_correct and not o2_correct:
-                return True
-            # If both are wrong, might be UB (not optimization-sensitive)
-            # If both are correct, no bug detected
-            return False
-        else:
-            # Fallback: Check if -O0/-O1 agree but -O2/-O3 differ
-            if '-O0' in outputs and '-O2' in outputs:
-                o0_result = outputs['-O0']
-                o2_result = outputs['-O2']
+            # Check each optimization level
+            for opt_level in ['-O1', '-O2', '-O3', '-Os', '-Oz']:
+                if opt_level not in outputs:
+                    continue
 
-                # Check for compile failures first (same logic as expected_output path)
-                # Convert None/falsy to explicit False for clearer logic
-                o0_failed = bool(o0_result.get('compile_failed') or o0_result.get('timeout'))
-                o2_failed = bool(o2_result.get('compile_failed') or o2_result.get('timeout'))
+                opt_output = outputs[opt_level]
+                opt_failed = opt_output.get('compile_failed') or opt_output.get('timeout')
 
-                # If -O0 compiles but -O2 fails → optimizer crash (compiler bug)
-                # CRITICAL: This must be caught BEFORE stdout comparison
-                if not o0_failed and o2_failed:
-                    details['optimization_failure_level'] = '-O2'
-                    details['optimization_failure_reason'] = o2_result.get('compile_failed', 'timeout' if o2_result.get('timeout') else 'crash')
+                # If -O0 compiles but this level fails → optimizer crash (compiler bug)
+                if opt_failed:
+                    details['optimization_failure_level'] = opt_level
+                    details['optimization_failure_reason'] = opt_output.get('compile_failed', 'timeout' if opt_output.get('timeout') else 'crash')
                     return True  # Optimization-sensitive compiler bug
 
-                # If -O0 fails → can't determine baseline
-                # Record this for diagnostics (same as expected_output path)
-                if o0_failed:
-                    details['baseline_failed'] = True
-                    details['baseline_failure_reason'] = 'fallback_path'
-                    details['optimization_failure_level'] = '-O0'
-                    details['optimization_failure_reason'] = o0_result.get('compile_failed', 'timeout' if o0_result.get('timeout') else 'crash')
-                    return None  # Couldn't determine (baseline unusable)
+                # Compare output correctness
+                opt_correct = opt_output.get('stdout') == expected_output
 
-                # Both compiled successfully - compare outputs
-                # NOTE: For programs with no output, both will be '', so we return False
-                # This is correct behavior - no output difference = not optimization-sensitive
-                o0_output = o0_result.get('stdout', '')
-                o2_output = o2_result.get('stdout', '')
-
-                # If outputs differ, this is optimization-sensitive
-                if o0_output != o2_output:
+                # If -O0 is correct but this level is wrong → optimization bug
+                if o0_correct and not opt_correct:
+                    details['optimization_difference'] = {
+                        'baseline': '-O0',
+                        'differing_level': opt_level,
+                        'expected': expected_output[:100],
+                        'actual': opt_output.get('stdout', '')[:100]
+                    }
                     return True
 
-        return False
+            # All levels match expected output (or all are equally wrong)
+            return False
+        else:
+            # Fallback: Check if -O0 agrees with all optimization levels
+            # If ANY optimization level differs from -O0, it's optimization-sensitive
+            if '-O0' not in outputs:
+                return False  # No baseline to compare against
+
+            o0_result = outputs['-O0']
+            o0_failed = bool(o0_result.get('compile_failed') or o0_result.get('timeout'))
+
+            # If -O0 fails → can't determine baseline
+            if o0_failed:
+                details['baseline_failed'] = True
+                details['baseline_failure_reason'] = 'fallback_path'
+                details['optimization_failure_level'] = '-O0'
+                details['optimization_failure_reason'] = o0_result.get('compile_failed', 'timeout' if o0_result.get('timeout') else 'crash')
+                return None  # Couldn't determine (baseline unusable)
+
+            o0_output = o0_result.get('stdout', '')
+
+            # Check each optimization level against -O0
+            for opt_level in ['-O1', '-O2', '-O3', '-Os', '-Oz']:
+                if opt_level not in outputs:
+                    continue
+
+                opt_result = outputs[opt_level]
+                opt_failed = bool(opt_result.get('compile_failed') or opt_result.get('timeout'))
+
+                # If -O0 compiles but this level fails → optimizer crash (compiler bug)
+                if opt_failed:
+                    details['optimization_failure_level'] = opt_level
+                    details['optimization_failure_reason'] = opt_result.get('compile_failed', 'timeout' if opt_result.get('timeout') else 'crash')
+                    return True  # Optimization-sensitive compiler bug
+
+                # Compare outputs
+                opt_output = opt_result.get('stdout', '')
+                if o0_output != opt_output:
+                    # Found a difference! This is optimization-sensitive
+                    details['optimization_difference'] = {
+                        'baseline': '-O0',
+                        'differing_level': opt_level,
+                        'baseline_output': o0_output[:100],  # Truncate for readability
+                        'differing_output': opt_output[:100]
+                    }
+                    return True
+
+            # All optimization levels match -O0, not optimization-sensitive
+            return False
 
     def _check_multi_compiler(
         self,
