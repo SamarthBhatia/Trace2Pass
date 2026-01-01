@@ -85,12 +85,14 @@ class PassBisector:
         if self.verbose:
             print(f"[PassBisector] {msg}")
 
-    def _run_command(self, cmd: List[str], **kwargs) -> subprocess.CompletedProcess:
+    def _run_command(self, cmd: List[str], work_dir: Optional[str] = None, extra_mounts: Optional[List[str]] = None, **kwargs) -> subprocess.CompletedProcess:
         """
         Run a command, optionally inside a Docker container.
 
         Args:
             cmd: Command to execute (list of arguments)
+            work_dir: Working directory to mount (if using Docker)
+            extra_mounts: Additional directories to mount (e.g., source file directory)
             **kwargs: Additional arguments to pass to subprocess.run
 
         Returns:
@@ -98,13 +100,28 @@ class PassBisector:
         """
         if self.use_docker and self.docker_version:
             # Wrap command in Docker execution
-            # Mount current directory to /workspace in container
+            # Mount work_dir and extra_mounts to same paths in container
+            # This ensures file paths remain consistent between host and container
+            mount_dir = os.path.abspath(work_dir) if work_dir else os.getcwd()
+
             docker_cmd = [
                 "docker", "run", "--rm",
-                "-v", f"{os.getcwd()}:/workspace",
-                "-w", "/workspace",
+                "-v", f"{mount_dir}:{mount_dir}",
+            ]
+
+            # Add extra mounts (e.g., source file directory)
+            if extra_mounts:
+                for extra in extra_mounts:
+                    extra_abs = os.path.abspath(extra)
+                    if extra_abs != mount_dir:  # Avoid duplicate mounts
+                        docker_cmd.extend(["-v", f"{extra_abs}:{extra_abs}"])
+
+            docker_cmd.extend([
+                "-w", mount_dir,
                 f"silkeh/clang:{self.docker_version}"
-            ] + cmd
+            ])
+            docker_cmd.extend(cmd)
+
             return subprocess.run(docker_cmd, **kwargs)
         else:
             # Run command directly
@@ -264,6 +281,8 @@ class PassBisector:
                 self._run_command(
                     [self.clang_path, "-S", "-emit-llvm", "-Xclang", "-disable-O0-optnone",
                      source_file, "-o", ir_file],
+                    work_dir=tmpdir,
+                    extra_mounts=[os.path.dirname(os.path.abspath(source_file))],
                     check=True,
                     capture_output=True,
                     timeout=self.timeout_sec
@@ -276,6 +295,7 @@ class PassBisector:
                 result = self._run_command(
                     [self.opt_path, self.opt_level, "-print-pipeline-passes",
                      ir_file, "-disable-output"],
+                    work_dir=tmpdir,
                     capture_output=True,
                     timeout=self.timeout_sec,
                     text=True
@@ -325,6 +345,8 @@ class PassBisector:
             self._run_command(
                 [self.clang_path, "-S", "-emit-llvm", "-Xclang", "-disable-O0-optnone",
                  source_file, "-o", ir_file],
+                work_dir=tmpdir,
+                extra_mounts=[os.path.dirname(os.path.abspath(source_file))],
                 check=True,
                 capture_output=True,
                 timeout=self.timeout_sec
@@ -343,6 +365,7 @@ class PassBisector:
             try:
                 self._run_command(
                     [self.opt_path, f"-passes={pass_list}", ir_file, "-o", opt_ir_file],
+                    work_dir=tmpdir,
                     check=True,
                     capture_output=True,
                     timeout=self.timeout_sec
@@ -359,6 +382,7 @@ class PassBisector:
         try:
             self._run_command(
                 [self.clang_path, ir_file, "-o", binary_file],
+                work_dir=tmpdir,
                 check=True,
                 capture_output=True,
                 timeout=self.timeout_sec
