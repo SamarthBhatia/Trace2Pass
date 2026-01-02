@@ -518,23 +518,51 @@ def full_pipeline_cmd(source_file: str, test_command: str,
                 "recommendation": "Install more compiler versions to enable bisection"
             }
 
-        # "all_pass" or "all_fail" are valid results, but pipeline is incomplete
-        # Return with verdict "incomplete" rather than "error"
-        print(f"⚠ Version bisection incomplete (verdict: {verdict}). Cannot proceed to pass bisection.")
-        return {
-            "verdict": "incomplete",
-            "reason": f"Version bisection did not identify a regression (verdict: {verdict})",
-            "ub_detection": ub_result,
-            "version_bisection": version_result,
-            "recommendation": "Bug does not reproduce reliably or all tested versions have same behavior"
-        }
+        # Handle "all_pass" vs "all_fail" differently
+        if verdict == "all_pass":
+            # Bug doesn't manifest anywhere - can't bisect passes
+            print(f"⚠ Version bisection shows bug doesn't manifest (verdict: {verdict}). Skipping pass bisection.")
+            return {
+                "verdict": "incomplete",
+                "reason": "Bug does not manifest in any tested compiler version (already fixed)",
+                "ub_detection": ub_result,
+                "version_bisection": version_result,
+                "recommendation": "Bug appears to be fixed in all tested versions (LLVM 14-19)"
+            }
+        elif verdict == "all_fail":
+            # Bug manifests in ALL versions - this is a long-standing bug
+            # We should still run pass bisection on the latest version to identify culprit
+            print(f"⚠ Version bisection shows bug manifests in ALL tested versions (verdict: {verdict}).")
+            print("  This indicates a long-standing bug. Proceeding to pass bisection on latest version...")
+            # Use latest version for pass bisection (version "19" is latest in DEFAULT_VERSIONS)
+            first_bad_version = "19"  # Latest LLVM version
+            actually_used_docker = version_result.get('used_docker', False)
+            # Continue to pass bisection stage below
+        else:
+            # Unknown verdict - return incomplete
+            print(f"⚠ Version bisection returned unexpected verdict: {verdict}. Cannot proceed.")
+            return {
+                "verdict": "incomplete",
+                "reason": f"Version bisection returned unexpected verdict: {verdict}",
+                "ub_detection": ub_result,
+                "version_bisection": version_result,
+                "recommendation": "Bug does not reproduce reliably"
+            }
 
     # Stage 3: Pass Bisection
     print("Stage 3/3: Pass Bisection...")
 
     # Extract version bisection results for pass bisection
-    first_bad_version = version_result.get('first_bad_version')
-    actually_used_docker = version_result.get('used_docker', False)
+    # Note: For "all_fail" case above, we already set first_bad_version="19"
+    # For normal "bisected" case, we get it from version_result
+    if not version_result.get('first_bad_version'):
+        # This should only happen for "all_fail" case where we manually set it above
+        # first_bad_version and actually_used_docker are already set
+        pass
+    else:
+        # Normal "bisected" case - get from version_result
+        first_bad_version = version_result.get('first_bad_version')
+        actually_used_docker = version_result.get('used_docker', False)
 
     # CRITICAL: Pass the first_bad_version to pass bisection so it analyzes
     # the correct compiler version's pass pipeline, not the system default
