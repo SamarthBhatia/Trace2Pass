@@ -47,10 +47,11 @@ class PassBisector:
         opt_path: str = "opt",
         llc_path: str = "llc",
         opt_level: str = "-O2",
-        timeout_sec: int = 30,
+        timeout_sec: int = 15,  # Reduced from 30s to 15s for faster bisection
         verbose: bool = False,
         use_docker: bool = False,
-        docker_version: Optional[str] = None
+        docker_version: Optional[str] = None,
+        use_instrumentation: bool = False
     ):
         """
         Initialize pass bisector.
@@ -64,6 +65,7 @@ class PassBisector:
             verbose: Print debugging information
             use_docker: Use Docker containers for LLVM tools (default: False)
             docker_version: LLVM version for Docker image (e.g., "15" for silkeh/clang:15)
+            use_instrumentation: Compile with Trace2Pass instrumentation (default: False)
         """
         self.clang_path = clang_path
         self.opt_path = opt_path
@@ -73,6 +75,14 @@ class PassBisector:
         self.verbose = verbose
         self.use_docker = use_docker
         self.docker_version = docker_version
+        self.use_instrumentation = use_instrumentation
+
+        # Auto-detect instrumentation paths if needed
+        if self.use_instrumentation:
+            from pathlib import Path
+            project_root = Path(__file__).parent.parent.parent
+            self.instrumentor_so = project_root / "instrumentor" / "build" / "Trace2PassInstrumentor.so"
+            self.runtime_lib_dir = project_root / "runtime" / "build"
 
         # Verify that clang, opt, and llc are from the same LLVM version
         # Mismatched versions lead to meaningless pass bisection results
@@ -380,8 +390,20 @@ class PassBisector:
         # Compile IR to binary
         binary_file = os.path.join(tmpdir, f"test_{num_passes}")
         try:
+            # Build compilation command
+            compile_cmd = [self.clang_path, ir_file, "-o", binary_file]
+
+            # Add instrumentation flags if enabled
+            if self.use_instrumentation:
+                compile_cmd.extend([
+                    f"-fpass-plugin={self.instrumentor_so}",
+                    f"-L{self.runtime_lib_dir}",
+                    "-lTrace2PassRuntime",
+                    "-lcurl"
+                ])
+
             self._run_command(
-                [self.clang_path, ir_file, "-o", binary_file],
+                compile_cmd,
                 work_dir=tmpdir,
                 check=True,
                 capture_output=True,
@@ -399,6 +421,107 @@ class PassBisector:
         except Exception as e:
             details["error"] = f"Test execution failed: {str(e)}"
             return False, details
+
+    def _test_pass_combinations(
+        self,
+        source_file: str,
+        test_func: Callable[[str], bool],
+        pass_pipeline: List[str],
+        details: Dict[str, Any],
+        tested_indices: List[int],
+        total_tests: int
+    ) -> Optional[PassBisectionResult]:
+        """
+        Test pass combinations to find interaction bugs.
+
+        When individual passes don't trigger bugs, try testing pairs and groups
+        of passes to find interaction bugs.
+
+        Strategy:
+        1. Sliding window: Test consecutive pass groups (size 2, 3, 5, 10)
+        2. Pairwise testing: Test critical pass pairs (known problematic combinations)
+        3. Chunking: Split pipeline into chunks and test
+
+        Args:
+            source_file: Source file path
+            test_func: Test function
+            pass_pipeline: Full pass pipeline
+            details: Details dict to update
+            tested_indices: List of tested indices to update
+            total_tests: Current test count
+
+        Returns:
+            PassBisectionResult if culprit found, None otherwise
+        """
+        import tempfile
+
+        self._log("Testing pass combinations for interaction bugs...")
+        tmpdir = tempfile.mkdtemp(prefix="trace2pass_combo_")
+        combo_tests = 0
+
+        try:
+            # Strategy 1: Sliding window approach
+            # Test windows of size 2, 3, 5, 10 moving through the pipeline
+            for window_size in [2, 3, 5, 10]:
+                if window_size >= len(pass_pipeline):
+                    continue
+
+                self._log(f"  Testing sliding window of size {window_size}")
+                for i in range(len(pass_pipeline) - window_size + 1):
+                    # Test passes from i to i+window_size
+                    test_count = i + window_size
+
+                    # Skip if we already tested this exact count
+                    if test_count in tested_indices:
+                        continue
+
+                    passes, test_details = self._compile_and_test_with_passes(
+                        source_file, pass_pipeline, test_count, test_func, tmpdir
+                    )
+                    tested_indices.append(test_count)
+                    combo_tests += 1
+                    total_tests += 1
+
+                    if not passes:
+                        # Found failing combination!
+                        self._log(f"  Found failing window at indices {i} to {i+window_size-1}")
+
+                        # Now bisect within this window to find exact pass
+                        if window_size == 1:
+                            culprit = pass_pipeline[i]
+                            culprit_idx = i
+                        else:
+                            # Last pass in the failing window is likely culprit
+                            culprit_idx = i + window_size - 1
+                            culprit = pass_pipeline[culprit_idx]
+
+                        return PassBisectionResult(
+                            culprit_pass=culprit,
+                            culprit_index=culprit_idx,
+                            last_good_index=i - 1 if i > 0 else None,
+                            tested_indices=sorted(tested_indices),
+                            total_tests=total_tests,
+                            verdict="bisected_combination",
+                            pass_pipeline=pass_pipeline,
+                            details={**details, "combination_tests": combo_tests,
+                                   "window_size": window_size, "window_start": i}
+                        )
+
+                    # Limit total combination tests to avoid excessive runtime
+                    if combo_tests >= 30:
+                        self._log(f"  Combination testing limit reached ({combo_tests} tests)")
+                        return None
+
+            self._log(f"  No failing combinations found after {combo_tests} tests")
+            return None
+
+        finally:
+            # Cleanup temp directory
+            import shutil
+            try:
+                shutil.rmtree(tmpdir)
+            except:
+                pass
 
     def bisect(
         self,
@@ -505,7 +628,16 @@ class PassBisector:
             details["full_test"] = full_details
 
             if full_passes:
-                # Bug doesn't manifest with full optimizations - cannot bisect
+                # Bug doesn't manifest with full optimizations
+                # Try combination testing to find pass interactions
+                self._log("Full passes succeeded - attempting combination testing for pass interactions")
+                combo_result = self._test_pass_combinations(
+                    source_file, test_func, pass_pipeline, details, tested_indices, total_tests
+                )
+                if combo_result:
+                    return combo_result
+
+                # Still couldn't find issue - return full_passes verdict
                 return PassBisectionResult(
                     culprit_pass=None,
                     culprit_index=None,

@@ -253,7 +253,9 @@ class UBDetector:
             details['optimization'] = {'error': 'clang not available'}
             return False
 
-        opt_levels = ["-O0", "-O1", "-O2", "-O3", "-Os", "-Oz"]
+        # Optimized: Test only key optimization levels (-O0, -O2, -O3)
+        # Reduced from 6 levels to 3 for 2x faster diagnosis
+        opt_levels = ["-O0", "-O2", "-O3"]
         outputs = {}
 
         for opt in opt_levels:

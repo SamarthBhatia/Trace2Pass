@@ -22,17 +22,20 @@ import sys
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 sys.path.insert(0, str(project_root / "diagnoser"))
+sys.path.insert(0, str(Path(__file__).parent))  # Add evaluation/src to path
 
 try:
     # Import diagnoser functions directly from diagnose.py
     from diagnose import full_pipeline_cmd, ub_detect_cmd
     from reporter.src.report_generator import ReportGenerator as BugReportGenerator
     from reporter.src.templates import MarkdownTemplate
+    from test_oracle import TestOracle  # Import new test oracle
     DIAGNOSER_AVAILABLE = True
 except ImportError as e:
     print(f"Warning: Could not import Trace2Pass components: {e}")
     print("Pipeline runner will operate in mock mode for testing")
     DIAGNOSER_AVAILABLE = False
+    TestOracle = None
 
 
 @dataclass
@@ -63,11 +66,93 @@ class PipelineRunner:
         else:
             self.testcases = {}
 
+        # Initialize test oracle for sophisticated output validation
+        if TestOracle:
+            self.test_oracle = TestOracle(str(metadata_path))
+        else:
+            self.test_oracle = None
+
     def _get_bug_result_dir(self, bug_id: str) -> Path:
         """Get result directory for a specific bug."""
         result_dir = self.results_dir / bug_id
         result_dir.mkdir(parents=True, exist_ok=True)
         return result_dir
+
+    def _create_test_script(self, bug_id: str, source_file: str) -> Optional[str]:
+        """
+        Create a test script that uses the oracle to validate output.
+
+        Returns path to test script, or None if oracle not available.
+        """
+        if not self.test_oracle:
+            return None
+
+        metadata = self.testcases.get(bug_id, {})
+        expected_output = metadata.get("expected_output_o0")
+        buggy_output = metadata.get("buggy_output_o2")
+
+        # Only create test script if we have expected outputs
+        if expected_output is None and buggy_output is None:
+            return None
+
+        result_dir = self._get_bug_result_dir(bug_id)
+        test_script = result_dir / "test_oracle.py"
+
+        # Generate test script
+        script_content = f'''#!/usr/bin/env python3
+"""Auto-generated test oracle for {bug_id}"""
+import subprocess
+import sys
+
+EXPECTED_OUTPUT = {repr(expected_output)}
+BUGGY_OUTPUT = {repr(buggy_output)}
+
+def test_binary(binary_path):
+    """Test if binary produces correct output."""
+    try:
+        result = subprocess.run(
+            [binary_path],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+
+        actual_output = result.stdout
+
+        # Check if output matches expected (correct behavior)
+        if EXPECTED_OUTPUT and actual_output == EXPECTED_OUTPUT:
+            sys.exit(0)  # PASS
+
+        # Check if output matches buggy (incorrect behavior)
+        if BUGGY_OUTPUT and actual_output == BUGGY_OUTPUT:
+            sys.exit(1)  # FAIL - bug detected
+
+        # Unknown output - could be different bug or platform difference
+        # Conservatively pass (don't flag as bug)
+        sys.exit(0)
+
+    except subprocess.TimeoutExpired:
+        sys.exit(1)  # FAIL - timeout indicates bug
+    except Exception as e:
+        print(f"Test error: {{e}}", file=sys.stderr)
+        sys.exit(1)  # FAIL - execution error
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: test_oracle.py <binary_path>", file=sys.stderr)
+        sys.exit(2)
+
+    test_binary(sys.argv[1])
+'''
+
+        with open(test_script, 'w') as f:
+            f.write(script_content)
+
+        # Make executable
+        import os
+        os.chmod(test_script, 0o755)
+
+        return str(test_script)
 
     def _compile_with_instrumentation(self, source_file: str, output: str, opt_level: str) -> tuple:
         """
@@ -157,10 +242,21 @@ class PipelineRunner:
             return (False, 0.0, diagnosis, "Diagnoser not available")
 
         try:
-            # Generate test command - for these bugs, just run the binary
-            # If the compiler generates correct code, it returns 0
-            # If the bug manifests, __builtin_trap() is called, returns non-zero
-            test_command = "{binary}"
+            # Create test script that uses sophisticated oracle for output validation
+            # This allows us to detect bugs even when the program doesn't crash
+            test_script_path = self._create_test_script(bug_id, source_file)
+
+            if test_script_path:
+                # Use test script that validates outputs
+                test_command = f"python3 {test_script_path} {{binary}}"
+            else:
+                # Fallback: just run the binary (old behavior)
+                test_command = "{binary}"
+
+            # Get affected version from metadata for Docker testing
+            affected_version = None
+            if self.test_oracle:
+                affected_version = self.test_oracle.get_affected_version(bug_id)
 
             # Try full pipeline first: UB detection → Version bisection → Pass bisection
             # NOTE: Version bisection uses Docker (LLVM 14-21) for comprehensive testing

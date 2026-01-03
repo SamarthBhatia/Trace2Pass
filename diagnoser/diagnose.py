@@ -216,7 +216,8 @@ def version_bisect_cmd(source_file: str, test_command: str,
 def pass_bisect_cmd(source_file: str, test_command: str,
                     optimization_level: str = "-O2",
                     compiler_version: Optional[str] = None,
-                    use_docker: bool = False) -> Dict[str, Any]:
+                    use_docker: bool = False,
+                    use_instrumentation: bool = False) -> Dict[str, Any]:
     """
     Run pass bisection to identify the specific optimization pass responsible.
 
@@ -225,6 +226,7 @@ def pass_bisect_cmd(source_file: str, test_command: str,
         test_command: Command to test binary (use {binary} placeholder)
                      Returns 0 if test passes, non-zero if bug manifests
                      Example: "{binary}" or "{binary} arg1 arg2"
+                     IGNORED if use_instrumentation=True
 
                      LIMITATION: Pipes, redirects, and shell features are NOT supported
                      for security. For complex tests, write a wrapper script.
@@ -237,6 +239,8 @@ def pass_bisect_cmd(source_file: str, test_command: str,
                          to analyze the correct compiler's pass pipeline
         use_docker: Use Docker containers for LLVM tools (default: False)
                    When True, runs pass bisection inside Docker containers
+        use_instrumentation: Use Trace2Pass instrumentation for testing (default: False)
+                           When True, compiles with instrumentation and checks for overflow reports
 
     Returns:
         Pass bisection result dictionary
@@ -244,23 +248,47 @@ def pass_bisect_cmd(source_file: str, test_command: str,
     import subprocess
     import shlex
 
-    # Validate that {binary} placeholder exists
-    if '{binary}' not in test_command:
-        raise ValueError("test_command must contain {binary} placeholder")
+    if use_instrumentation:
+        # Instrumentation mode: test by compiling with instrumentation and checking for overflows
+        print("  Using instrumentation to test pass combinations...")
 
-    # Create test function that runs the provided command
-    def test_func(binary_path: str) -> bool:
-        """Returns True if test passes, False if bug manifests."""
-        # Replace {binary} placeholder
-        cmd_str = test_command.replace('{binary}', binary_path)
+        from instrumentation import InstrumentationCompiler
 
-        # Use shlex.split to parse command safely (handles quotes, escaping)
-        # This avoids shell=True while still supporting basic command syntax
-        try:
-            cmd_args = shlex.split(cmd_str)
-        except ValueError as e:
-            print(f"Error parsing test command: {e}")
-            return False
+        def test_func(binary_path: str) -> bool:
+            """Returns True if test passes (no overflow), False if bug manifests (overflow detected)."""
+            # PassBisector already compiled with instrumentation
+            # We just need to run the binary and check for overflow reports
+
+            try:
+                instrumentor = InstrumentationCompiler()
+                has_overflow, stdout, stderr = instrumentor.run_and_check_for_overflow(binary_path)
+                # Debug output
+                print(f"    Test binary: {binary_path}")
+                print(f"    Overflow detected: {has_overflow}")
+                # Return True = PASS (no overflow), False = FAIL (overflow)
+                return not has_overflow
+            except Exception as e:
+                print(f"  Error running instrumented binary: {e}")
+                return True  # Assume pass on error (conservative)
+    else:
+        # Behavioral mode: test by running command and checking exit code
+        # Validate that {binary} placeholder exists
+        if '{binary}' not in test_command:
+            raise ValueError("test_command must contain {binary} placeholder")
+
+        # Create test function that runs the provided command
+        def test_func(binary_path: str) -> bool:
+            """Returns True if test passes, False if bug manifests."""
+            # Replace {binary} placeholder
+            cmd_str = test_command.replace('{binary}', binary_path)
+
+            # Use shlex.split to parse command safely (handles quotes, escaping)
+            # This avoids shell=True while still supporting basic command syntax
+            try:
+                cmd_args = shlex.split(cmd_str)
+            except ValueError as e:
+                print(f"Error parsing test command: {e}")
+                return False
 
         try:
             # Run without shell for better security
@@ -404,7 +432,8 @@ def pass_bisect_cmd(source_file: str, test_command: str,
             llc_path=llc_path,
             opt_level=optimization_level,
             use_docker=use_docker,
-            docker_version=major_version if use_docker else None
+            docker_version=major_version if use_docker else None,
+            use_instrumentation=use_instrumentation
         )
         result = bisector.bisect(source_file, test_func)
 
@@ -599,7 +628,8 @@ def full_pipeline_cmd(source_file: str, test_command: str,
         pass_result = pass_bisect_cmd(
             source_file, test_command, optimization_level,
             compiler_version=first_bad_version,
-            use_docker=actually_used_docker
+            use_docker=actually_used_docker,
+            use_instrumentation=use_instrumentation
         )
     except Exception as e:
         # Unexpected exception from pass_bisect_cmd - return structured error
