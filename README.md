@@ -42,7 +42,9 @@ Trace2Pass is a compiler bug detection system that injects lightweight runtime c
 - ✅ **Pure Function Consistency**
   - Verifies deterministic functions return same output
 - ✅ **Sign Conversion Detection** (disabled by default, 280% overhead)
-- ✅ **Memory Bounds Checking** (disabled by default, 18% overhead)
+- ⚠️ **Memory Bounds Checking** (disabled by default, 18% overhead)
+  - **Limitation**: Currently only checks for negative indices (index < 0)
+  - Upper-bound checking (index >= size) requires allocation size tracking (future work)
 - ✅ **Loop Bounds Checking** (disabled by default, 12.7% overhead)
 - ✅ **Thread-Safe Runtime Library**
   - Bloom filter deduplication
@@ -605,8 +607,16 @@ The integration layer is complete and functional, but runtime reports contain pl
    - No automatic toolchain fetch/build infrastructure
    - Would benefit from Docker-based version isolation
 
+5. **Runtime report delivery (DoS vulnerability):**
+   - Uses `system("curl ...")` which spawns a process per report
+   - Rate limited to 10 reports/sec, but still allows up to 10 fork/exec per second
+   - Adversary with unique PCs can monopolize cores in production
+   - **Fix:** Replace with background worker thread + queue, libcurl, or raw sockets
+   - **Impact:** Not suitable for adversarial production environments
+
 **What works:** Complete data flow from production binary → Collector → Diagnoser → diagnosis report.
 **What's missing:** Accurate metadata for precise bug localization and source-level reproducers.
+**Security note:** Runtime suitable for testing and cooperative production, not for adversarial scenarios.
 
 ---
 

@@ -399,7 +399,8 @@ class PassBisector:
                     f"-fpass-plugin={self.instrumentor_so}",
                     f"-L{self.runtime_lib_dir}",
                     "-lTrace2PassRuntime",
-                    "-lcurl"
+                    "-lpthread",  # Required by runtime
+                    "-ldl"        # Required by runtime
                 ])
 
             self._run_command(
