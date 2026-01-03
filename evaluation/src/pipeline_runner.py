@@ -55,6 +55,7 @@ class PipelineRunner:
 
     def __init__(self, base_dir: Path):
         self.base_dir = Path(base_dir)
+        self.project_root = project_root  # Use module-level project_root
         self.results_dir = self.base_dir / "results"
         self.results_dir.mkdir(parents=True, exist_ok=True)
 
@@ -182,10 +183,13 @@ if __name__ == "__main__":
                 f'-L{runtime_lib_dir}',
                 '-lTrace2PassRuntime',
                 '-lpthread',
-                '-ldl',
                 source_file,
                 '-o', output
             ]
+
+            # Add -ldl on Linux only (macOS has dlopen in libSystem)
+            if sys.platform.startswith('linux'):
+                cmd.insert(-2, '-ldl')
 
             result = subprocess.run(
                 cmd,
