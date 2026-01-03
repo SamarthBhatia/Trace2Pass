@@ -10,6 +10,7 @@ and detect runtime overflow/error reports, bridging the gap between:
 
 import os
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import Optional, Tuple
@@ -76,10 +77,13 @@ class InstrumentationCompiler:
             f"-L{self.runtime_lib_dir}",
             "-lTrace2PassRuntime",
             "-lpthread",  # Required by runtime library
-            "-ldl",       # Required by runtime library
             source_file,
             "-o", output_binary,
         ]
+
+        # Add -ldl on Linux only (macOS has dlopen in libSystem)
+        if sys.platform.startswith('linux'):
+            cmd.insert(-2, "-ldl")
 
         if extra_flags:
             cmd.extend(extra_flags)

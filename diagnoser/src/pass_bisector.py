@@ -16,6 +16,7 @@ that triggers the bug.
 """
 
 import subprocess
+import sys
 import os
 import tempfile
 import shutil
@@ -400,8 +401,10 @@ class PassBisector:
                     f"-L{self.runtime_lib_dir}",
                     "-lTrace2PassRuntime",
                     "-lpthread",  # Required by runtime
-                    "-ldl"        # Required by runtime
                 ])
+                # Add -ldl on Linux only (macOS has dlopen in libSystem)
+                if sys.platform.startswith('linux'):
+                    compile_cmd.append("-ldl")
 
             self._run_command(
                 compile_cmd,
