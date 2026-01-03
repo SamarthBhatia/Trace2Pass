@@ -7,7 +7,15 @@
     "optimization_level": "-O2",
     "status": "manual",
     "url": "",
-    "notes": "Sample test case simulating InstCombine wrong-code bug with signed integer comparison"
+    "notes": "Sample test case simulating InstCombine wrong-code bug with signed integer comparison",
+    "expected_output_o0": "0\n",
+    "buggy_output_o2": "1\n",
+    "affected_versions": [
+      "synthetic"
+    ],
+    "test_with_version": null,
+    "compile_flags": [],
+    "runtime_args": []
   },
   "sample-gvn": {
     "bug_id": "sample-gvn",
@@ -17,7 +25,15 @@
     "optimization_level": "-O2",
     "status": "manual",
     "url": "",
-    "notes": "Sample test case simulating GVN wrong-code bug with redundant load elimination"
+    "notes": "Sample test case simulating GVN wrong-code bug with redundant load elimination",
+    "expected_output_o0": "0\n",
+    "buggy_output_o2": "1\n",
+    "affected_versions": [
+      "synthetic"
+    ],
+    "test_with_version": null,
+    "compile_flags": [],
+    "runtime_args": []
   },
   "sample-licm": {
     "bug_id": "sample-licm",
@@ -27,7 +43,15 @@
     "optimization_level": "-O2",
     "status": "manual",
     "url": "",
-    "notes": "Sample test case simulating LICM wrong-code bug with incorrect loop invariant hoisting"
+    "notes": "Sample test case simulating LICM wrong-code bug with incorrect loop invariant hoisting",
+    "expected_output_o0": "0\n",
+    "buggy_output_o2": "1\n",
+    "affected_versions": [
+      "synthetic"
+    ],
+    "test_with_version": null,
+    "compile_flags": [],
+    "runtime_args": []
   },
   "llvm-97330": {
     "bug_id": "llvm-97330",
@@ -87,7 +111,15 @@
     "optimization_level": "-O2",
     "status": "failed_fetch",
     "url": "https://gcc.gnu.org/bugzilla/show_bug.cgi?id=110726",
-    "notes": "GCC 14 regression found testing LLVM-16"
+    "notes": "GCC 14 regression found testing LLVM-16",
+    "expected_output_o0": null,
+    "buggy_output_o2": null,
+    "affected_versions": [
+      "14"
+    ],
+    "test_with_version": "14",
+    "compile_flags": [],
+    "runtime_args": []
   },
   "gcc-108308": {
     "bug_id": "gcc-108308",
@@ -97,7 +129,18 @@
     "optimization_level": "-O2",
     "status": "failed_fetch",
     "url": "https://gcc.gnu.org/bugzilla/show_bug.cgi?id=108308",
-    "notes": "GCC 13 regression on x86_64 with CCP disabled"
+    "notes": "GCC 13 regression on x86_64 with CCP disabled",
+    "expected_output_o0": null,
+    "buggy_output_o2": null,
+    "affected_versions": [
+      "13"
+    ],
+    "test_with_version": "13",
+    "compile_flags": [
+      "-Os",
+      "-fno-tree-ccp"
+    ],
+    "runtime_args": []
   },
   "gcc-115388": {
     "bug_id": "gcc-115388",
@@ -107,7 +150,17 @@
     "optimization_level": "-O2",
     "status": "failed_fetch",
     "url": "https://gcc.gnu.org/bugzilla/show_bug.cgi?id=115388",
-    "notes": "GCC 15 regression June 2024"
+    "notes": "GCC 15 regression June 2024",
+    "expected_output_o0": null,
+    "buggy_output_o2": null,
+    "affected_versions": [
+      "15"
+    ],
+    "test_with_version": "15",
+    "compile_flags": [
+      "-O3"
+    ],
+    "runtime_args": []
   },
   "llvm-64188": {
     "bug_id": "llvm-64188",
@@ -157,7 +210,15 @@
     "optimization_level": "-O2",
     "status": "verified",
     "url": "https://github.com/llvm/llvm-project/issues/89230",
-    "notes": "AArch64 backend issue affecting all optimization levels Apr 2024"
+    "notes": "AArch64 backend issue affecting all optimization levels Apr 2024",
+    "expected_output_o0": null,
+    "buggy_output_o2": null,
+    "affected_versions": [
+      "18"
+    ],
+    "test_with_version": "18",
+    "compile_flags": [],
+    "runtime_args": []
   },
   "llvm-97600": {
     "bug_id": "llvm-97600",
@@ -357,7 +418,17 @@
     "optimization_level": "-O2",
     "status": "verified",
     "url": "https://github.com/llvm/llvm-project/issues/119646",
-    "notes": "Another -Os miscompilation Dec 2024"
+    "notes": "Another -Os miscompilation Dec 2024",
+    "expected_output_o0": null,
+    "buggy_output_o2": null,
+    "affected_versions": [
+      "20"
+    ],
+    "test_with_version": "20",
+    "compile_flags": [
+      "-Os"
+    ],
+    "runtime_args": []
   },
   "llvm-113058": {
     "bug_id": "llvm-113058",
@@ -387,7 +458,16 @@
     "optimization_level": "-O2",
     "status": "verified",
     "url": "https://github.com/llvm/llvm-project/issues/102597",
-    "notes": "Incorrect handling of 128-bit integers in computeConstantDifference Aug 2024"
+    "notes": "Incorrect handling of 128-bit integers in computeConstantDifference Aug 2024",
+    "expected_output_o0": "0\n",
+    "buggy_output_o2": "3\n",
+    "affected_versions": [
+      "18",
+      "19"
+    ],
+    "test_with_version": "18",
+    "compile_flags": [],
+    "runtime_args": []
   },
   "llvm-114194": {
     "bug_id": "llvm-114194",
@@ -568,5 +648,30 @@
     "status": "failed_fetch",
     "url": "https://gcc.gnu.org/bugzilla/show_bug.cgi?id=118132",
     "notes": "Obsolete vectorized code causes performance regression Dec 2024"
+  },
+  "production-sqlite-insertcell": {
+    "bug_id": "production-sqlite-insertcell",
+    "compiler": "llvm",
+    "source_file": "/Users/samarthbhatia/Developer/Systems/Trace2Pass/evaluation/testcases/production-sqlite-insertcell.c",
+    "expected_pass": "None",
+    "optimization_level": "-O2",
+    "status": "not_a_bug",
+    "url": "https://www.sqlite.org/",
+    "notes": "NOT A COMPILER BUG. Test case for unsigned char wrapping (legal behavior). IR correctly has NO nsw/nuw flags. This case revealed instrumentor bug: old behavior defaulted to signed checking (false positive). Now fixed: only check when nsw/nuw present. Used to validate instrumentor precision.",
+    "expected_output_o0": null,
+    "buggy_output_o2": null,
+    "affected_versions": [],
+    "test_with_version": null,
+    "compile_flags": [
+      "-O2"
+    ],
+    "runtime_args": [],
+    "runtime_report": {
+      "type": "false_positive_eliminated",
+      "function": "insertCell_minimal",
+      "expression": "add i8 (no flags)",
+      "operands": "127, 1",
+      "description": "Legal wrapping arithmetic. Old instrumentor reported false positive (default to signed). Fixed instrumentor correctly skips unflagged operations."
+    }
   }
 }
