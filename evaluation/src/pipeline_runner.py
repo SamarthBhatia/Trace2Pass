@@ -163,12 +163,26 @@ if __name__ == "__main__":
         start_time = time.time()
 
         try:
-            # For now, use standard compilation (instrumentation pass integration pending)
-            # In full implementation, this would use: clang -Xclang -load -Xclang PassInstrumentor.so
+            # Build with actual Trace2Pass instrumentation
+            instrumentor_so = self.project_root / "instrumentor" / "build" / "Trace2PassInstrumentor.so"
+            runtime_lib_dir = self.project_root / "runtime" / "build"
+
+            # Check if instrumentation components exist
+            if not instrumentor_so.exists():
+                return (False, 0.0, f"Instrumentor plugin not found at {instrumentor_so}. Run: cd instrumentor && mkdir -p build && cd build && cmake .. && make")
+
+            if not runtime_lib_dir.exists():
+                return (False, 0.0, f"Runtime library not found at {runtime_lib_dir}. Run: cd runtime && mkdir -p build && cd build && cmake .. && make")
+
             cmd = [
                 'clang',
                 opt_level,
                 '-g',
+                f'-fpass-plugin={instrumentor_so}',
+                f'-L{runtime_lib_dir}',
+                '-lTrace2PassRuntime',
+                '-lpthread',
+                '-ldl',
                 source_file,
                 '-o', output
             ]
@@ -201,22 +215,36 @@ if __name__ == "__main__":
         start_time = time.time()
 
         try:
+            # Run with full sampling to detect all anomalies
+            env = os.environ.copy()
+            env['TRACE2PASS_SAMPLE_RATE'] = '1.0'
+
             result = subprocess.run(
                 [binary],
                 capture_output=True,
                 text=True,
-                timeout=timeout
+                timeout=timeout,
+                env=env
             )
 
             runtime = time.time() - start_time
 
-            # For now, just check if execution succeeded
-            # In full implementation, this would collect runtime anomaly reports
-            if result.returncode == 0:
-                return (True, runtime, result.stdout, '')
-            else:
-                # Non-zero exit might indicate bug manifestation
-                return (True, runtime, result.stdout, result.stderr)
+            # Parse stderr for Trace2Pass runtime reports
+            stderr_output = result.stderr
+            has_trace2pass_report = "=== Trace2Pass Report ===" in stderr_output
+
+            # Check for specific anomaly types
+            has_overflow = "arithmetic_overflow" in stderr_output
+            has_div_by_zero = "division_by_zero" in stderr_output
+            has_bounds_violation = "memory_bounds" in stderr_output
+
+            # Combine stdout and stderr for full output
+            full_output = result.stdout
+            if stderr_output:
+                full_output += f"\n--- Runtime Reports ---\n{stderr_output}"
+
+            # Success if execution completed (return code doesn't matter - bugs may cause non-zero)
+            return (True, runtime, full_output, '')
 
         except subprocess.TimeoutExpired:
             return (False, timeout, '', 'Execution timeout')

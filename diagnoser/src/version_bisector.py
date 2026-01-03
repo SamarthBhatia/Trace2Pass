@@ -33,8 +33,8 @@ class VersionBisectionResult:
 class VersionBisector:
     """Bisects over compiler versions to find bug introduction point."""
 
-    # LLVM versions from 14 to 19 (optimized list - major versions only)
-    # Reduced from 47 versions to 6 for faster bisection
+    # LLVM versions from 14 to 21 (optimized list - major versions only)
+    # Reduced from 50+ versions to 8 for faster bisection
     # Full version list can be re-enabled if needed for precise regression identification
     DEFAULT_VERSIONS = [
         "14",  # LLVM 14.x.x
@@ -43,6 +43,8 @@ class VersionBisector:
         "17",  # LLVM 17.x.x
         "18",  # LLVM 18.x.x
         "19",  # LLVM 19.x.x
+        "20",  # LLVM 20.x.x
+        "21",  # LLVM 21.x.x
     ]
 
     def __init__(

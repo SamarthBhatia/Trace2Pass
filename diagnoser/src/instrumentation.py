@@ -75,9 +75,10 @@ class InstrumentationCompiler:
             f"-fpass-plugin={self.instrumentor_so}",
             f"-L{self.runtime_lib_dir}",
             "-lTrace2PassRuntime",
+            "-lpthread",  # Required by runtime library
+            "-ldl",       # Required by runtime library
             source_file,
             "-o", output_binary,
-            "-lcurl",  # Required by runtime library
         ]
 
         if extra_flags:

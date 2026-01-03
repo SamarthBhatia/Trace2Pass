@@ -571,10 +571,23 @@ static int http_post_json(const char* url, const char* json_data) {
     }
 
     // Rate limiting: Prevent DoS by limiting HTTP requests per second
-    // CRITICAL: system(curl) spawns a process per report, which could be abused
-    // for DoS. This rate limiter caps requests to prevent resource exhaustion.
-    // Even with bloom filter + sampling, an attacker could trigger many unique
-    // reports (different PCs) to bypass dedup. This is a stopgap until libcurl.
+    //
+    // KNOWN LIMITATION (DoS Vulnerability):
+    // system(curl) spawns a process per report. An adversary who can produce
+    // unique PCs (via templates, inlined loops, etc.) can force up to 10 fork/exec
+    // pairs per second, monopolizing cores and overwhelming production hosts.
+    //
+    // CURRENT MITIGATION:
+    // - Rate limiter caps at 10 reports/sec (reduces but doesn't eliminate DoS)
+    // - Bloom filter + sampling reduce duplicate reports
+    //
+    // PROPER FIX (TODO):
+    // Replace system() with one of:
+    // 1. Background worker thread + report queue (batch sends)
+    // 2. libcurl with persistent connection reuse
+    // 3. Raw sockets with HTTP POST implementation
+    //
+    // Until fixed, this is suitable for testing but NOT for adversarial production.
     #define MAX_REPORTS_PER_SECOND 10
     static pthread_mutex_t rate_limit_mutex = PTHREAD_MUTEX_INITIALIZER;
     static time_t current_window = 0;
