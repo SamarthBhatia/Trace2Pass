@@ -30,6 +30,13 @@ Makefile
 
 # macOS
 .DS_Store
+._*
+.AppleDouble
+.LSOverride
+
+# Microsoft Office temporary files
+~$*.docx
+~$*.xlsx
 
 # Logs
 *.log
@@ -51,6 +58,33 @@ benchmarks/*/redis-*/
 benchmarks/*/sqlite-*/
 *.tmp
 
+# External project clones (for evaluation only, not versioned)
+# Keep scripts and summaries, but not the full source
+benchmarks/redis/redis-*/
+evaluation/projects/ffmpeg/
+evaluation/projects/highway/
+evaluation/projects/icu/
+evaluation/projects/nginx/nginx-*/
+evaluation/projects/openssl/
+evaluation/projects/sqlite/sqlite-*/
+evaluation/projects/zlib/
+evaluation/projects/zlib-src/
+
+# Keep build scripts but not build outputs
+evaluation/projects/*/build/
+evaluation/projects/*/install/
+evaluation/projects/*/objs/
+evaluation/projects/*/obj/
+evaluation/projects/nginx/nginx
+
+# Evaluation artifacts (keep scripts and summaries, not binaries)
+evaluation/collector_sqlite_evaluation.db
+evaluation/*.db
+evaluation/projects/*/reports/*.json
+evaluation/projects/*/build_*
+evaluation/projects/*/test-*
+evaluation/projects/redis/hiredis-*/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -62,5 +96,14 @@ env/
 ENV/
 *.egg-info/
 dist/
+
+# Database files (keep structure, not data)
 *.db
 *.sqlite
+
+# Compiled test cases
+evaluation/real-bugs/*/test-*
+evaluation/real-bugs/*/*.ll
+evaluation/real-bugs/*/*.bc
+evaluation/real-bugs/*/*.s
+!evaluation/real-bugs/*/test_*.c
