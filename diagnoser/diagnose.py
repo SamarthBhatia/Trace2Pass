@@ -290,18 +290,18 @@ def pass_bisect_cmd(source_file: str, test_command: str,
                 print(f"Error parsing test command: {e}")
                 return False
 
-        try:
-            # Run without shell for better security
-            result = subprocess.run(cmd_args, timeout=5, capture_output=True)
-            return result.returncode == 0
-        except subprocess.TimeoutExpired:
-            return False  # Timeout = bug (infinite loop, etc.)
-        except FileNotFoundError:
-            print(f"Error: Command not found: {cmd_args[0]}")
-            return False
-        except Exception as e:
-            print(f"Error running test: {e}")
-            return False
+            try:
+                # Run without shell for better security
+                result = subprocess.run(cmd_args, timeout=5, capture_output=True)
+                return result.returncode == 0
+            except subprocess.TimeoutExpired:
+                return False  # Timeout = bug (infinite loop, etc.)
+            except FileNotFoundError:
+                print(f"Error: Command not found: {cmd_args[0]}")
+                return False
+            except Exception as e:
+                print(f"Error running test: {e}")
+                return False
 
     # Determine which clang to use
     # CRITICAL: If compiler_version is specified (e.g., from version bisection),

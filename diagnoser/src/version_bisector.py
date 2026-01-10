@@ -18,6 +18,8 @@ from pathlib import Path
 from typing import Optional, Dict, Any, Tuple, List, Callable
 from dataclasses import dataclass
 
+from docker_compiler import DockerCompiler
+
 
 @dataclass
 class VersionBisectionResult:
@@ -65,6 +67,12 @@ class VersionBisector:
         self.versions = versions or self.DEFAULT_VERSIONS
         self.use_docker = use_docker
         self.tested_versions: List[str] = []
+
+        # Initialize DockerCompiler if using Docker
+        if use_docker:
+            self.docker_compiler = DockerCompiler(verbose=False)
+        else:
+            self.docker_compiler = None
 
     def bisect(
         self,
@@ -657,7 +665,8 @@ class VersionBisector:
         """
         Compile using Docker container with specific LLVM version.
 
-        Uses pre-built silkeh/clang images from Docker Hub.
+        Uses DockerCompiler which automatically handles C++ files,
+        C++ standard detection, and library linking.
 
         Args:
             version: LLVM version (e.g., "17.0.3")
@@ -671,114 +680,53 @@ class VersionBisector:
             - compile_succeeded: True if compilation succeeded
             - stderr: Compilation stderr (for logging errors)
         """
-        # Use pre-built silkeh/clang images
-        # Extract major version (17.0.3 -> 17)
-        major_version = version.split('.')[0]
-        image = f"silkeh/clang:{major_version}"
+        if not self.docker_compiler:
+            error_msg = "DOCKER_ERROR: DockerCompiler not initialized"
+            return (None, False, False, error_msg)
 
         binary_path = os.path.join(self.work_dir, f"test_{version.replace('.', '_')}")
 
-        # Get absolute paths for Docker volumes
-        source_abs = os.path.abspath(source_file)
-        source_dir = os.path.dirname(source_abs)
-        source_name = os.path.basename(source_abs)
-        work_dir_abs = os.path.abspath(self.work_dir)
-
         try:
-            # Check if image is available, pull if not
-            check_result = subprocess.run(
-                ["docker", "image", "inspect", image],
-                capture_output=True,
-                timeout=5
+            # Use DockerCompiler which handles C++ automatically
+            success, stdout, stderr = self.docker_compiler.compile(
+                source_file,
+                binary_path,
+                version,
+                optimization_level
             )
 
-            if check_result.returncode != 0:
-                # Image not found, try to pull
-                print(f"  Pulling Docker image {image}...")
-                pull_result = subprocess.run(
-                    ["docker", "pull", image],
-                    capture_output=True,
-                    timeout=300  # 5 minute timeout for pull
-                )
-                if pull_result.returncode != 0:
-                    print(f"  Failed to pull {image}, skipping version {version}")
-                    stderr_preview = pull_result.stderr[:200] if pull_result.stderr else "Unknown error"
-                    error_msg = f"DOCKER_ERROR: Failed to pull image {image}: {stderr_preview}"
-                    return (None, False, False, error_msg)
+            if not success:
+                # Compilation failed - distinguish ICE from diagnostic errors
+                ice_markers = [
+                    "PLEASE submit a bug report",
+                    "Internal compiler error",
+                    "internal compiler error",
+                    "Assertion failed",
+                    "Assertion `",
+                    "Stack dump:",
+                    "UNREACHABLE executed",
+                ]
 
-            # Run Docker container to compile
-            # Mount source directory (read-only) and work directory (read-write)
-            # Use --platform linux/amd64 to ensure x86_64 even on ARM64 hosts
-            result = subprocess.run(
-                [
-                    "docker", "run", "--rm",
-                    "--platform", "linux/amd64",  # Force x86_64 (works on ARM64 via Rosetta)
-                    "-v", f"{source_dir}:/src:ro",
-                    "-v", f"{work_dir_abs}:/work",
-                    image,
-                    "clang", optimization_level, f"/src/{source_name}", "-o", "/work/output"
-                ],
-                capture_output=True,
-                text=True,
-                timeout=60  # 1 minute timeout for compilation
-            )
-        except FileNotFoundError as e:
-            # Docker not installed or not in PATH
-            print(f"  Docker not found on system, skipping version {version}")
-            print("  Install Docker to enable multi-version bisection")
-            error_msg = f"DOCKER_ERROR: Docker not found on system ({str(e)})"
-            return (None, False, False, error_msg)
-        except subprocess.TimeoutExpired as e:
-            # Docker command timed out
-            print(f"  Docker timeout for version {version}: {e}")
-            error_msg = f"DOCKER_ERROR: Docker command timed out ({str(e)})"
-            return (None, False, False, error_msg)
-        except subprocess.CalledProcessError as e:
-            # Docker command failed unexpectedly
-            print(f"  Docker command failed for version {version}: {e}")
-            error_msg = f"DOCKER_ERROR: Docker command failed ({str(e)})"
-            return (None, False, False, error_msg)
+                is_ice = any(marker in stderr for marker in ice_markers)
 
-        if result.returncode != 0:
-            # Compilation failed
-            # Distinguish ICE from normal diagnostic errors
-            ice_markers = [
-                "PLEASE submit a bug report",
-                "Internal compiler error",
-                "internal compiler error",
-                "Assertion failed",
-                "Assertion `",
-                "Stack dump:",
-                "UNREACHABLE executed",
-            ]
+                if is_ice:
+                    # ICE is a compiler bug - treat as test FAILURE
+                    print(f"  ICE detected in {version}: {stderr[:200]}")
+                    return (None, True, False, stderr)
+                else:
+                    # Normal diagnostic error (e.g., C++20 in LLVM 14, -Werror, etc.)
+                    print(f"  Compile error in {version} (diagnostic, skipping): {stderr[:100]}")
+                    error_msg = f"DIAGNOSTIC_ERROR: {stderr}"
+                    return (None, True, False, error_msg)
 
-            is_ice = any(marker in result.stderr for marker in ice_markers)
-
-            if is_ice:
-                # ICE is a compiler bug - treat as test FAILURE
-                print(f"  ICE detected in {version}: {result.stderr[:200]}")
-                return (None, True, False, result.stderr)
-            else:
-                # Normal diagnostic error (e.g., -Werror, language feature gap)
-                # This is NOT the optimizer bug we're looking for, but compiler WAS found
-                # Mark as compiler_found=True but with special error marker so caller can distinguish
-                # from "compiler not installed" case
-                print(f"  Compile error in {version} (diagnostic, skipping): {result.stderr[:100]}")
-                # Return with a marker in stderr to indicate this is a compile-time rejection
-                error_msg = f"DIAGNOSTIC_ERROR: {result.stderr}"
-                return (None, True, False, error_msg)
-
-        # Move output to final location
-        output_path = os.path.join(self.work_dir, "output")
-        if os.path.exists(output_path):
-            shutil.move(output_path, binary_path)
+            # Compilation succeeded
             return (binary_path, True, True, None)
 
-        # Compilation succeeded but no output file?
-        # This is a Docker infrastructure issue (volume permissions, etc.), not a compiler bug
-        print(f"  Warning: Docker compilation succeeded but no output file found")
-        error_msg = "DOCKER_ERROR: No output file generated (check volume permissions)"
-        return (None, False, False, error_msg)
+        except Exception as e:
+            # DockerCompiler exception (Docker not available, etc.)
+            print(f"  Docker error for version {version}: {e}")
+            error_msg = f"DOCKER_ERROR: {str(e)}"
+            return (None, False, False, error_msg)
 
     def _run_test_in_docker(
         self,
