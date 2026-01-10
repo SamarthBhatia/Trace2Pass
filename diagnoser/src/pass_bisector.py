@@ -16,6 +16,7 @@ that triggers the bug.
 """
 
 import subprocess
+import sys
 import os
 import tempfile
 import shutil
@@ -47,8 +48,11 @@ class PassBisector:
         opt_path: str = "opt",
         llc_path: str = "llc",
         opt_level: str = "-O2",
-        timeout_sec: int = 30,
-        verbose: bool = False
+        timeout_sec: int = 15,  # Reduced from 30s to 15s for faster bisection
+        verbose: bool = False,
+        use_docker: bool = False,
+        docker_version: Optional[str] = None,
+        use_instrumentation: bool = False
     ):
         """
         Initialize pass bisector.
@@ -60,6 +64,9 @@ class PassBisector:
             opt_level: Optimization level to extract pipeline from
             timeout_sec: Timeout for each compilation/execution
             verbose: Print debugging information
+            use_docker: Use Docker containers for LLVM tools (default: False)
+            docker_version: LLVM version for Docker image (e.g., "15" for silkeh/clang:15)
+            use_instrumentation: Compile with Trace2Pass instrumentation (default: False)
         """
         self.clang_path = clang_path
         self.opt_path = opt_path
@@ -67,15 +74,69 @@ class PassBisector:
         self.opt_level = opt_level
         self.timeout_sec = timeout_sec
         self.verbose = verbose
+        self.use_docker = use_docker
+        self.docker_version = docker_version
+        self.use_instrumentation = use_instrumentation
+
+        # Auto-detect instrumentation paths if needed
+        if self.use_instrumentation:
+            from pathlib import Path
+            project_root = Path(__file__).parent.parent.parent
+            self.instrumentor_so = project_root / "instrumentor" / "build" / "Trace2PassInstrumentor.so"
+            self.runtime_lib_dir = project_root / "runtime" / "build"
 
         # Verify that clang, opt, and llc are from the same LLVM version
         # Mismatched versions lead to meaningless pass bisection results
-        self._verify_tool_versions()
+        # Skip verification when using Docker (tools are in container)
+        if not self.use_docker:
+            self._verify_tool_versions()
 
     def _log(self, msg: str):
         """Print log message if verbose mode enabled."""
         if self.verbose:
             print(f"[PassBisector] {msg}")
+
+    def _run_command(self, cmd: List[str], work_dir: Optional[str] = None, extra_mounts: Optional[List[str]] = None, **kwargs) -> subprocess.CompletedProcess:
+        """
+        Run a command, optionally inside a Docker container.
+
+        Args:
+            cmd: Command to execute (list of arguments)
+            work_dir: Working directory to mount (if using Docker)
+            extra_mounts: Additional directories to mount (e.g., source file directory)
+            **kwargs: Additional arguments to pass to subprocess.run
+
+        Returns:
+            subprocess.CompletedProcess result
+        """
+        if self.use_docker and self.docker_version:
+            # Wrap command in Docker execution
+            # Mount work_dir and extra_mounts to same paths in container
+            # This ensures file paths remain consistent between host and container
+            mount_dir = os.path.abspath(work_dir) if work_dir else os.getcwd()
+
+            docker_cmd = [
+                "docker", "run", "--rm",
+                "-v", f"{mount_dir}:{mount_dir}",
+            ]
+
+            # Add extra mounts (e.g., source file directory)
+            if extra_mounts:
+                for extra in extra_mounts:
+                    extra_abs = os.path.abspath(extra)
+                    if extra_abs != mount_dir:  # Avoid duplicate mounts
+                        docker_cmd.extend(["-v", f"{extra_abs}:{extra_abs}"])
+
+            docker_cmd.extend([
+                "-w", mount_dir,
+                f"silkeh/clang:{self.docker_version}"
+            ])
+            docker_cmd.extend(cmd)
+
+            return subprocess.run(docker_cmd, **kwargs)
+        else:
+            # Run command directly
+            return subprocess.run(cmd, **kwargs)
 
     def _get_tool_version(self, tool_path: str) -> Optional[str]:
         """
@@ -88,7 +149,7 @@ class PassBisector:
             Version string (e.g., "17.0.6") or None if unable to determine
         """
         try:
-            result = subprocess.run(
+            result = self._run_command(
                 [tool_path, "--version"],
                 capture_output=True,
                 text=True,
@@ -228,9 +289,11 @@ class PassBisector:
             # Compile to LLVM IR
             ir_file = os.path.join(tmpdir, "input.ll")
             try:
-                subprocess.run(
+                self._run_command(
                     [self.clang_path, "-S", "-emit-llvm", "-Xclang", "-disable-O0-optnone",
                      source_file, "-o", ir_file],
+                    work_dir=tmpdir,
+                    extra_mounts=[os.path.dirname(os.path.abspath(source_file))],
                     check=True,
                     capture_output=True,
                     timeout=self.timeout_sec
@@ -240,9 +303,10 @@ class PassBisector:
 
             # Get pipeline passes using -print-pipeline-passes
             try:
-                result = subprocess.run(
+                result = self._run_command(
                     [self.opt_path, self.opt_level, "-print-pipeline-passes",
                      ir_file, "-disable-output"],
+                    work_dir=tmpdir,
                     capture_output=True,
                     timeout=self.timeout_sec,
                     text=True
@@ -289,9 +353,11 @@ class PassBisector:
         # Compile to LLVM IR (unoptimized)
         ir_file = os.path.join(tmpdir, f"test_{num_passes}.ll")
         try:
-            subprocess.run(
+            self._run_command(
                 [self.clang_path, "-S", "-emit-llvm", "-Xclang", "-disable-O0-optnone",
                  source_file, "-o", ir_file],
+                work_dir=tmpdir,
+                extra_mounts=[os.path.dirname(os.path.abspath(source_file))],
                 check=True,
                 capture_output=True,
                 timeout=self.timeout_sec
@@ -308,8 +374,9 @@ class PassBisector:
             opt_ir_file = os.path.join(tmpdir, f"optimized_{num_passes}.ll")
 
             try:
-                subprocess.run(
+                self._run_command(
                     [self.opt_path, f"-passes={pass_list}", ir_file, "-o", opt_ir_file],
+                    work_dir=tmpdir,
                     check=True,
                     capture_output=True,
                     timeout=self.timeout_sec
@@ -324,8 +391,24 @@ class PassBisector:
         # Compile IR to binary
         binary_file = os.path.join(tmpdir, f"test_{num_passes}")
         try:
-            subprocess.run(
-                [self.clang_path, ir_file, "-o", binary_file],
+            # Build compilation command
+            compile_cmd = [self.clang_path, ir_file, "-o", binary_file]
+
+            # Add instrumentation flags if enabled
+            if self.use_instrumentation:
+                compile_cmd.extend([
+                    f"-fpass-plugin={self.instrumentor_so}",
+                    f"-L{self.runtime_lib_dir}",
+                    "-lTrace2PassRuntime",
+                    "-lpthread",  # Required by runtime
+                ])
+                # Add -ldl on Linux only (macOS has dlopen in libSystem)
+                if sys.platform.startswith('linux'):
+                    compile_cmd.append("-ldl")
+
+            self._run_command(
+                compile_cmd,
+                work_dir=tmpdir,
                 check=True,
                 capture_output=True,
                 timeout=self.timeout_sec
@@ -342,6 +425,107 @@ class PassBisector:
         except Exception as e:
             details["error"] = f"Test execution failed: {str(e)}"
             return False, details
+
+    def _test_pass_combinations(
+        self,
+        source_file: str,
+        test_func: Callable[[str], bool],
+        pass_pipeline: List[str],
+        details: Dict[str, Any],
+        tested_indices: List[int],
+        total_tests: int
+    ) -> Optional[PassBisectionResult]:
+        """
+        Test pass combinations to find interaction bugs.
+
+        When individual passes don't trigger bugs, try testing pairs and groups
+        of passes to find interaction bugs.
+
+        Strategy:
+        1. Sliding window: Test consecutive pass groups (size 2, 3, 5, 10)
+        2. Pairwise testing: Test critical pass pairs (known problematic combinations)
+        3. Chunking: Split pipeline into chunks and test
+
+        Args:
+            source_file: Source file path
+            test_func: Test function
+            pass_pipeline: Full pass pipeline
+            details: Details dict to update
+            tested_indices: List of tested indices to update
+            total_tests: Current test count
+
+        Returns:
+            PassBisectionResult if culprit found, None otherwise
+        """
+        import tempfile
+
+        self._log("Testing pass combinations for interaction bugs...")
+        tmpdir = tempfile.mkdtemp(prefix="trace2pass_combo_")
+        combo_tests = 0
+
+        try:
+            # Strategy 1: Sliding window approach
+            # Test windows of size 2, 3, 5, 10 moving through the pipeline
+            for window_size in [2, 3, 5, 10]:
+                if window_size >= len(pass_pipeline):
+                    continue
+
+                self._log(f"  Testing sliding window of size {window_size}")
+                for i in range(len(pass_pipeline) - window_size + 1):
+                    # Test passes from i to i+window_size
+                    test_count = i + window_size
+
+                    # Skip if we already tested this exact count
+                    if test_count in tested_indices:
+                        continue
+
+                    passes, test_details = self._compile_and_test_with_passes(
+                        source_file, pass_pipeline, test_count, test_func, tmpdir
+                    )
+                    tested_indices.append(test_count)
+                    combo_tests += 1
+                    total_tests += 1
+
+                    if not passes:
+                        # Found failing combination!
+                        self._log(f"  Found failing window at indices {i} to {i+window_size-1}")
+
+                        # Now bisect within this window to find exact pass
+                        if window_size == 1:
+                            culprit = pass_pipeline[i]
+                            culprit_idx = i
+                        else:
+                            # Last pass in the failing window is likely culprit
+                            culprit_idx = i + window_size - 1
+                            culprit = pass_pipeline[culprit_idx]
+
+                        return PassBisectionResult(
+                            culprit_pass=culprit,
+                            culprit_index=culprit_idx,
+                            last_good_index=i - 1 if i > 0 else None,
+                            tested_indices=sorted(tested_indices),
+                            total_tests=total_tests,
+                            verdict="bisected_combination",
+                            pass_pipeline=pass_pipeline,
+                            details={**details, "combination_tests": combo_tests,
+                                   "window_size": window_size, "window_start": i}
+                        )
+
+                    # Limit total combination tests to avoid excessive runtime
+                    if combo_tests >= 30:
+                        self._log(f"  Combination testing limit reached ({combo_tests} tests)")
+                        return None
+
+            self._log(f"  No failing combinations found after {combo_tests} tests")
+            return None
+
+        finally:
+            # Cleanup temp directory
+            import shutil
+            try:
+                shutil.rmtree(tmpdir)
+            except:
+                pass
 
     def bisect(
         self,
@@ -448,7 +632,16 @@ class PassBisector:
             details["full_test"] = full_details
 
             if full_passes:
-                # Bug doesn't manifest with full optimizations - cannot bisect
+                # Bug doesn't manifest with full optimizations
+                # Try combination testing to find pass interactions
+                self._log("Full passes succeeded - attempting combination testing for pass interactions")
+                combo_result = self._test_pass_combinations(
+                    source_file, test_func, pass_pipeline, details, tested_indices, total_tests
+                )
+                if combo_result:
+                    return combo_result
+
+                # Still couldn't find issue - return full_passes verdict
                 return PassBisectionResult(
                     culprit_pass=None,
                     culprit_index=None,

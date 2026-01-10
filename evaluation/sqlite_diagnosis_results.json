@@ -1,0 +1,40 @@
+{
+  "timestamp": "2026-01-09T13:57:17.546328",
+  "total_reports": 3,
+  "compiler_bugs": 0,
+  "user_ub": 0,
+  "inconclusive": 3,
+  "errors": 0,
+  "details": [
+    {
+      "report_id": "b6572459-2f2e-4583-a887-969ecc6480ee",
+      "function": "strHash",
+      "check_type": "arithmetic_overflow",
+      "frequency": 5,
+      "verdict": "inconclusive",
+      "confidence": 0.5,
+      "ubsan_clean": true,
+      "optimization_sensitive": false
+    },
+    {
+      "report_id": "1be4a131-56f5-48b1-9409-eca03cb4df7e",
+      "function": "chacha_block",
+      "check_type": "arithmetic_overflow",
+      "frequency": 2,
+      "verdict": "inconclusive",
+      "confidence": 0.5,
+      "ubsan_clean": true,
+      "optimization_sensitive": false
+    },
+    {
+      "report_id": "cbaf760b-b10e-462c-b227-60c8d1cd6425",
+      "function": "insertCellFast",
+      "check_type": "arithmetic_overflow",
+      "frequency": 1,
+      "verdict": "inconclusive",
+      "confidence": 0.5,
+      "ubsan_clean": true,
+      "optimization_sensitive": false
+    }
+  ]
+}

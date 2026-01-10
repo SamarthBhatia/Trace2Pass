@@ -1,0 +1,57 @@
+# Dockerfile template for LLVM releases using pre-built binaries
+# This creates lightweight images (~500MB) by downloading official LLVM releases
+# instead of building from source (~2-3GB and hours of build time)
+#
+# Usage:
+#   docker build --build-arg LLVM_VERSION=18.1.8 -f Dockerfile.llvm-prebuilt -t trace2pass-llvm:18.1.8 .
+
+FROM ubuntu:22.04
+
+# Prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# LLVM version to install (e.g., "18.1.8")
+ARG LLVM_VERSION
+ENV LLVM_VERSION=${LLVM_VERSION}
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    wget \
+    xz-utils \
+    libstdc++6 \
+    libz3-4 \
+    libzstd1 \
+    libxml2 \
+    libtinfo5 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Download and install LLVM pre-built binaries
+# LLVM releases: https://github.com/llvm/llvm-project/releases/tag/llvmorg-VERSION
+# Note: LLVM provides binaries for Ubuntu 18.04, which work on Ubuntu 22.04
+RUN cd /tmp && \
+    LLVM_RELEASE="llvmorg-${LLVM_VERSION}" && \
+    ARCHIVE="clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-18.04.tar.xz" && \
+    URL="https://github.com/llvm/llvm-project/releases/download/${LLVM_RELEASE}/${ARCHIVE}" && \
+    echo "Downloading LLVM ${LLVM_VERSION} from ${URL}" && \
+    wget -q "${URL}" -O llvm.tar.xz && \
+    echo "Extracting..." && \
+    tar -xf llvm.tar.xz && \
+    rm llvm.tar.xz && \
+    mv clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-18.04 /opt/llvm && \
+    echo "LLVM ${LLVM_VERSION} installed to /opt/llvm"
+
+# Set up environment
+ENV PATH="/opt/llvm/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/opt/llvm/lib:${LD_LIBRARY_PATH}"
+ENV C_INCLUDE_PATH="/opt/llvm/include:${C_INCLUDE_PATH}"
+ENV CPLUS_INCLUDE_PATH="/opt/llvm/include:${CPLUS_INCLUDE_PATH}"
+
+# Verify installation
+RUN clang --version && \
+    echo "LLVM ${LLVM_VERSION} ready"
+
+# Set working directory
+WORKDIR /src
+
+# Default command
+CMD ["/bin/bash"]

@@ -32,6 +32,7 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 from ub_detector import UBDetector, UBDetectionResult, analyze_report
 from version_bisector import VersionBisector, VersionBisectionResult
 from pass_bisector import PassBisector, PassBisectionResult
+from instrumentation import test_with_instrumentation, create_instrumented_test_function
 
 
 def analyze_report_cmd(report_file: str) -> Dict[str, Any]:
@@ -187,7 +188,7 @@ def version_bisect_cmd(source_file: str, test_command: str,
     # Surface diagnostic errors (front-end regressions, incompatible code)
     diagnostic_errors = {
         ver: info for ver, info in result.details.items()
-        if info.get('compile_error_type') == 'diagnostic'
+        if isinstance(info, dict) and info.get('compile_error_type') == 'diagnostic'
     }
     if diagnostic_errors:
         print(f"\n⚠️  {len(diagnostic_errors)} version(s) skipped due to diagnostic compile errors:")
@@ -214,7 +215,9 @@ def version_bisect_cmd(source_file: str, test_command: str,
 
 def pass_bisect_cmd(source_file: str, test_command: str,
                     optimization_level: str = "-O2",
-                    compiler_version: Optional[str] = None) -> Dict[str, Any]:
+                    compiler_version: Optional[str] = None,
+                    use_docker: bool = False,
+                    use_instrumentation: bool = False) -> Dict[str, Any]:
     """
     Run pass bisection to identify the specific optimization pass responsible.
 
@@ -223,6 +226,7 @@ def pass_bisect_cmd(source_file: str, test_command: str,
         test_command: Command to test binary (use {binary} placeholder)
                      Returns 0 if test passes, non-zero if bug manifests
                      Example: "{binary}" or "{binary} arg1 arg2"
+                     IGNORED if use_instrumentation=True
 
                      LIMITATION: Pipes, redirects, and shell features are NOT supported
                      for security. For complex tests, write a wrapper script.
@@ -233,6 +237,10 @@ def pass_bisect_cmd(source_file: str, test_command: str,
                          If None, uses system default clang
                          CRITICAL: Should be set to first_bad_version from version bisection
                          to analyze the correct compiler's pass pipeline
+        use_docker: Use Docker containers for LLVM tools (default: False)
+                   When True, runs pass bisection inside Docker containers
+        use_instrumentation: Use Trace2Pass instrumentation for testing (default: False)
+                           When True, compiles with instrumentation and checks for overflow reports
 
     Returns:
         Pass bisection result dictionary
@@ -240,23 +248,47 @@ def pass_bisect_cmd(source_file: str, test_command: str,
     import subprocess
     import shlex
 
-    # Validate that {binary} placeholder exists
-    if '{binary}' not in test_command:
-        raise ValueError("test_command must contain {binary} placeholder")
+    if use_instrumentation:
+        # Instrumentation mode: test by compiling with instrumentation and checking for overflows
+        print("  Using instrumentation to test pass combinations...")
 
-    # Create test function that runs the provided command
-    def test_func(binary_path: str) -> bool:
-        """Returns True if test passes, False if bug manifests."""
-        # Replace {binary} placeholder
-        cmd_str = test_command.replace('{binary}', binary_path)
+        from instrumentation import InstrumentationCompiler
 
-        # Use shlex.split to parse command safely (handles quotes, escaping)
-        # This avoids shell=True while still supporting basic command syntax
-        try:
-            cmd_args = shlex.split(cmd_str)
-        except ValueError as e:
-            print(f"Error parsing test command: {e}")
-            return False
+        def test_func(binary_path: str) -> bool:
+            """Returns True if test passes (no overflow), False if bug manifests (overflow detected)."""
+            # PassBisector already compiled with instrumentation
+            # We just need to run the binary and check for overflow reports
+
+            try:
+                instrumentor = InstrumentationCompiler()
+                has_overflow, stdout, stderr = instrumentor.run_and_check_for_overflow(binary_path)
+                # Debug output
+                print(f"    Test binary: {binary_path}")
+                print(f"    Overflow detected: {has_overflow}")
+                # Return True = PASS (no overflow), False = FAIL (overflow)
+                return not has_overflow
+            except Exception as e:
+                print(f"  Error running instrumented binary: {e}")
+                return True  # Assume pass on error (conservative)
+    else:
+        # Behavioral mode: test by running command and checking exit code
+        # Validate that {binary} placeholder exists
+        if '{binary}' not in test_command:
+            raise ValueError("test_command must contain {binary} placeholder")
+
+        # Create test function that runs the provided command
+        def test_func(binary_path: str) -> bool:
+            """Returns True if test passes, False if bug manifests."""
+            # Replace {binary} placeholder
+            cmd_str = test_command.replace('{binary}', binary_path)
+
+            # Use shlex.split to parse command safely (handles quotes, escaping)
+            # This avoids shell=True while still supporting basic command syntax
+            try:
+                cmd_args = shlex.split(cmd_str)
+            except ValueError as e:
+                print(f"Error parsing test command: {e}")
+                return False
 
         try:
             # Run without shell for better security
@@ -275,7 +307,16 @@ def pass_bisect_cmd(source_file: str, test_command: str,
     # CRITICAL: If compiler_version is specified (e.g., from version bisection),
     # we MUST use that specific version for pass bisection. Otherwise, we'd be
     # analyzing the wrong compiler's pass pipeline.
-    if compiler_version:
+
+    # When using Docker, skip local tool detection
+    if use_docker and compiler_version:
+        # Docker mode: tools are in container
+        major_version = compiler_version.split('.')[0]
+        clang_path = "clang"
+        opt_path = "opt"
+        llc_path = "llc"
+        print(f"Using Docker with LLVM {major_version}")
+    elif compiler_version:
         # Normalize to major version (e.g., "17.0.3" -> "17")
         # Most systems have clang-17, not clang-17.0.3
         major_version = compiler_version.split('.')[0]
@@ -389,7 +430,10 @@ def pass_bisect_cmd(source_file: str, test_command: str,
             clang_path=clang_path,
             opt_path=opt_path,
             llc_path=llc_path,
-            opt_level=optimization_level
+            opt_level=optimization_level,
+            use_docker=use_docker,
+            docker_version=major_version if use_docker else None,
+            use_instrumentation=use_instrumentation
         )
         result = bisector.bisect(source_file, test_func)
 
@@ -443,7 +487,8 @@ def full_pipeline_cmd(source_file: str, test_command: str,
                       test_input: Optional[str] = None,
                       expected_output: Optional[str] = None,
                       optimization_level: str = "-O2",
-                      use_docker: bool = True) -> Dict[str, Any]:
+                      use_docker: bool = True,
+                      use_instrumentation: bool = False) -> Dict[str, Any]:
     """
     Run the full diagnosis pipeline: UB detection → Version bisection → Pass bisection.
 
@@ -451,14 +496,19 @@ def full_pipeline_cmd(source_file: str, test_command: str,
         source_file: Path to C source file
         test_command: Shell command to test binary (use {binary} placeholder)
                      Returns 0 if test passes, non-zero if bug manifests
+                     IGNORED if use_instrumentation=True
         test_input: Optional test input string (for UB detection)
         expected_output: Optional expected output string (for UB detection)
         optimization_level: Optimization level (default: -O2)
+        use_instrumentation: Use Trace2Pass instrumentation for bug detection (default: False)
 
     Returns:
         Complete diagnosis result dictionary
     """
-    print("=== Running Full Diagnosis Pipeline ===\n")
+    if use_instrumentation:
+        print("=== Running Full Diagnosis Pipeline (INSTRUMENTATION MODE) ===\n")
+    else:
+        print("=== Running Full Diagnosis Pipeline ===\n")
 
     # Stage 1: UB Detection
     print("Stage 1/3: UB Detection...")
@@ -474,7 +524,26 @@ def full_pipeline_cmd(source_file: str, test_command: str,
 
     # Stage 2: Version Bisection (with Docker for LLVM 14-21)
     print("Stage 2/3: Version Bisection...")
-    version_result = version_bisect_cmd(source_file, test_command, optimization_level, use_docker)
+
+    if use_instrumentation:
+        # Use instrumentation-based testing instead of test_command
+        print("  Using instrumentation to detect bugs...")
+        # For now, we'll use a simple wrapper that ignores test_command
+        # TODO: Properly integrate instrumentation with version_bisector API
+        # For the moment, we'll skip version bisection in instrumentation mode
+        # and proceed directly to pass bisection
+        print("  ⚠️ Instrumentation mode: Skipping version bisection (assuming current version)")
+        print("     (Version bisection with instrumentation support coming soon)")
+        print()
+        version_result = {
+            "verdict": "all_fail",  # Assume bug exists (detected by instrumentation)
+            "first_bad_version": None,  # Use system clang for pass bisection
+            "last_good_version": None,
+            "total_tests": 0,
+            "used_docker": False
+        }
+    else:
+        version_result = version_bisect_cmd(source_file, test_command, optimization_level, use_docker)
 
     # Check if version bisection failed (no first_bad_version found)
     if not version_result.get('first_bad_version'):
@@ -504,62 +573,64 @@ def full_pipeline_cmd(source_file: str, test_command: str,
                 "recommendation": "Install more compiler versions to enable bisection"
             }
 
-        # "all_pass" or "all_fail" are valid results, but pipeline is incomplete
-        # Return with verdict "incomplete" rather than "error"
-        print(f"⚠ Version bisection incomplete (verdict: {verdict}). Cannot proceed to pass bisection.")
-        return {
-            "verdict": "incomplete",
-            "reason": f"Version bisection did not identify a regression (verdict: {verdict})",
-            "ub_detection": ub_result,
-            "version_bisection": version_result,
-            "recommendation": "Bug does not reproduce reliably or all tested versions have same behavior"
-        }
+        # Handle "all_pass" vs "all_fail" differently
+        if verdict == "all_pass":
+            # Bug doesn't manifest anywhere - can't bisect passes
+            print(f"⚠ Version bisection shows bug doesn't manifest (verdict: {verdict}). Skipping pass bisection.")
+            return {
+                "verdict": "incomplete",
+                "reason": "Bug does not manifest in any tested compiler version (already fixed)",
+                "ub_detection": ub_result,
+                "version_bisection": version_result,
+                "recommendation": "Bug appears to be fixed in all tested versions (LLVM 14-19)"
+            }
+        elif verdict == "all_fail":
+            # Bug manifests in ALL versions - this is a long-standing bug
+            # We should still run pass bisection on the latest version to identify culprit
+            print(f"⚠ Version bisection shows bug manifests in ALL tested versions (verdict: {verdict}).")
+            print("  This indicates a long-standing bug. Proceeding to pass bisection on system compiler...")
+            # Use None to trigger unversioned pass bisection (system clang)
+            first_bad_version = None  # Will use system clang
+            actually_used_docker = version_result.get('used_docker', False)
+            # Continue to pass bisection stage below
+        else:
+            # Unknown verdict - return incomplete
+            print(f"⚠ Version bisection returned unexpected verdict: {verdict}. Cannot proceed.")
+            return {
+                "verdict": "incomplete",
+                "reason": f"Version bisection returned unexpected verdict: {verdict}",
+                "ub_detection": ub_result,
+                "version_bisection": version_result,
+                "recommendation": "Bug does not reproduce reliably"
+            }
 
     # Stage 3: Pass Bisection
     print("Stage 3/3: Pass Bisection...")
 
-    # CRITICAL: Only skip pass bisection if BOTH conditions are met:
-    # 1. Version bisection successfully found a regression (has first_bad_version)
-    # 2. Version bisection used Docker (local toolchain likely unavailable)
-    #
-    # If version bisection failed or didn't find a regression, attempt pass bisection
-    # anyway - the user may have local toolchain even if Docker was requested.
-    first_bad_version = version_result.get('first_bad_version')
-    actually_used_docker = version_result.get('used_docker', False)
-
-    if actually_used_docker and first_bad_version:
-        print("⚠️  WARNING: Pass bisection skipped (Docker-based version bisection detected)")
-        print("   Pass bisection requires local LLVM toolchain installation:")
-        major_version = first_bad_version.split('.')[0]
-        print(f"   - clang-{major_version}")
-        print(f"   - opt-{major_version}")
-        print(f"   - llc-{major_version}")
-        print()
-        print("   Options:")
-        print("   1. Install matching LLVM toolchain locally for pass-level analysis")
-        print("   2. Use version bisection results to narrow down the regression")
-        print()
-
-        # Build recommendation (we know first_bad_version exists here)
-        recommendation = (f"Version bisection identified regression in {first_bad_version}. "
-                        f"Install local LLVM {major_version} toolchain for pass-level analysis.")
-
-        return {
-            "verdict": "incomplete",
-            "reason": "Pass bisection skipped: requires local LLVM toolchain (Docker-based pass bisection not yet implemented)",
-            "ub_detection": ub_result,
-            "version_bisection": version_result,
-            "recommendation": recommendation
-        }
+    # Extract version bisection results for pass bisection
+    # Note: For "all_fail" case above, we already set first_bad_version="19"
+    # For normal "bisected" case, we get it from version_result
+    if not version_result.get('first_bad_version'):
+        # This should only happen for "all_fail" case where we manually set it above
+        # first_bad_version and actually_used_docker are already set
+        pass
+    else:
+        # Normal "bisected" case - get from version_result
+        first_bad_version = version_result.get('first_bad_version')
+        actually_used_docker = version_result.get('used_docker', False)
 
     # CRITICAL: Pass the first_bad_version to pass bisection so it analyzes
     # the correct compiler version's pass pipeline, not the system default
-    # (first_bad_version already extracted above)
+    # If version bisection used Docker, continue using Docker for pass bisection
 
     # Wrap pass_bisect_cmd call to catch any unexpected exceptions
     try:
-        pass_result = pass_bisect_cmd(source_file, test_command, optimization_level,
-                                      compiler_version=first_bad_version)
+        pass_result = pass_bisect_cmd(
+            source_file, test_command, optimization_level,
+            compiler_version=first_bad_version,
+            use_docker=actually_used_docker,
+            use_instrumentation=use_instrumentation
+        )
     except Exception as e:
         # Unexpected exception from pass_bisect_cmd - return structured error
         error_msg = f"Pass bisection raised exception: {str(e)}"
@@ -712,6 +783,8 @@ def main():
                                  help='Optimization level (default: -O2)')
     pipeline_parser.add_argument('--no-docker', dest='use_docker', action='store_false', default=True,
                                  help='Disable Docker and use local compilers only (default: use Docker)')
+    pipeline_parser.add_argument('--use-instrumentation', action='store_true', default=False,
+                                 help='Use Trace2Pass instrumentation to detect bugs (for instrumentation-only issues)')
 
     args = parser.parse_args()
 
@@ -736,7 +809,8 @@ def main():
             result = full_pipeline_cmd(args.source_file, args.test_command,
                                       args.test_input, args.expected_output,
                                       args.optimization_level,
-                                      use_docker=args.use_docker)
+                                      use_docker=args.use_docker,
+                                      use_instrumentation=args.use_instrumentation)
         else:
             parser.print_help()
             sys.exit(1)

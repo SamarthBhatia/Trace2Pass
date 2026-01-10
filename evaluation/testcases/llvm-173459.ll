@@ -1,14 +1,14 @@
-; LLVM Bug #173459: Loop vectorization miscompile
+; LLVM Bug #173459: Miscompile of vanilla integer loop
 ; https://github.com/llvm/llvm-project/issues/173459
 ;
-; Version: LLVM 20+ (open as of Dec 2025)
-; Pass: Loop vectorizer
+; Version: LLVM (circa 2024)
+; Status: OPEN
+; Pass: Loop vectorizer / optimization
 ;
-; Expected: Returns 0 when called as f(3, -3)
-; Actual:   Returns 1 when optimized at -O2
+; Expected: Returns 0 (false) for f(3, -3)
+; Actual:   Returns 1 (true) after -O2 optimization
 ;
-; Test: opt -O2 this_file.ll | llc -o binary && ./binary
-;       Should print 0, not 1
+; Test: opt -O2 llvm-173459.ll -S
 
 define i1 @f(i64 %0, i64 %1) {
   br label %3
@@ -28,3 +28,21 @@ define i1 @f(i64 %0, i64 %1) {
 13:
   ret i1 %9
 }
+
+; Test driver (C):
+; unsigned long f(unsigned long, unsigned long);
+; #include <stdio.h>
+; int main(void) {
+;   unsigned long res = f(3UL, -3UL);
+;   printf("%lu\n", res);
+;   return 0;
+; }
+
+; Without optimization (opt -O0):
+;   f(3, -3) returns 0 (correct)
+;
+; With optimization (opt -O2):
+;   f(3, -3) returns 1 (BUG)
+;
+; Loop vectorization introduces incorrect behavior
+; Original loop semantics not preserved after vectorization

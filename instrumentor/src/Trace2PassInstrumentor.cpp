@@ -376,7 +376,19 @@ void Trace2PassInstrumentorPass::insertOverflowCheck(IRBuilder<> &Builder,
   }
 
   // Determine if we should check signed or unsigned overflow
-  // Use nsw/nuw flags if present, otherwise default to signed
+  // ONLY check when nsw/nuw flags are explicitly present
+  //
+  // CRITICAL: If neither flag is set, wrapping is LEGAL and we should NOT check!
+  // This prevents false positives on operations like unsigned char arithmetic
+  // where overflow/wrapping is intentional and correct.
+  //
+  // Flag semantics:
+  //   nsw (no signed wrap): Optimizer assumes signed overflow won't happen
+  //   nuw (no unsigned wrap): Optimizer assumes unsigned overflow won't happen
+  //   No flags: Wrapping is allowed/expected - DON'T CHECK
+  //
+  // Example: `add i8 %x, 1` (no flags) on unsigned char is CORRECT
+  //          `add nsw i8 %x, 1` would be WRONG for unsigned char
   bool checkSigned = false;
   bool checkUnsigned = false;
 
@@ -387,9 +399,11 @@ void Trace2PassInstrumentorPass::insertOverflowCheck(IRBuilder<> &Builder,
     checkUnsigned = BinOp->hasNoUnsignedWrap();
   }
 
-  // If neither flag is set, default to signed
+  // If neither flag is set, don't check - wrapping is legal
+  // (Previous buggy behavior: defaulted to signed, causing false positives)
   if (!checkSigned && !checkUnsigned) {
-    checkSigned = true;
+    // No overflow flags present - wrapping is legal, nothing to instrument
+    return;
   }
 
   // Lambda to emit a single overflow check for given signedness
