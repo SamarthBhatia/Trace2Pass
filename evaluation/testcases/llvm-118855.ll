@@ -1,34 +1,51 @@
 ; LLVM Bug #118855: SimplifyCFG removes return statement
 ; https://github.com/llvm/llvm-project/issues/118855
 ;
-; Version: LLVM tip-of-tree (open as of Dec 2025)
+; Version: LLVM (ToT, circa 2024)
+; Status: OPEN
 ; Pass: SimplifyCFG
 ;
-; Expected: Function terminates normally with ret void
-; Actual:   SimplifyCFG creates infinite loop (removes return block)
+; Expected: Function returns after loop condition (br i1 false)
+; Actual:   Return removed, creates infinite loop
 ;
-; Test: opt -passes=simplifycfg this_file.ll | FileCheck (should preserve ret void)
+; Root Cause: SimplifyCFG incorrectly removes reachable return block
+; Transforms loop with exit condition into infinite loop
+;
+; Test: opt -passes=simplifycfg llvm-118855.ll -S
 
-define void @foo() {
-entry:
-  br label %2
+declare fastcc void @external_call(ptr, i8)
 
-2:
-  br label %3
+define fastcc void @test() {
+  %alloca = alloca [24 x i8], align 8
+  call fastcc void @external_call(ptr %alloca, i8 -4)
+  br label %loop_header
 
-3:
+return_block:
   ret void
 
-4:
-  br i1 false, label %3, label %6
+loop_header:                                      ; preds = %loop_body, %entry
+  %phi = phi i8 [ %next, %loop_body ], [ -3, %0 ]
+  ; BUG: SimplifyCFG sees "br i1 false" and removes return_block
+  ; But this is an exit condition - should branch to return_block
+  br i1 false, label %return_block, label %loop_body
 
-5:
-  unreachable
-
-6:
-  br label %7
-
-7:
-  %8 = phi i8 [ 97, %6 ], [ %8, %7 ]
-  br label %7
+loop_body:
+  %next = add nuw nsw i8 %phi, 1
+  call fastcc void @external_call(ptr %alloca, i8 %phi)
+  br label %loop_header
 }
+
+; Expected: Function has return statement
+; Buggy output after SimplifyCFG:
+; define fastcc void @test() {
+;   ...
+;   br label %loop_header
+;
+; loop_header:                           ; preds = %loop_header, %entry
+;   %phi = phi i8 [ %next, %loop_header ], [ -3, %entry ]
+;   %next = add nuw nsw i8 %phi, 1
+;   call fastcc void @external_call(ptr %alloca, i8 %phi)
+;   br label %loop_header                ; BUG: Infinite loop, no return
+; }
+
+; From Rust/Fuchsia toolchain miscompile

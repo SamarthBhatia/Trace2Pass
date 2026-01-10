@@ -171,6 +171,7 @@ class DockerCompiler:
         docker_cmd = [
             "docker", "run",
             "--rm",  # Remove container after execution
+            "--platform", "linux/amd64",  # Force amd64 architecture for consistency
             "-v", f"{source_dir}:/src:ro",  # Mount source directory (read-only)
             "-v", f"{output_dir}:/out",      # Mount output directory (read-write)
             self.get_image_name(version),
@@ -221,6 +222,7 @@ class DockerCompiler:
         docker_cmd = [
             "docker", "run",
             "--rm",
+            "--platform", "linux/amd64",  # Force amd64 to match compilation architecture
             "-v", f"{binary_dir}:/bin_dir",
             "ubuntu:22.04",  # Use minimal Ubuntu image for execution
             container_binary

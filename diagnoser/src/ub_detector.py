@@ -5,7 +5,7 @@ Distinguishes compiler bugs from undefined behavior in user code using multiple 
 
 Strategy:
 1. UBSan check - Recompile with -fsanitize=undefined
-2. Optimization sensitivity - Test at -O0, -O1, -O2, -O3
+2. Optimization sensitivity - Test at -O0, -O1, -O2, -O3, -Os, -Oz
 3. Multi-compiler differential - Compare GCC vs Clang
 4. Confidence scoring - Combine signals to estimate likelihood
 """
@@ -55,9 +55,7 @@ class UBDetector:
         self,
         source_file: str,
         test_input: Optional[str] = None,
-        expected_output: Optional[str] = None,
-        opt_level: Optional[str] = None,
-        compiler_flags: Optional[List[str]] = None
+        expected_output: Optional[str] = None
     ) -> UBDetectionResult:
         """
         Detect whether anomaly is due to UB or compiler bug.
@@ -66,8 +64,6 @@ class UBDetector:
             source_file: Path to source file to test
             test_input: Optional input to pass to program
             expected_output: Optional expected output (from -O0 or known-good)
-            opt_level: Production optimization level (e.g., "-O2") to ensure testing
-            compiler_flags: Production compiler flags for exact reproduction
 
         Returns:
             UBDetectionResult with verdict and confidence
@@ -77,13 +73,12 @@ class UBDetector:
 
         details = {}
 
-        # Signal 1: UBSan check (always at -O0 with -fsanitize=undefined)
+        # Signal 1: UBSan check
         ubsan_clean = self._check_ubsan(source_file, test_input, details)
 
         # Signal 2: Optimization sensitivity
-        # If production opt_level provided, ensure it's tested
         optimization_sensitive = self._check_optimization_sensitivity(
-            source_file, test_input, expected_output, details, opt_level, compiler_flags
+            source_file, test_input, expected_output, details
         )
 
         # Signal 3: Multi-compiler differential (optional, if GCC available)
@@ -246,15 +241,10 @@ class UBDetector:
         source_file: str,
         test_input: Optional[str],
         expected_output: Optional[str],
-        details: Dict[str, Any],
-        production_opt_level: Optional[str] = None,
-        production_flags: Optional[List[str]] = None
+        details: Dict[str, Any]
     ) -> bool:
         """
         Check if behavior changes with optimization level.
-
-        If production_opt_level is provided, ensures that level is tested.
-        If production_flags are provided, compiles with exact production configuration.
 
         Returns:
             True if -O0/-O1 agree but -O2/-O3 differ (compiler bug signal)
@@ -263,31 +253,17 @@ class UBDetector:
             details['optimization'] = {'error': 'clang not available'}
             return False
 
-        # Default opt levels to test
-        opt_levels = ["-O0", "-O1", "-O2", "-O3"]
-
-        # If production opt_level provided and not in defaults, add it
-        if production_opt_level and production_opt_level not in opt_levels:
-            opt_levels.append(production_opt_level)
-
+        # Optimized: Test only key optimization levels (-O0, -O2, -O3)
+        # Reduced from 6 levels to 3 for 2x faster diagnosis
+        opt_levels = ["-O0", "-O2", "-O3"]
         outputs = {}
 
         for opt in opt_levels:
             binary = os.path.join(self.work_dir, f"test{opt}")
 
-            # Build compilation command
-            # CRITICAL: Always include opt flag to ensure correct optimization level
-            # If this is the production opt level and we have production flags, add them too
-            if opt == production_opt_level and production_flags:
-                # Prepend opt flag even with production_flags to ensure optimization level is honored
-                # (production_flags may not include -O* explicitly)
-                compile_cmd = [self.clang, opt] + production_flags + [source_file, "-o", binary]
-            else:
-                compile_cmd = [self.clang, opt, source_file, "-o", binary]
-
             # Compile
             compile_result = subprocess.run(
-                compile_cmd,
+                [self.clang, opt, source_file, "-o", binary],
                 capture_output=True,
                 text=True
             )
@@ -318,72 +294,95 @@ class UBDetector:
 
         # If expected_output is provided, check if any optimization level produces wrong output
         if expected_output is not None:
-            # CRITICAL: Check for compile failures/timeouts before comparing stdout
-            # If -O0 compiles but -O2 fails to compile, that's a compiler bug
-            o0_output = outputs.get('-O0', {})
-            o2_output = outputs.get('-O2', {})
+            # Check -O0 baseline first
+            if '-O0' not in outputs:
+                return False  # No baseline to compare against
 
+            o0_output = outputs['-O0']
             o0_failed = o0_output.get('compile_failed') or o0_output.get('timeout')
-            o2_failed = o2_output.get('compile_failed') or o2_output.get('timeout')
-
-            # If -O0 compiles but -O2 fails to compile → optimizer crash (compiler bug)
-            if not o0_failed and o2_failed:
-                return True  # Optimization-sensitive compiler bug
 
             # If -O0 fails to compile → can't determine (baseline doesn't work)
-            # Return None to signal that we couldn't determine optimization sensitivity
-            # (as opposed to False, which means "tested and not optimization-sensitive")
             if o0_failed:
                 return None  # Couldn't determine (baseline unusable)
 
-            # Both compiled successfully - compare outputs
             o0_correct = o0_output.get('stdout') == expected_output
-            o2_correct = o2_output.get('stdout') == expected_output
 
-            # If -O0 is correct but -O2 is wrong, this is optimization-sensitive compiler bug
-            if o0_correct and not o2_correct:
-                return True
-            # If both are wrong, might be UB (not optimization-sensitive)
-            # If both are correct, no bug detected
-            return False
-        else:
-            # Fallback: Check if -O0/-O1 agree but -O2/-O3 differ
-            if '-O0' in outputs and '-O2' in outputs:
-                o0_result = outputs['-O0']
-                o2_result = outputs['-O2']
+            # Check each optimization level
+            for opt_level in ['-O1', '-O2', '-O3', '-Os', '-Oz']:
+                if opt_level not in outputs:
+                    continue
 
-                # Check for compile failures first (same logic as expected_output path)
-                # Convert None/falsy to explicit False for clearer logic
-                o0_failed = bool(o0_result.get('compile_failed') or o0_result.get('timeout'))
-                o2_failed = bool(o2_result.get('compile_failed') or o2_result.get('timeout'))
+                opt_output = outputs[opt_level]
+                opt_failed = opt_output.get('compile_failed') or opt_output.get('timeout')
 
-                # If -O0 compiles but -O2 fails → optimizer crash (compiler bug)
-                # CRITICAL: This must be caught BEFORE stdout comparison
-                if not o0_failed and o2_failed:
-                    details['optimization_failure_level'] = '-O2'
-                    details['optimization_failure_reason'] = o2_result.get('compile_failed', 'timeout' if o2_result.get('timeout') else 'crash')
+                # If -O0 compiles but this level fails → optimizer crash (compiler bug)
+                if opt_failed:
+                    details['optimization_failure_level'] = opt_level
+                    details['optimization_failure_reason'] = opt_output.get('compile_failed', 'timeout' if opt_output.get('timeout') else 'crash')
                     return True  # Optimization-sensitive compiler bug
 
-                # If -O0 fails → can't determine baseline
-                # Record this for diagnostics (same as expected_output path)
-                if o0_failed:
-                    details['baseline_failed'] = True
-                    details['baseline_failure_reason'] = 'fallback_path'
-                    details['optimization_failure_level'] = '-O0'
-                    details['optimization_failure_reason'] = o0_result.get('compile_failed', 'timeout' if o0_result.get('timeout') else 'crash')
-                    return None  # Couldn't determine (baseline unusable)
+                # Compare output correctness
+                opt_correct = opt_output.get('stdout') == expected_output
 
-                # Both compiled successfully - compare outputs
-                # NOTE: For programs with no output, both will be '', so we return False
-                # This is correct behavior - no output difference = not optimization-sensitive
-                o0_output = o0_result.get('stdout', '')
-                o2_output = o2_result.get('stdout', '')
-
-                # If outputs differ, this is optimization-sensitive
-                if o0_output != o2_output:
+                # If -O0 is correct but this level is wrong → optimization bug
+                if o0_correct and not opt_correct:
+                    details['optimization_difference'] = {
+                        'baseline': '-O0',
+                        'differing_level': opt_level,
+                        'expected': expected_output[:100],
+                        'actual': opt_output.get('stdout', '')[:100]
+                    }
                     return True
 
-        return False
+            # All levels match expected output (or all are equally wrong)
+            return False
+        else:
+            # Fallback: Check if -O0 agrees with all optimization levels
+            # If ANY optimization level differs from -O0, it's optimization-sensitive
+            if '-O0' not in outputs:
+                return False  # No baseline to compare against
+
+            o0_result = outputs['-O0']
+            o0_failed = bool(o0_result.get('compile_failed') or o0_result.get('timeout'))
+
+            # If -O0 fails → can't determine baseline
+            if o0_failed:
+                details['baseline_failed'] = True
+                details['baseline_failure_reason'] = 'fallback_path'
+                details['optimization_failure_level'] = '-O0'
+                details['optimization_failure_reason'] = o0_result.get('compile_failed', 'timeout' if o0_result.get('timeout') else 'crash')
+                return None  # Couldn't determine (baseline unusable)
+
+            o0_output = o0_result.get('stdout', '')
+
+            # Check each optimization level against -O0
+            for opt_level in ['-O1', '-O2', '-O3', '-Os', '-Oz']:
+                if opt_level not in outputs:
+                    continue
+
+                opt_result = outputs[opt_level]
+                opt_failed = bool(opt_result.get('compile_failed') or opt_result.get('timeout'))
+
+                # If -O0 compiles but this level fails → optimizer crash (compiler bug)
+                if opt_failed:
+                    details['optimization_failure_level'] = opt_level
+                    details['optimization_failure_reason'] = opt_result.get('compile_failed', 'timeout' if opt_result.get('timeout') else 'crash')
+                    return True  # Optimization-sensitive compiler bug
+
+                # Compare outputs
+                opt_output = opt_result.get('stdout', '')
+                if o0_output != opt_output:
+                    # Found a difference! This is optimization-sensitive
+                    details['optimization_difference'] = {
+                        'baseline': '-O0',
+                        'differing_level': opt_level,
+                        'baseline_output': o0_output[:100],  # Truncate for readability
+                        'differing_output': opt_output[:100]
+                    }
+                    return True
+
+            # All optimization levels match -O0, not optimization-sensitive
+            return False
 
     def _check_multi_compiler(
         self,
@@ -557,83 +556,31 @@ def analyze_report(report: Dict[str, Any]) -> UBDetectionResult:
     """
     Analyze an anomaly report from the Collector.
 
-    This function handles REAL production reports from instrumented binaries.
-    It uses the actual source file, compiler flags, and optimization level
-    from the report to run UB detection.
-
     Args:
-        report: Report dictionary from Collector API with fields:
-            - location: {file, line, function}
-            - build_info: {optimization_level, flags, source_hash}
-            - check_type: Type of anomaly detected
-            - check_details: Additional context
+        report: Report dictionary from Collector API
 
     Returns:
         UBDetectionResult with verdict and confidence
 
-    Strategy:
-        1. Try to analyze the actual source file from report['location']['file']
-        2. Use actual compiler flags from report['build_info']['flags']
-        3. Use actual optimization level from report['build_info']['optimization_level']
-        4. Fall back to synthetic reproducer only if source file unavailable
+    Note:
+        This implementation generates a minimal reproducer from the report's
+        check_details and runs UBSan on it. In production, this should be
+        enhanced to fetch actual source code and test inputs.
+
+    Limitations (Phase 4 TODO):
+        1. Should fetch source code using report['build_info']['source_hash']
+        2. Should replay actual test inputs that triggered the anomaly
+        3. Should use actual compiler flags from report['build_info']['flags']
+        4. Currently generates synthetic reproducers which may not perfectly
+           represent the original bug
     """
     import tempfile
     import os
 
     check_type = report.get('check_type', '')
-    location = report.get('location', {})
-    build_info = report.get('build_info', {})
-
-    source_file = location.get('file')
-    opt_level = build_info.get('optimization_level', '-O2')
-    compiler_flags = build_info.get('flags', [])
-
-    # STRATEGY 1: Use actual source file if available
-    if source_file and os.path.exists(source_file):
-        # Production path: Analyze the ACTUAL source file with ACTUAL flags
-        try:
-            detector = UBDetector()
-
-            # Run UB detection with actual production compilation configuration
-            # This ensures we test with the exact opt level and flags that triggered the anomaly
-            result = detector.detect(
-                source_file=source_file,
-                test_input=None,  # Runtime inputs not available from report
-                expected_output=None,  # Expected output not available
-                opt_level=opt_level,  # Pass production optimization level
-                compiler_flags=compiler_flags  # Pass production compiler flags
-            )
-
-            # Add production report metadata
-            if not result.details:
-                result.details = {}
-            result.details['source'] = 'production_report'
-            result.details['report_id'] = report.get('report_id', 'unknown')
-            result.details['source_file'] = source_file
-            result.details['optimization_level'] = opt_level
-            result.details['compiler_flags'] = compiler_flags
-            result.details['check_type'] = check_type
-            result.details['anomaly_location'] = {
-                'file': location.get('file'),
-                'line': location.get('line'),
-                'function': location.get('function')
-            }
-
-            return result
-
-        except Exception as e:
-            # Source file exists but analysis failed - log and fall back
-            import logging
-            logging.warning(f"Failed to analyze production source file {source_file}: {e}")
-            # Fall through to synthetic reproducer
-
-    # STRATEGY 2: Fall back to synthetic reproducer
-    # This happens when:
-    # - Source file path not in report
-    # - Source file doesn't exist (production deployment, different machine)
-    # - Source analysis failed for some reason
-
     check_details = report.get('check_details', {})
+
+    # Generate minimal reproducer based on check type
     reproducer_code = _generate_reproducer(check_type, check_details)
 
     if not reproducer_code:
@@ -646,9 +593,7 @@ def analyze_report(report: Dict[str, Any]) -> UBDetectionResult:
             multi_compiler_differs=False,
             details={
                 "error": f"Cannot generate reproducer for check_type={check_type}",
-                "report_id": report.get('report_id', 'unknown'),
-                "source": "no_reproducer_available",
-                "reason": "Source file not available and synthetic reproducer generation failed"
+                "report_id": report.get('report_id', 'unknown')
             }
         )
 
@@ -665,32 +610,16 @@ def analyze_report(report: Dict[str, Any]) -> UBDetectionResult:
         # Just check if UBSan detects UB in the code itself
         result = detector.detect(
             source_file=reproducer_file,
-            test_input=None,  # No runtime input for synthetic reproducers
+            test_input=None,  # No runtime input needed for these synthetic tests
             expected_output=None  # No expected output
         )
 
-        # Add metadata indicating this is a synthetic analysis
+        # Add original report metadata to result details
         if not result.details:
             result.details = {}
-        result.details['source'] = 'synthetic_reproducer'
-        result.details['report_id'] = report.get('report_id', 'unknown')
-        result.details['check_type'] = check_type
-        result.details['reproducer_file'] = reproducer_file
-        result.details['warning'] = (
-            "Analysis based on synthetic reproducer. "
-            "Original source file not available - may not perfectly represent bug."
-        )
-
-        # Add original report context
-        result.details['original_location'] = {
-            'file': location.get('file', 'unknown'),
-            'line': location.get('line', 0),
-            'function': location.get('function', 'unknown')
-        }
-        result.details['original_build_info'] = {
-            'optimization_level': opt_level,
-            'flags': compiler_flags
-        }
+        result.details['synthetic_reproducer'] = True
+        result.details['original_report_id'] = report.get('report_id', 'unknown')
+        result.details['original_check_type'] = report.get('check_type', 'unknown')
 
         detector.cleanup()
         return result

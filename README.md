@@ -42,7 +42,9 @@ Trace2Pass is a compiler bug detection system that injects lightweight runtime c
 - ✅ **Pure Function Consistency**
   - Verifies deterministic functions return same output
 - ✅ **Sign Conversion Detection** (disabled by default, 280% overhead)
-- ✅ **Memory Bounds Checking** (disabled by default, 18% overhead)
+- ⚠️ **Memory Bounds Checking** (disabled by default, 18% overhead)
+  - **Limitation**: Currently only checks for negative indices (index < 0)
+  - Upper-bound checking (index >= size) requires allocation size tracking (future work)
 - ✅ **Loop Bounds Checking** (disabled by default, 12.7% overhead)
 - ✅ **Thread-Safe Runtime Library**
   - Bloom filter deduplication
@@ -93,7 +95,7 @@ Trace2Pass is a compiler bug detection system that injects lightweight runtime c
   - Test case minimization (optional, requires creduce)
   - Automatic test script generation
 - ✅ **Evaluation Framework** (100%)
-  - Automated evaluation harness for 84 historical bugs (40 open, 44 fixed)
+  - Automated evaluation harness for 54 historical bugs
   - Test case manager (auto-fetch from GitHub/Bugzilla)
   - Full pipeline runner (compile → execute → diagnose → report)
   - Metrics collector (detection rate, accuracy, timing, false positives)
@@ -117,7 +119,7 @@ Trace2Pass is a compiler bug detection system that injects lightweight runtime c
   - Version bisection: 45 LLVM versions tested per bug (~3-4 min/bug)
   - Platform: Uses `--platform linux/amd64` for cross-architecture compatibility
   - Reports generated: Markdown, LaTeX tables, CSV data
-  - Remaining: 76 bugs from expanded dataset (84 total - 8 evaluated)
+  - Remaining: 48 bugs from Phase 1 dataset
 
 **Total Tests**: 117/117 passing (100%)
 
@@ -154,28 +156,21 @@ cd Trace2Pass
 # 2. Install LLVM 21 (macOS with Homebrew)
 brew install llvm@21
 
-# 3. Install Python dependencies (REQUIRED)
-pip install -r collector/requirements.txt \
-            -r diagnoser/requirements.txt \
-            -r evaluation/requirements.txt \
-            -r reporter/requirements.txt \
-            -r tests/integration/requirements.txt
-
-# 4. Build runtime library
+# 3. Build runtime library
 cd runtime
 mkdir build && cd build
 cmake ..
 make -j4
 cd ../..
 
-# 5. Build instrumentor (LLVM pass)
+# 4. Build instrumentor (LLVM pass)
 cd instrumentor
 mkdir build && cd build
 cmake -DLLVM_DIR=/opt/homebrew/opt/llvm/lib/cmake/llvm ..
 make -j4
 cd ../..
 
-# 6. Run tests
+# 5. Run tests
 cd instrumentor/test
 ./run_tests.sh
 ```
@@ -219,54 +214,6 @@ clang --version
 # Find LLVM CMake directory (needed for building)
 llvm-config --cmakedir
 ```
-
----
-
-## Python Setup
-
-**IMPORTANT:** Install Python dependencies BEFORE building. The Collector, Diagnoser, Evaluation, and Reporter components require Python packages.
-
-### Option 1: Install All Dependencies (Quick Start)
-
-```bash
-# Install all Python dependencies at once
-pip install -r collector/requirements.txt \
-            -r diagnoser/requirements.txt \
-            -r evaluation/requirements.txt \
-            -r reporter/requirements.txt \
-            -r tests/integration/requirements.txt
-```
-
-### Option 2: Virtual Environment (Recommended)
-
-```bash
-# Create and activate virtual environment
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r collector/requirements.txt \
-            -r diagnoser/requirements.txt \
-            -r evaluation/requirements.txt \
-            -r reporter/requirements.txt \
-            -r tests/integration/requirements.txt
-```
-
-### Verify Installation
-
-```bash
-# Test that Flask is installed (required for Collector)
-python -c "import flask; print(f'Flask {flask.__version__} installed')"
-
-# Test that pytest is installed (required for tests)
-python -c "import pytest; print(f'pytest {pytest.__version__} installed')"
-```
-
-**Key Dependencies:**
-- Flask 3.0.0 (Collector HTTP server)
-- pytest 7.4.3 (Testing framework)
-- requests 2.31.0 (HTTP client)
-- marshmallow 3.20.1 (JSON validation)
 
 ---
 
@@ -626,7 +573,7 @@ Trace2Pass/
 │       ├── test_full_pipeline.py                # 6 tests
 │       └── test_full_pipeline_with_reporter.py  # 9 tests
 │
-└── historical-bugs/                   # Bug dataset (84 bugs: 40 open, 44 fixed)
+└── historical-bugs/                   # Phase 1: Bug dataset (54 bugs)
     ├── llvm/                          # 34 LLVM bugs
     ├── gcc/                           # 20 GCC bugs
     └── analysis/                      # Analysis documents
@@ -660,8 +607,16 @@ The integration layer is complete and functional, but runtime reports contain pl
    - No automatic toolchain fetch/build infrastructure
    - Would benefit from Docker-based version isolation
 
+5. **Runtime report delivery (DoS vulnerability):**
+   - Uses `system("curl ...")` which spawns a process per report
+   - Rate limited to 10 reports/sec, but still allows up to 10 fork/exec per second
+   - Adversary with unique PCs can monopolize cores in production
+   - **Fix:** Replace with background worker thread + queue, libcurl, or raw sockets
+   - **Impact:** Not suitable for adversarial production environments
+
 **What works:** Complete data flow from production binary → Collector → Diagnoser → diagnosis report.
 **What's missing:** Accurate metadata for precise bug localization and source-level reproducers.
+**Security note:** Runtime suitable for testing and cooperative production, not for adversarial scenarios.
 
 ---
 
@@ -670,7 +625,7 @@ The integration layer is complete and functional, but runtime reports contain pl
 **Week 21 of 24** (December 2024)
 
 ### Completed Milestones
-- ✅ **Phase 1** (Weeks 1-4): Literature review + Historical bug dataset (expanded to 84 bugs)
+- ✅ **Phase 1** (Weeks 1-4): Literature review + Historical bug dataset (54 bugs)
 - ✅ **Phase 2** (Weeks 5-10): Runtime instrumentation (<5% overhead achieved)
 - ✅ **Phase 3** (Weeks 11-18): Collector + Diagnoser with full integration testing
 - ✅ **Phase 4** (Weeks 19-21): Reporter + Evaluation complete, 8 bugs evaluated with thesis-ready results
