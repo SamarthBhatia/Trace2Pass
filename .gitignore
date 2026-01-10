@@ -1,7 +1,10 @@
-# AI Assistant Context (local only, not versioned)
+# AI Assistant Context and project documentation (local only, not versioned)
 CLAUDE.md
 status.md
-PROJECT_PLAN.md
+
+# Root-level .md files (keep only README.md in version control)
+/*.md
+!README.md
 
 # LLVM Source (clone locally, don't push)
 llvm-project/
