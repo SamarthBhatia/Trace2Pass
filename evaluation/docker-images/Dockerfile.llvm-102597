@@ -47,8 +47,8 @@ RUN cmake -G Ninja \
     ../llvm
 
 # Build LLVM (this takes ~2 hours on single core, ~30 min on 8 cores)
-# Using all available cores
-RUN ninja -j$(nproc) clang
+# Using limited parallelism (-j2) to avoid OOM on 8GB RAM systems
+RUN ninja -j2 clang
 
 # Install binaries
 RUN ninja install-clang install-clang-headers install-clang-libraries
