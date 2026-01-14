@@ -29,6 +29,9 @@ class DockerCompiler:
     CPP_EXTENSIONS = {'.cpp', '.cxx', '.cc', '.C', '.CPP', '.c++', '.cp'}
     CPP_HEADER_EXTENSIONS = {'.hpp', '.hxx', '.h++', '.hh', '.H'}
 
+    # LLVM IR file extensions
+    IR_EXTENSIONS = {'.ll', '.bc'}  # .ll = text IR, .bc = bitcode
+
     def __init__(self, verbose: bool = False):
         """
         Initialize Docker compiler.
@@ -139,6 +142,19 @@ class DockerCompiler:
         suffix = Path(source_file).suffix
         return suffix in self.CPP_EXTENSIONS or suffix in self.CPP_HEADER_EXTENSIONS
 
+    def _is_ir_file(self, source_file: str) -> bool:
+        """
+        Check if source file is LLVM IR based on extension.
+
+        Args:
+            source_file: Path to source file
+
+        Returns:
+            True if LLVM IR file (.ll or .bc)
+        """
+        suffix = Path(source_file).suffix
+        return suffix in self.IR_EXTENSIONS
+
     def _detect_cpp_standard(self, source_file: str) -> Optional[str]:
         """
         Detect required C++ standard from source code patterns.
@@ -197,11 +213,16 @@ class DockerCompiler:
         """
         Compile source file using Docker container.
 
+        Supports:
+        - C source files (.c)
+        - C++ source files (.cpp, .cxx, .cc, etc.)
+        - LLVM IR files (.ll, .bc)
+
         Args:
             source_file: Path to source file
             output_file: Path to output binary
             version: LLVM version to use
-            optimization_level: Optimization level (e.g., "-O2")
+            optimization_level: Optimization level (e.g., "-O2") - ignored for IR files
             extra_flags: Additional compiler flags
 
         Returns:
@@ -212,6 +233,34 @@ class DockerCompiler:
             self._log(f"Image not available, pulling...")
             if not self.pull_image(version):
                 return (False, "", f"Failed to pull Docker image for version {version}")
+
+        # Route to appropriate compilation method
+        if self._is_ir_file(source_file):
+            return self._compile_from_ir(source_file, output_file, version, extra_flags)
+        else:
+            return self._compile_from_source(source_file, output_file, version, optimization_level, extra_flags)
+
+    def _compile_from_source(
+        self,
+        source_file: str,
+        output_file: str,
+        version: str,
+        optimization_level: str,
+        extra_flags: Optional[list]
+    ) -> Tuple[bool, str, str]:
+        """
+        Compile C/C++ source file using Docker container.
+
+        Args:
+            source_file: Path to C/C++ source file
+            output_file: Path to output binary
+            version: LLVM version to use
+            optimization_level: Optimization level (e.g., "-O2")
+            extra_flags: Additional compiler flags
+
+        Returns:
+            Tuple of (success, stdout, stderr)
+        """
 
         # Get absolute paths
         source_path = Path(source_file).resolve()
@@ -275,6 +324,124 @@ class DockerCompiler:
             return (False, "", "Compilation timeout")
         except Exception as e:
             return (False, "", f"Docker compilation error: {e}")
+
+    def _compile_from_ir(
+        self,
+        ir_file: str,
+        output_file: str,
+        version: str,
+        extra_flags: Optional[list]
+    ) -> Tuple[bool, str, str]:
+        """
+        Compile LLVM IR file to executable binary using Docker container.
+
+        Process:
+        1. Use llc to compile IR to object file (.o)
+        2. Use clang to link object file to executable
+
+        Args:
+            ir_file: Path to LLVM IR file (.ll or .bc)
+            output_file: Path to output binary
+            version: LLVM version to use
+            extra_flags: Additional linker flags
+
+        Returns:
+            Tuple of (success, stdout, stderr)
+        """
+        # Get absolute paths
+        ir_path = Path(ir_file).resolve()
+        output_path = Path(output_file).resolve()
+
+        # Get parent directories for mounting
+        ir_dir = ir_path.parent
+        output_dir = output_path.parent
+
+        # Container paths
+        container_ir = f"/src/{ir_path.name}"
+        # Write object file to mounted /out directory (not /tmp)
+        container_obj = f"/out/{ir_path.stem}.o"
+        container_output = f"/out/{output_path.name}"
+
+        self._log(f"Compiling LLVM IR: {ir_file} -> {output_file}")
+
+        # Step 1: Compile IR to object file using llc
+        # llc input.ll -filetype=obj -o output.o
+        llc_cmd = [
+            "docker", "run",
+            "--rm",
+            "--platform", "linux/amd64",
+            "-v", f"{ir_dir}:/src:ro",
+            "-v", f"{output_dir}:/out",  # Mount output dir for .o file
+            self.get_image_name(version),
+            "llc", container_ir, "-filetype=obj", "-o", container_obj
+        ]
+
+        self._log(f"Running llc: {' '.join(llc_cmd)}")
+
+        try:
+            result = subprocess.run(
+                llc_cmd,
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+
+            if result.returncode != 0:
+                return (False, result.stdout, f"llc failed: {result.stderr}")
+
+        except subprocess.TimeoutExpired:
+            return (False, "", "llc timeout")
+        except Exception as e:
+            return (False, "", f"llc error: {e}")
+
+        # Step 2: Link object file to executable using clang
+        # clang output.o -o final_binary
+        link_cmd = [
+            "docker", "run",
+            "--rm",
+            "--platform", "linux/amd64",
+            "-v", f"{output_dir}:/out",
+            self.get_image_name(version),
+            "clang"
+        ]
+
+        if extra_flags:
+            link_cmd.extend(extra_flags)
+
+        link_cmd.extend([container_obj, "-o", container_output])
+
+        self._log(f"Running clang linker: {' '.join(link_cmd)}")
+
+        try:
+            result = subprocess.run(
+                link_cmd,
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+
+            success = result.returncode == 0
+
+            # Clean up intermediate object file
+            obj_file = output_dir / f"{ir_path.stem}.o"
+            if obj_file.exists():
+                obj_file.unlink()
+                self._log(f"Cleaned up intermediate object file: {obj_file.name}")
+
+            return (success, result.stdout, result.stderr)
+
+        except subprocess.TimeoutExpired:
+            # Clean up on timeout
+            obj_file = output_dir / f"{ir_path.stem}.o"
+            if obj_file.exists():
+                obj_file.unlink()
+            return (False, "", "Linking timeout")
+        except Exception as e:
+            # Clean up on error
+            obj_file = output_dir / f"{ir_path.stem}.o"
+            if obj_file.exists():
+                obj_file.unlink()
+            return (False, "", f"Linking error: {e}")
 
     def run_binary(
         self,
