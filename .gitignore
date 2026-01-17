@@ -6,6 +6,11 @@ status.md
 /*.md
 !README.md
 
+# Thesis report images (local only, not versioned)
+ThesisReportImages/
+Images/
+Architecture.png
+
 # LLVM Source (clone locally, don't push)
 llvm-project/
 
@@ -110,3 +115,16 @@ evaluation/real-bugs/*/*.ll
 evaluation/real-bugs/*/*.bc
 evaluation/real-bugs/*/*.s
 !evaluation/real-bugs/*/test_*.c
+
+# Temporary test artifacts
+danger
+safe
+test.ll
+test_opt*
+evaluation/testcases/test19
+evaluation/testcases/test20
+evaluation/projects/xxHash/
+llvm-buggy-102597/
+evaluation/real-bugs/phantom-overflow-check/overflow_*
+evaluation/real-bugs/phantom-overflow-check/*.txt
+
