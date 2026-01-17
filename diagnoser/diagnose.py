@@ -32,6 +32,7 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 from ub_detector import UBDetector, UBDetectionResult, analyze_report
 from version_bisector import VersionBisector, VersionBisectionResult
 from pass_bisector import PassBisector, PassBisectionResult
+from pass_bisector_enhanced import EnhancedPassBisector, PassHeuristicScorer
 from instrumentation import test_with_instrumentation, create_instrumented_test_function
 
 
@@ -217,7 +218,9 @@ def pass_bisect_cmd(source_file: str, test_command: str,
                     optimization_level: str = "-O2",
                     compiler_version: Optional[str] = None,
                     use_docker: bool = False,
-                    use_instrumentation: bool = False) -> Dict[str, Any]:
+                    use_instrumentation: bool = False,
+                    use_enhanced: bool = False,
+                    bug_type: Optional[str] = None) -> Dict[str, Any]:
     """
     Run pass bisection to identify the specific optimization pass responsible.
 
@@ -241,6 +244,10 @@ def pass_bisect_cmd(source_file: str, test_command: str,
                    When True, runs pass bisection inside Docker containers
         use_instrumentation: Use Trace2Pass instrumentation for testing (default: False)
                            When True, compiles with instrumentation and checks for overflow reports
+        use_enhanced: Use enhanced pass bisection strategies (default: False)
+                     When True, uses heuristic scoring and pass filtering to improve accuracy
+        bug_type: Optional bug type classification (e.g., 'arithmetic_overflow', 'control_flow')
+                 Used by enhanced bisector to filter and prioritize passes
 
     Returns:
         Pass bisection result dictionary
@@ -290,18 +297,18 @@ def pass_bisect_cmd(source_file: str, test_command: str,
                 print(f"Error parsing test command: {e}")
                 return False
 
-        try:
-            # Run without shell for better security
-            result = subprocess.run(cmd_args, timeout=5, capture_output=True)
-            return result.returncode == 0
-        except subprocess.TimeoutExpired:
-            return False  # Timeout = bug (infinite loop, etc.)
-        except FileNotFoundError:
-            print(f"Error: Command not found: {cmd_args[0]}")
-            return False
-        except Exception as e:
-            print(f"Error running test: {e}")
-            return False
+            try:
+                # Run without shell for better security
+                result = subprocess.run(cmd_args, timeout=5, capture_output=True)
+                return result.returncode == 0
+            except subprocess.TimeoutExpired:
+                return False  # Timeout = bug (infinite loop, etc.)
+            except FileNotFoundError:
+                print(f"Error: Command not found: {cmd_args[0]}")
+                return False
+            except Exception as e:
+                print(f"Error running test: {e}")
+                return False
 
     # Determine which clang to use
     # CRITICAL: If compiler_version is specified (e.g., from version bisection),
@@ -435,25 +442,76 @@ def pass_bisect_cmd(source_file: str, test_command: str,
             docker_version=major_version if use_docker else None,
             use_instrumentation=use_instrumentation
         )
-        result = bisector.bisect(source_file, test_func)
 
-        print("=== Pass Bisection Result ===")
-        print(f"Verdict: {result.verdict}")
-        print(f"Culprit pass: {result.culprit_pass or 'Not found'}")
-        print(f"Culprit index: {result.culprit_index}")
-        print(f"Total passes: {len(result.pass_pipeline)}")
-        print(f"Total tests: {result.total_tests}")
-        print()
+        # Use enhanced bisection if requested
+        if use_enhanced:
+            print("Using enhanced pass bisection strategies (heuristic scoring + filtering)")
+            enhanced_bisector = EnhancedPassBisector(
+                base_bisector=bisector,
+                verbose=True
+            )
 
-        bisector.cleanup()
+            # If no bug_type provided, infer from expected_pass in metadata
+            # or use None (enhanced bisector will use heuristics only)
+            if not bug_type:
+                # Try to infer bug type from pass name if available
+                # For now, use heuristic-only mode
+                print("  No bug type specified - using heuristic scoring only")
 
-        return {
-            "verdict": result.verdict,
-            "culprit_pass": result.culprit_pass,
-            "culprit_index": result.culprit_index,
-            "total_passes": len(result.pass_pipeline),
-            "total_tests": result.total_tests
-        }
+            # Enhanced bisection returns different result type
+            # We need to adapt it to match the standard result format
+            enhanced_result = enhanced_bisector.bisect_enhanced(
+                source_file=source_file,
+                bug_type=bug_type or "unknown",
+                test_func=test_func,
+                strategies=['heuristic']  # Use heuristic scoring only for now
+            )
+
+            print("=== Enhanced Pass Bisection Result ===")
+            print(f"Verdict: {enhanced_result.verdict}")
+            print(f"Strategy used: {enhanced_result.strategy_used}")
+            print(f"Culprit pass(es): {', '.join(enhanced_result.culprit_passes) or 'Not found'}")
+            print(f"Confidence: {enhanced_result.confidence:.2%}")
+            if enhanced_result.all_candidates:
+                print(f"\nTop {len(enhanced_result.all_candidates)} candidates:")
+                for pass_name, score in enhanced_result.all_candidates:
+                    print(f"  - {pass_name}: {score:.3f}")
+            print()
+
+            bisector.cleanup()
+
+            # Convert enhanced result to standard format
+            return {
+                "verdict": "bisected" if enhanced_result.culprit_passes else "not_found",
+                "culprit_pass": enhanced_result.culprit_passes[0] if enhanced_result.culprit_passes else None,
+                "culprit_index": enhanced_result.culprit_indices[0] if enhanced_result.culprit_indices else -1,
+                "total_passes": 0,  # Not available in enhanced mode
+                "total_tests": 0,   # Not available in enhanced mode
+                "confidence": enhanced_result.confidence,
+                "top_candidates": [(p, float(s)) for p, s in enhanced_result.all_candidates],
+                "strategy": enhanced_result.strategy_used
+            }
+        else:
+            # Standard bisection
+            result = bisector.bisect(source_file, test_func)
+
+            print("=== Pass Bisection Result ===")
+            print(f"Verdict: {result.verdict}")
+            print(f"Culprit pass: {result.culprit_pass or 'Not found'}")
+            print(f"Culprit index: {result.culprit_index}")
+            print(f"Total passes: {len(result.pass_pipeline)}")
+            print(f"Total tests: {result.total_tests}")
+            print()
+
+            bisector.cleanup()
+
+            return {
+                "verdict": result.verdict,
+                "culprit_pass": result.culprit_pass,
+                "culprit_index": result.culprit_index,
+                "total_passes": len(result.pass_pipeline),
+                "total_tests": result.total_tests
+            }
 
     except RuntimeError as e:
         # PassBisector initialization failed (e.g., LLVM tool version mismatch)
@@ -488,7 +546,8 @@ def full_pipeline_cmd(source_file: str, test_command: str,
                       expected_output: Optional[str] = None,
                       optimization_level: str = "-O2",
                       use_docker: bool = True,
-                      use_instrumentation: bool = False) -> Dict[str, Any]:
+                      use_instrumentation: bool = False,
+                      use_enhanced: bool = False) -> Dict[str, Any]:
     """
     Run the full diagnosis pipeline: UB detection → Version bisection → Pass bisection.
 
@@ -501,6 +560,7 @@ def full_pipeline_cmd(source_file: str, test_command: str,
         expected_output: Optional expected output string (for UB detection)
         optimization_level: Optimization level (default: -O2)
         use_instrumentation: Use Trace2Pass instrumentation for bug detection (default: False)
+        use_enhanced: Use enhanced pass bisection strategies (default: False)
 
     Returns:
         Complete diagnosis result dictionary
@@ -629,7 +689,8 @@ def full_pipeline_cmd(source_file: str, test_command: str,
             source_file, test_command, optimization_level,
             compiler_version=first_bad_version,
             use_docker=actually_used_docker,
-            use_instrumentation=use_instrumentation
+            use_instrumentation=use_instrumentation,
+            use_enhanced=use_enhanced
         )
     except Exception as e:
         # Unexpected exception from pass_bisect_cmd - return structured error
@@ -768,6 +829,8 @@ def main():
     pass_parser.add_argument('--compiler-version',
                             help='Specific compiler version to use (e.g., "17" for clang-17). '\
                                  'If not specified, uses system default clang.')
+    pass_parser.add_argument('--use-enhanced', action='store_true', default=False,
+                            help='Use enhanced pass bisection with heuristic scoring (improves accuracy)')
 
     # full-pipeline command
     pipeline_parser = subparsers.add_parser(
@@ -785,6 +848,8 @@ def main():
                                  help='Disable Docker and use local compilers only (default: use Docker)')
     pipeline_parser.add_argument('--use-instrumentation', action='store_true', default=False,
                                  help='Use Trace2Pass instrumentation to detect bugs (for instrumentation-only issues)')
+    pipeline_parser.add_argument('--use-enhanced', action='store_true', default=False,
+                                 help='Use enhanced pass bisection with heuristic scoring (improves accuracy)')
 
     args = parser.parse_args()
 
@@ -804,13 +869,15 @@ def main():
         elif args.command == 'pass-bisect':
             result = pass_bisect_cmd(args.source_file, args.test_command,
                                     args.optimization_level,
-                                    compiler_version=getattr(args, 'compiler_version', None))
+                                    compiler_version=getattr(args, 'compiler_version', None),
+                                    use_enhanced=args.use_enhanced)
         elif args.command == 'full-pipeline':
             result = full_pipeline_cmd(args.source_file, args.test_command,
                                       args.test_input, args.expected_output,
                                       args.optimization_level,
                                       use_docker=args.use_docker,
-                                      use_instrumentation=args.use_instrumentation)
+                                      use_instrumentation=args.use_instrumentation,
+                                      use_enhanced=args.use_enhanced)
         else:
             parser.print_help()
             sys.exit(1)

@@ -25,6 +25,13 @@ class DockerCompiler:
     # Supported major versions
     SUPPORTED_VERSIONS = ["14", "15", "16", "17", "18", "19", "20", "21"]
 
+    # C++ file extensions
+    CPP_EXTENSIONS = {'.cpp', '.cxx', '.cc', '.C', '.CPP', '.c++', '.cp'}
+    CPP_HEADER_EXTENSIONS = {'.hpp', '.hxx', '.h++', '.hh', '.H'}
+
+    # LLVM IR file extensions
+    IR_EXTENSIONS = {'.ll', '.bc'}  # .ll = text IR, .bc = bitcode
+
     def __init__(self, verbose: bool = False):
         """
         Initialize Docker compiler.
@@ -122,6 +129,79 @@ class DockerCompiler:
         except:
             return False
 
+    def _is_cpp_file(self, source_file: str) -> bool:
+        """
+        Check if source file is C++ based on extension.
+
+        Args:
+            source_file: Path to source file
+
+        Returns:
+            True if C++ file, False if C file
+        """
+        suffix = Path(source_file).suffix
+        return suffix in self.CPP_EXTENSIONS or suffix in self.CPP_HEADER_EXTENSIONS
+
+    def _is_ir_file(self, source_file: str) -> bool:
+        """
+        Check if source file is LLVM IR based on extension.
+
+        Args:
+            source_file: Path to source file
+
+        Returns:
+            True if LLVM IR file (.ll or .bc)
+        """
+        suffix = Path(source_file).suffix
+        return suffix in self.IR_EXTENSIONS
+
+    def _detect_cpp_standard(self, source_file: str) -> Optional[str]:
+        """
+        Detect required C++ standard from source code patterns.
+
+        Args:
+            source_file: Path to source file
+
+        Returns:
+            C++ standard flag (e.g., "-std=c++20") or None for default
+        """
+        try:
+            with open(source_file, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+
+            # C++20 indicators
+            cpp20_patterns = [
+                'std::optional', 'std::span', 'concept ', 'requires ',
+                'consteval ', 'std::format', 'co_await', 'co_yield',
+                '<ranges>', '<concepts>', '<coroutine>', 'std::jthread'
+            ]
+            if any(pattern in content for pattern in cpp20_patterns):
+                return '-std=c++20'
+
+            # C++17 indicators
+            cpp17_patterns = [
+                'std::variant', 'std::filesystem', 'if constexpr',
+                'std::string_view', 'std::optional', 'std::any',
+                '<filesystem>', 'fold expression', 'structured binding'
+            ]
+            if any(pattern in content for pattern in cpp17_patterns):
+                return '-std=c++17'
+
+            # C++14 indicators
+            cpp14_patterns = [
+                'std::make_unique', 'auto ', '[[deprecated]]',
+                'std::integer_sequence', 'constexpr '
+            ]
+            if any(pattern in content for pattern in cpp14_patterns):
+                return '-std=c++14'
+
+            # Default to C++11 for C++ files
+            return '-std=c++11'
+
+        except Exception as e:
+            self._log(f"Warning: Could not detect C++ standard: {e}")
+            return '-std=c++11'  # Safe default
+
     def compile(
         self,
         source_file: str,
@@ -133,11 +213,16 @@ class DockerCompiler:
         """
         Compile source file using Docker container.
 
+        Supports:
+        - C source files (.c)
+        - C++ source files (.cpp, .cxx, .cc, etc.)
+        - LLVM IR files (.ll, .bc)
+
         Args:
             source_file: Path to source file
             output_file: Path to output binary
             version: LLVM version to use
-            optimization_level: Optimization level (e.g., "-O2")
+            optimization_level: Optimization level (e.g., "-O2") - ignored for IR files
             extra_flags: Additional compiler flags
 
         Returns:
@@ -148,6 +233,34 @@ class DockerCompiler:
             self._log(f"Image not available, pulling...")
             if not self.pull_image(version):
                 return (False, "", f"Failed to pull Docker image for version {version}")
+
+        # Route to appropriate compilation method
+        if self._is_ir_file(source_file):
+            return self._compile_from_ir(source_file, output_file, version, extra_flags)
+        else:
+            return self._compile_from_source(source_file, output_file, version, optimization_level, extra_flags)
+
+    def _compile_from_source(
+        self,
+        source_file: str,
+        output_file: str,
+        version: str,
+        optimization_level: str,
+        extra_flags: Optional[list]
+    ) -> Tuple[bool, str, str]:
+        """
+        Compile C/C++ source file using Docker container.
+
+        Args:
+            source_file: Path to C/C++ source file
+            output_file: Path to output binary
+            version: LLVM version to use
+            optimization_level: Optimization level (e.g., "-O2")
+            extra_flags: Additional compiler flags
+
+        Returns:
+            Tuple of (success, stdout, stderr)
+        """
 
         # Get absolute paths
         source_path = Path(source_file).resolve()
@@ -161,8 +274,24 @@ class DockerCompiler:
         container_source = f"/src/{source_path.name}"
         container_output = f"/out/{output_path.name}"
 
+        # Detect if C++ file and choose appropriate compiler
+        is_cpp = self._is_cpp_file(source_file)
+        compiler = "clang++" if is_cpp else "clang"
+
         # Build compile command
-        compile_cmd = ["clang", optimization_level]
+        compile_cmd = [compiler, optimization_level]
+
+        # Add C++ standard flag if C++ file
+        if is_cpp:
+            cpp_std = self._detect_cpp_standard(source_file)
+            if cpp_std:
+                compile_cmd.append(cpp_std)
+                self._log(f"Detected C++ standard: {cpp_std}")
+
+            # Explicitly use libc++ for consistency across LLVM versions
+            # silkeh/clang images use libc++ by default, but be explicit
+            compile_cmd.append("-stdlib=libc++")
+
         if extra_flags:
             compile_cmd.extend(extra_flags)
         compile_cmd.extend([container_source, "-o", container_output])
@@ -196,10 +325,130 @@ class DockerCompiler:
         except Exception as e:
             return (False, "", f"Docker compilation error: {e}")
 
+    def _compile_from_ir(
+        self,
+        ir_file: str,
+        output_file: str,
+        version: str,
+        extra_flags: Optional[list]
+    ) -> Tuple[bool, str, str]:
+        """
+        Compile LLVM IR file to executable binary using Docker container.
+
+        Process:
+        1. Use llc to compile IR to object file (.o)
+        2. Use clang to link object file to executable
+
+        Args:
+            ir_file: Path to LLVM IR file (.ll or .bc)
+            output_file: Path to output binary
+            version: LLVM version to use
+            extra_flags: Additional linker flags
+
+        Returns:
+            Tuple of (success, stdout, stderr)
+        """
+        # Get absolute paths
+        ir_path = Path(ir_file).resolve()
+        output_path = Path(output_file).resolve()
+
+        # Get parent directories for mounting
+        ir_dir = ir_path.parent
+        output_dir = output_path.parent
+
+        # Container paths
+        container_ir = f"/src/{ir_path.name}"
+        # Write object file to mounted /out directory (not /tmp)
+        container_obj = f"/out/{ir_path.stem}.o"
+        container_output = f"/out/{output_path.name}"
+
+        self._log(f"Compiling LLVM IR: {ir_file} -> {output_file}")
+
+        # Step 1: Compile IR to object file using llc
+        # llc input.ll -filetype=obj -o output.o
+        llc_cmd = [
+            "docker", "run",
+            "--rm",
+            "--platform", "linux/amd64",
+            "-v", f"{ir_dir}:/src:ro",
+            "-v", f"{output_dir}:/out",  # Mount output dir for .o file
+            self.get_image_name(version),
+            "llc", container_ir, "-filetype=obj", "-o", container_obj
+        ]
+
+        self._log(f"Running llc: {' '.join(llc_cmd)}")
+
+        try:
+            result = subprocess.run(
+                llc_cmd,
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+
+            if result.returncode != 0:
+                return (False, result.stdout, f"llc failed: {result.stderr}")
+
+        except subprocess.TimeoutExpired:
+            return (False, "", "llc timeout")
+        except Exception as e:
+            return (False, "", f"llc error: {e}")
+
+        # Step 2: Link object file to executable using clang
+        # clang output.o -o final_binary
+        link_cmd = [
+            "docker", "run",
+            "--rm",
+            "--platform", "linux/amd64",
+            "-v", f"{output_dir}:/out",
+            self.get_image_name(version),
+            "clang"
+        ]
+
+        if extra_flags:
+            link_cmd.extend(extra_flags)
+
+        link_cmd.extend([container_obj, "-o", container_output])
+
+        self._log(f"Running clang linker: {' '.join(link_cmd)}")
+
+        try:
+            result = subprocess.run(
+                link_cmd,
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+
+            success = result.returncode == 0
+
+            # Clean up intermediate object file
+            obj_file = output_dir / f"{ir_path.stem}.o"
+            if obj_file.exists():
+                obj_file.unlink()
+                self._log(f"Cleaned up intermediate object file: {obj_file.name}")
+
+            return (success, result.stdout, result.stderr)
+
+        except subprocess.TimeoutExpired:
+            # Clean up on timeout
+            obj_file = output_dir / f"{ir_path.stem}.o"
+            if obj_file.exists():
+                obj_file.unlink()
+            return (False, "", "Linking timeout")
+        except Exception as e:
+            # Clean up on error
+            obj_file = output_dir / f"{ir_path.stem}.o"
+            if obj_file.exists():
+                obj_file.unlink()
+            return (False, "", f"Linking error: {e}")
+
     def run_binary(
         self,
         binary_file: str,
-        timeout: int = 10
+        timeout: int = 10,
+        use_clang_image: bool = False,
+        clang_version: str = "19"
     ) -> Tuple[bool, int, str, str]:
         """
         Run binary inside Docker container.
@@ -207,6 +456,8 @@ class DockerCompiler:
         Args:
             binary_file: Path to binary
             timeout: Execution timeout in seconds
+            use_clang_image: Use silkeh/clang image instead of ubuntu (for C++ binaries needing libc++)
+            clang_version: LLVM version to use if use_clang_image=True (default: 19)
 
         Returns:
             Tuple of (success, returncode, stdout, stderr)
@@ -218,13 +469,19 @@ class DockerCompiler:
         # Container path
         container_binary = f"/bin_dir/{binary_path.name}"
 
+        # Choose Docker image based on whether C++ runtime is needed
+        if use_clang_image:
+            image = self.get_image_name(clang_version)
+        else:
+            image = "ubuntu:22.04"  # Use minimal Ubuntu for C binaries
+
         # Docker run command
         docker_cmd = [
             "docker", "run",
             "--rm",
             "--platform", "linux/amd64",  # Force amd64 to match compilation architecture
             "-v", f"{binary_dir}:/bin_dir",
-            "ubuntu:22.04",  # Use minimal Ubuntu image for execution
+            image,
             container_binary
         ]
 

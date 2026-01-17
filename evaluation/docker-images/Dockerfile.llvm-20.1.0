@@ -1,0 +1,95 @@
+# Dockerfile for LLVM 20.1.0 (buggy version for llvm-175018)
+#
+# This builds LLVM 20.1.0 from source to reproduce SimplifyCFG bug #175018
+# Bug was fixed in later 20.1.x releases, so we need this specific version
+#
+# Build time: 1.5-3 hours (depends on CPU cores)
+# Final image size: ~2-3GB
+#
+# Build command:
+#   docker build -f Dockerfile.llvm-20.1.0 -t trace2pass-llvm:20.1.0 .
+#
+# Usage:
+#   docker run --rm trace2pass-llvm:20.1.0 clang++ --version
+
+# Use multi-stage build to reduce final image size
+FROM ubuntu:22.04 AS builder
+
+# Avoid interactive prompts during apt install
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    ninja-build \
+    git \
+    python3 \
+    python3-pip \
+    wget \
+    ca-certificates \
+    libstdc++-12-dev \
+    zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Clone LLVM project at specific tag (20.1.0)
+# Use shallow clone to save time and space
+WORKDIR /build
+RUN git clone --depth 1 --branch llvmorg-20.1.0 \
+    https://github.com/llvm/llvm-project.git llvm-project
+
+# Create build directory
+WORKDIR /build/llvm-project/build
+
+# Configure LLVM build
+# - Only build Clang and compiler-rt (skip lldb, lld, etc.)
+# - Release build (optimized, no debug symbols)
+# - Install to /usr/local
+RUN cmake -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DLLVM_ENABLE_PROJECTS="clang;compiler-rt" \
+    -DLLVM_TARGETS_TO_BUILD="X86;AArch64" \
+    -DLLVM_INCLUDE_TESTS=OFF \
+    -DLLVM_INCLUDE_EXAMPLES=OFF \
+    -DLLVM_INCLUDE_BENCHMARKS=OFF \
+    -DLLVM_ENABLE_ASSERTIONS=OFF \
+    -DCMAKE_INSTALL_PREFIX=/usr/local \
+    -DLLVM_PARALLEL_LINK_JOBS=1 \
+    ../llvm
+
+# Build LLVM/Clang (this takes 1-2 hours)
+# Use all available cores for parallel build
+RUN cmake --build . --parallel $(nproc)
+
+# Install to /usr/local
+RUN cmake --install .
+
+# Runtime stage - minimal image with only the compiler
+FROM ubuntu:22.04
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    libstdc++-12-dev \
+    libc++-dev \
+    libc++abi-dev \
+    zlib1g \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy LLVM installation from builder
+COPY --from=builder /usr/local /usr/local
+
+# Update ldconfig
+RUN ldconfig
+
+# Set PATH
+ENV PATH="/usr/local/bin:${PATH}"
+
+# Verify installation
+RUN clang++ --version && \
+    clang++ -stdlib=libc++ -x c++ -E -v - < /dev/null 2>&1 | grep "Selected GCC"
+
+# Set working directory
+WORKDIR /work
+
+# Default command
+CMD ["/bin/bash"]
