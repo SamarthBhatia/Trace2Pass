@@ -6,6 +6,11 @@ status.md
 /*.md
 !README.md
 
+# Thesis report images (local only, not versioned)
+ThesisReportImages/
+Images/
+Architecture.png
+
 # LLVM Source (clone locally, don't push)
 llvm-project/
 
