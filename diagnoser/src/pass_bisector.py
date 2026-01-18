@@ -52,7 +52,8 @@ class PassBisector:
         verbose: bool = False,
         use_docker: bool = False,
         docker_version: Optional[str] = None,
-        use_instrumentation: bool = False
+        use_instrumentation: bool = False,
+        extra_compile_flags: Optional[List[str]] = None
     ):
         """
         Initialize pass bisector.
@@ -67,11 +68,13 @@ class PassBisector:
             use_docker: Use Docker containers for LLVM tools (default: False)
             docker_version: LLVM version for Docker image (e.g., "15" for silkeh/clang:15)
             use_instrumentation: Compile with Trace2Pass instrumentation (default: False)
+            extra_compile_flags: Additional compilation flags (e.g., ["-std=c++20", "-fms-extensions"])
         """
         self.clang_path = clang_path
         self.opt_path = opt_path
         self.llc_path = llc_path
         self.opt_level = opt_level
+        self.extra_compile_flags = extra_compile_flags or []
         self.timeout_sec = timeout_sec
         self.verbose = verbose
         self.use_docker = use_docker
@@ -289,9 +292,11 @@ class PassBisector:
             # Compile to LLVM IR
             ir_file = os.path.join(tmpdir, "input.ll")
             try:
+                compile_cmd = [self.clang_path, "-S", "-emit-llvm", "-Xclang", "-disable-O0-optnone"]
+                compile_cmd.extend(self.extra_compile_flags)
+                compile_cmd.extend([source_file, "-o", ir_file])
                 self._run_command(
-                    [self.clang_path, "-S", "-emit-llvm", "-Xclang", "-disable-O0-optnone",
-                     source_file, "-o", ir_file],
+                    compile_cmd,
                     work_dir=tmpdir,
                     extra_mounts=[os.path.dirname(os.path.abspath(source_file))],
                     check=True,

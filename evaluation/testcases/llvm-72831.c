@@ -1,4 +1,3 @@
-% cat a.c
 int printf(const char *, ...);
 long a = 3, b = 3, c = 1;
 unsigned char d;
@@ -28,8 +27,3 @@ int main() {
   *k = p[0];
   printf("%d\n", g);
 }
-% clang -O0 a.c && ./a.out
-2
-% clang -O2 a.c && ./a.out
-0
-%

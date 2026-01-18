@@ -378,7 +378,8 @@
     "optimization_level": "-O2",
     "status": "verified",
     "url": "https://github.com/llvm/llvm-project/issues/116583",
-    "notes": "Inlined inalloca allocas break stack access after unwinding"
+    "notes": "Inlined inalloca allocas break stack access after unwinding",
+    "compile_flags": ["-fms-extensions"]
   },
   "llvm-122537": {
     "bug_id": "llvm-122537",
@@ -448,7 +449,8 @@
     "optimization_level": "-O2",
     "status": "verified",
     "url": "https://github.com/llvm/llvm-project/issues/64253",
-    "notes": "mingw target miscompilation Aug 2023"
+    "notes": "mingw target miscompilation Aug 2023",
+    "compile_flags": ["-std=c++20"]
   },
   "llvm-102597": {
     "bug_id": "llvm-102597",

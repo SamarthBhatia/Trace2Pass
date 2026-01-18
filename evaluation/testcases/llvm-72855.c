@@ -1,4 +1,3 @@
-% cat a.c
 int printf(const char *, ...);
 int a;
 int *g = &a, *m = &a, *n = &a;
@@ -31,9 +30,3 @@ int main() {
   q(&s);
   printf("%d\n", o);
 }
-%
-% clang -O0 -fsanitize=address,undefined a.c && ./a.out
-0
-% clang -O1 a.c && ./a.out
-Timeout
-%
