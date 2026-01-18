@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "diagnoser" / "src"))
 from pass_bisector import PassBisector
 from pass_bisector_enhanced import EnhancedPassBisector, PassHeuristicScorer, IterativePassBisector
 
-# Bugs that compile successfully (16 bugs = 76.2% of 21 total)
+# Bugs that compile successfully (20 bugs = 76.9% of 26 total)
 COMPILABLE_BUGS = [
     # Synthetic test cases (3)
     'sample-instcombine',
@@ -40,6 +40,12 @@ COMPILABLE_BUGS = [
     'llvm-170026',
     'llvm-172824',
     'llvm-167750',
+
+    # Fixed test cases and newly working bugs (4)
+    'llvm-72855',
+    'llvm-72831',
+    'llvm-64253',
+    'llvm-116583',
 ]
 
 # Bug type inference mapping
@@ -52,10 +58,13 @@ BUG_TYPE_MAP = {
     'Loop Optimization': 'control_flow',
     'Vector-combine': 'arithmetic_overflow',
     'SROA': 'memory_bounds',
+    'DSE': 'memory_bounds',
+    'Inlining': 'control_flow',
     'CodeGen': 'backend',
     'Backend': 'backend',
     'Unknown': 'unknown',
     'AArch64 Backend': 'backend',
+    'RISC-V Backend': 'backend',
 }
 
 def normalize_pass_name(name):
@@ -102,6 +111,9 @@ def evaluate_bug(bug_id, metadata):
     print(f"  Expected pass: {expected_pass}")
     print(f"  Bug type: {BUG_TYPE_MAP.get(expected_pass, 'unknown')}")
 
+    # Get extra compile flags if any
+    compile_flags = bug_info.get('compile_flags', [])
+
     # Initialize bisectors
     try:
         base_bisector = PassBisector(
@@ -109,7 +121,8 @@ def evaluate_bug(bug_id, metadata):
             opt_path="opt",
             llc_path="llc",
             opt_level="-O2",
-            verbose=False
+            verbose=False,
+            extra_compile_flags=compile_flags
         )
 
         enhanced_bisector = EnhancedPassBisector(
