@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "diagnoser" / "src"))
 from pass_bisector import PassBisector
 from pass_bisector_enhanced import EnhancedPassBisector, PassHeuristicScorer, IterativePassBisector
 
-# Bugs that compile successfully (18 bugs = 85.7% of 21 total)
+# Bugs that compile successfully (16 bugs = 76.2% of 21 total)
 COMPILABLE_BUGS = [
     # Synthetic test cases (3)
     'sample-instcombine',
@@ -33,25 +33,27 @@ COMPILABLE_BUGS = [
     'llvm-119646',
     'llvm-89230',
 
-    # Newly found compilable bugs (8)
+    # Newly added bugs with metadata (6)
     'llvm-101994',
-    'llvm-110078',
-    'llvm-117341',
-    'llvm-117404',
     'llvm-122537',
     'llvm-144454',
     'llvm-170026',
     'llvm-172824',
+    'llvm-167750',
 ]
 
 # Bug type inference mapping
 BUG_TYPE_MAP = {
     'InstCombine': 'arithmetic_overflow',
     'GVN': 'memory_bounds',
+    'GVN + TBAA': 'memory_bounds',
     'LICM': 'control_flow',
     'SCEV/IndVarSimplify': 'arithmetic_overflow',
     'Loop Optimization': 'control_flow',
     'Vector-combine': 'arithmetic_overflow',
+    'SROA': 'memory_bounds',
+    'CodeGen': 'backend',
+    'Backend': 'backend',
     'Unknown': 'unknown',
     'AArch64 Backend': 'backend',
 }
