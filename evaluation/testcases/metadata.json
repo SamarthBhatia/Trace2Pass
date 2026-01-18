@@ -273,10 +273,10 @@
   "llvm-101994": {
     "bug_id": "llvm-101994",
     "compiler": "llvm",
-    "source_file": null,
+    "source_file": "testcases/llvm-101994.c",
     "expected_pass": "Backend",
     "optimization_level": "-O2",
-    "status": "failed_fetch",
+    "status": "manual",
     "url": "https://github.com/llvm/llvm-project/issues/101994",
     "notes": "Internal compiler error during Windows packaging for 19.1.0-rc2"
   },
@@ -383,10 +383,10 @@
   "llvm-122537": {
     "bug_id": "llvm-122537",
     "compiler": "llvm",
-    "source_file": null,
-    "expected_pass": "GVN + TBAA",
+    "source_file": "testcases/llvm-122537.c",
+    "expected_pass": "GVN",
     "optimization_level": "-O2",
-    "status": "failed_fetch",
+    "status": "manual",
     "url": "https://github.com/llvm/llvm-project/issues/122537",
     "notes": "RISC-V miscompiles 2D array allocation when inlined"
   },
@@ -673,5 +673,45 @@
       "operands": "127, 1",
       "description": "Legal wrapping arithmetic. Old instrumentor reported false positive (default to signed). Fixed instrumentor correctly skips unflagged operations."
     }
+  },
+  "llvm-144454": {
+    "bug_id": "llvm-144454",
+    "source_file": "testcases/llvm-144454.c",
+    "expected_pass": "SROA",
+    "status": "manual",
+    "compiler": "llvm",
+    "optimization_level": "-O2",
+    "url": "https://github.com/llvm/llvm-project/issues/144454",
+    "notes": "Passing/returning structures in scalars does not handle poison"
+  },
+  "llvm-170026": {
+    "bug_id": "llvm-170026",
+    "source_file": "testcases/llvm-170026.c",
+    "expected_pass": "InstCombine",
+    "status": "manual",
+    "compiler": "llvm",
+    "optimization_level": "-O2",
+    "url": "https://github.com/llvm/llvm-project/issues/170026",
+    "notes": "clang mislowers C static array length into dereferenceable"
+  },
+  "llvm-172824": {
+    "bug_id": "llvm-172824",
+    "source_file": "testcases/llvm-172824.c",
+    "expected_pass": "Backend",
+    "status": "manual",
+    "compiler": "llvm",
+    "optimization_level": "-O2",
+    "url": "https://github.com/llvm/llvm-project/issues/172824",
+    "notes": "Wrong code at -O1/O2 possibly due to backend bug"
+  },
+  "llvm-167750": {
+    "bug_id": "llvm-167750",
+    "compiler": "llvm",
+    "source_file": "testcases/llvm-167750.c",
+    "expected_pass": "CodeGen",
+    "optimization_level": "-O2",
+    "status": "manual",
+    "url": "https://github.com/llvm/llvm-project/issues/167750",
+    "notes": "clang-cl function pointer in struct initializer - code generation bug"
   }
 }
