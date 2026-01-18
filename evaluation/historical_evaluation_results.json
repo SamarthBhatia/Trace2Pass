@@ -1,0 +1,129 @@
+{
+  "timestamp": "2026-01-18T14:13:42.963013",
+  "total_bugs": 16,
+  "target_completion": "75%",
+  "bugs_evaluated": [
+    {
+      "bug_id": "sample-instcombine",
+      "expected_pass": "InstCombine",
+      "compiles": true,
+      "time": 0.39449191093444824,
+      "source_file": "/Volumes/Crucial X6/Projects/Trace2Pass/evaluation/testcases/sample-instcombine.c"
+    },
+    {
+      "bug_id": "sample-gvn",
+      "expected_pass": "GVN",
+      "compiles": true,
+      "time": 0.06066322326660156,
+      "source_file": "/Volumes/Crucial X6/Projects/Trace2Pass/evaluation/testcases/sample-gvn.c"
+    },
+    {
+      "bug_id": "sample-licm",
+      "expected_pass": "LICM",
+      "compiles": true,
+      "time": 0.06635499000549316,
+      "source_file": "/Volumes/Crucial X6/Projects/Trace2Pass/evaluation/testcases/sample-licm.c"
+    },
+    {
+      "bug_id": "llvm-127511",
+      "expected_pass": "GVN",
+      "compiles": true,
+      "time": 0.04245305061340332,
+      "source_file": "/Volumes/Crucial X6/Projects/Trace2Pass/evaluation/testcases/llvm-127511.c"
+    },
+    {
+      "bug_id": "llvm-121110",
+      "expected_pass": "Vector-combine",
+      "compiles": true,
+      "time": 0.05736088752746582,
+      "source_file": "/Volumes/Crucial X6/Projects/Trace2Pass/evaluation/testcases/llvm-121110.c"
+    },
+    {
+      "bug_id": "llvm-60622",
+      "expected_pass": "Loop Optimization",
+      "compiles": true,
+      "time": 0.47185301780700684,
+      "source_file": "/Volumes/Crucial X6/Projects/Trace2Pass/evaluation/testcases/llvm-60622.cpp"
+    },
+    {
+      "bug_id": "llvm-102597",
+      "expected_pass": "SCEV/IndVarSimplify",
+      "compiles": true,
+      "time": 0.03335714340209961,
+      "source_file": "/Volumes/Crucial X6/Projects/Trace2Pass/evaluation/testcases/llvm-102597.c"
+    },
+    {
+      "bug_id": "llvm-137588",
+      "expected_pass": "Unknown",
+      "compiles": true,
+      "time": 0.036126136779785156,
+      "source_file": "/Volumes/Crucial X6/Projects/Trace2Pass/evaluation/testcases/llvm-137588.c"
+    }
+  ],
+  "bugs_failed": [
+    {
+      "bug_id": "llvm-64598",
+      "expected_pass": "GVN",
+      "compiles": false,
+      "time": 0.031443119049072266,
+      "source_file": "/Volumes/Crucial X6/Projects/Trace2Pass/evaluation/testcases/llvm-64598.c"
+    },
+    {
+      "bug_id": "llvm-116668",
+      "expected_pass": "GVN",
+      "compiles": false,
+      "time": 0.03721499443054199,
+      "source_file": "/Volumes/Crucial X6/Projects/Trace2Pass/evaluation/testcases/llvm-116668.c"
+    },
+    {
+      "bug_id": "llvm-97600",
+      "expected_pass": "LICM",
+      "compiles": false,
+      "time": 0.030904054641723633,
+      "source_file": "/Volumes/Crucial X6/Projects/Trace2Pass/evaluation/testcases/llvm-97600.c"
+    },
+    {
+      "bug_id": "llvm-72831",
+      "expected_pass": "DSE",
+      "compiles": false,
+      "time": 0.029339075088500977,
+      "source_file": "/Volumes/Crucial X6/Projects/Trace2Pass/evaluation/testcases/llvm-72831.c"
+    },
+    {
+      "bug_id": "llvm-116583",
+      "expected_pass": "Inlining",
+      "compiles": false,
+      "time": 0.03295111656188965,
+      "source_file": "/Volumes/Crucial X6/Projects/Trace2Pass/evaluation/testcases/llvm-116583.cpp"
+    },
+    {
+      "bug_id": "llvm-65205",
+      "expected_pass": "Inlining",
+      "compiles": false,
+      "time": 0.11940979957580566,
+      "source_file": "/Volumes/Crucial X6/Projects/Trace2Pass/evaluation/testcases/llvm-65205.c"
+    },
+    {
+      "bug_id": "llvm-72855",
+      "expected_pass": "Unknown",
+      "compiles": false,
+      "time": 0.029322147369384766,
+      "source_file": "/Volumes/Crucial X6/Projects/Trace2Pass/evaluation/testcases/llvm-72855.c"
+    },
+    {
+      "bug_id": "llvm-67088",
+      "expected_pass": "Unknown",
+      "compiles": false,
+      "time": 0.029867887496948242,
+      "source_file": "/Volumes/Crucial X6/Projects/Trace2Pass/evaluation/testcases/llvm-67088.c"
+    }
+  ],
+  "metrics": {
+    "detection_rate": 50.0,
+    "enhanced_accuracy_top1": 0,
+    "enhanced_accuracy_top3": 0,
+    "enhanced_accuracy_top5": 0,
+    "avg_time": 0,
+    "false_positives": 0
+  }
+}
