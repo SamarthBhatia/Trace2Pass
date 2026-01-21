@@ -397,9 +397,12 @@ class PassHeuristicScorer:
         'loop-unroll': 10,
         'inline': 9,
         'sroa': 8,
+        'scev': 8,              # Scalar Evolution analysis
         'memcpyopt': 7,
         'loop-idiom': 6,
+        'loop-rotate': 6,       # Loop rotation
         'indvars': 5,
+        'indvarsimplify': 5,    # Induction variable simplification
         'dce': 4,
         'adce': 3,
         'correlated-propagation': 2,
@@ -420,8 +423,8 @@ class PassHeuristicScorer:
         Higher score = more likely to be the bug cause.
 
         Factors:
-        1. Historical bug frequency (40%)
-        2. Bug-type match (30%)
+        1. Historical bug frequency (20%)
+        2. Bug-type match (50%)
         3. IR transformation (20%)
         4. Pass position in pipeline (10%)
         """
@@ -434,15 +437,15 @@ class PassHeuristicScorer:
             if pass_prefix in normalized_name:
                 historical_score = freq
                 break
-        score += (historical_score / 45.0) * 0.4  # Normalize to [0, 0.4]
+        score += (historical_score / 45.0) * 0.2  # Normalize to [0, 0.2]
 
         # Factor 2: Bug-type match
         if bug_type:
             suspects = PassFilter.PASS_SUSPECTS.get(bug_type, {})
             if any(s in normalized_name for s in suspects.get('primary', [])):
-                score += 0.3
+                score += 0.5
             elif any(s in normalized_name for s in suspects.get('secondary', [])):
-                score += 0.15
+                score += 0.25
 
         # Factor 3: IR transformation (normalized)
         score += min(ir_transformation_score / 100.0, 0.2)
@@ -454,6 +457,13 @@ class PassHeuristicScorer:
             score += 0.1
         else:
             score += 0.05
+
+        # Bonus: Pass complexity (nested managers are more complex)
+        # Passes inside cgscc, function, or loop managers get small bonus
+        if any(manager in pass_name.lower() for manager in ['cgscc', 'function', 'loop']):
+            # Check if it's a nested pass (contains '<' indicating manager structure)
+            if '<' in pass_name:
+                score += 0.05  # Small bonus for nested complexity
 
         return score
 
