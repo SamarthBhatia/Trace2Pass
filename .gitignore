@@ -53,10 +53,28 @@ Makefile
 *.out
 a.out
 
-# Test binaries (no extension)
-instrumentor/test/test_*_instrumented
-instrumentor/test/test_*_baseline
+# Test binaries (no extension) - compiled executables in instrumentor/test
+instrumentor/test/test_arithmetic
+instrumentor/test/test_bounds
+instrumentor/test/test_bounds_advanced
+instrumentor/test/test_bug_*
+instrumentor/test/test_counter_reset
+instrumentor/test/test_forced_unreachable
+instrumentor/test/test_llvm_crash*
+instrumentor/test/test_overflow
+instrumentor/test/test_pure
+instrumentor/test/test_runtime*
 instrumentor/test/test_sampling
+instrumentor/test/test_shift
+instrumentor/test/test_unsigned_overflow
+instrumentor/test/test_validation_synthetic
+instrumentor/test/test_verify_fixes
+instrumentor/test/benchmark_*
+instrumentor/test/comprehensive_test
+instrumentor/test/manual_test_*
+
+# Pytest cache
+.pytest_cache/
 
 # Benchmark binaries and artifacts
 benchmarks/*/sqlite_benchmark_*
