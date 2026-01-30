@@ -71,6 +71,13 @@ def normalize_pass_name(name):
     """Normalize pass name for comparison"""
     name = name.replace("Pass", "").replace("()", "")
     name = name.lower().strip()
+
+    # Remove common suffixes to handle "Inlining" -> "inline", "Optimization" -> "optimize"
+    for suffix in ["ing", "ion", "tion", "ization", "isation"]:
+        if name.endswith(suffix):
+            name = name[:-len(suffix)]
+            break  # Only remove one suffix
+
     return name
 
 def check_pass_in_candidates(expected_pass, candidates, k=5):

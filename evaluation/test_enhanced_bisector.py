@@ -55,11 +55,20 @@ def normalize_pass_name(name: str) -> str:
         "InstCombinePass" -> "instcombine"
         "GVN" -> "gvn"
         "LICM()" -> "licm"
+        "Inlining" -> "inline"
+        "Optimization" -> "optimize"
     """
     # Remove common suffixes
     name = name.replace("Pass", "").replace("()", "")
     # Convert to lowercase
     name = name.lower().strip()
+
+    # Remove common suffixes to handle "Inlining" -> "inline", "Optimization" -> "optimize"
+    for suffix in ["ing", "ion", "tion", "ization", "isation"]:
+        if name.endswith(suffix):
+            name = name[:-len(suffix)]
+            break  # Only remove one suffix
+
     return name
 
 
