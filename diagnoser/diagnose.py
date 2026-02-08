@@ -646,13 +646,9 @@ def full_pipeline_cmd(source_file: str, test_command: str,
             }
         elif verdict == "all_fail":
             # Bug manifests in ALL versions - this is a long-standing bug
-            # We should still run pass bisection on the latest version to identify culprit
+            # Proceed to pass bisection using local system compiler
             print(f"⚠ Version bisection shows bug manifests in ALL tested versions (verdict: {verdict}).")
             print("  This indicates a long-standing bug. Proceeding to pass bisection on system compiler...")
-            # Use None to trigger unversioned pass bisection (system clang)
-            first_bad_version = None  # Will use system clang
-            actually_used_docker = version_result.get('used_docker', False)
-            # Continue to pass bisection stage below
         else:
             # Unknown verdict - return incomplete
             print(f"⚠ Version bisection returned unexpected verdict: {verdict}. Cannot proceed.")
@@ -668,14 +664,13 @@ def full_pipeline_cmd(source_file: str, test_command: str,
     print("Stage 3/3: Pass Bisection...")
 
     # Extract version bisection results for pass bisection
-    # Note: For "all_fail" case above, we already set first_bad_version="19"
-    # For normal "bisected" case, we get it from version_result
-    if not version_result.get('first_bad_version'):
-        # This should only happen for "all_fail" case where we manually set it above
-        # first_bad_version and actually_used_docker are already set
-        pass
+    verdict = version_result.get('verdict', '')
+    if verdict == "all_fail":
+        # Bug manifests in ALL versions — use local system compiler (no version suffix)
+        first_bad_version = None
+        actually_used_docker = False
     else:
-        # Normal "bisected" case - get from version_result
+        # Normal "bisected" case — use the specific bad version
         first_bad_version = version_result.get('first_bad_version')
         actually_used_docker = version_result.get('used_docker', False)
 

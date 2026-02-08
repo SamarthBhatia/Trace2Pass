@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Comprehensive test runner for Trace2Pass instrumentation
 # Tests all detection categories and validates instrumentation works end-to-end
@@ -27,6 +27,21 @@ elif [ "$(uname)" = "Darwin" ] && [ -x "/usr/local/opt/llvm/bin/clang" ]; then
 elif command -v clang-21 &> /dev/null; then
     CLANG="clang-21"
     echo "Using clang-21 from PATH"
+elif command -v clang-20 &> /dev/null; then
+    CLANG="clang-20"
+    echo "Using clang-20 from PATH"
+elif command -v clang-19 &> /dev/null; then
+    CLANG="clang-19"
+    echo "Using clang-19 from PATH"
+elif command -v clang-18 &> /dev/null; then
+    CLANG="clang-18"
+    echo "Using clang-18 from PATH"
+elif command -v clang-17 &> /dev/null; then
+    CLANG="clang-17"
+    echo "Using clang-17 from PATH"
+elif command -v clang-16 &> /dev/null; then
+    CLANG="clang-16"
+    echo "Using clang-16 from PATH"
 elif command -v clang &> /dev/null; then
     CLANG="clang"
     # Warn if on macOS with Apple Clang
@@ -67,15 +82,12 @@ echo "Runtime lib: $RUNTIME_LIB"
 echo "Optimization: $OPT_LEVEL"
 echo ""
 echo "IMPORTANT: Production configuration enables 5/8 checks."
-echo "Tests for disabled checks (GEP bounds, sign conversions,"
-echo "loop bounds) verify CORRECTNESS, not production usage."
-echo "These checks are disabled by default due to overhead:"
-echo "  - Sign conversions: 280% overhead"
-echo "  - GEP bounds: 18% overhead"
-echo "  - Loop bounds: 12.7% overhead"
+echo "3 checks are disabled by default due to overhead:"
+echo "  - Sign conversions: 280% overhead (TRACE2PASS_ENABLE_SIGN_CONVERSION=1)"
+echo "  - GEP bounds: 18% overhead (TRACE2PASS_ENABLE_GEP_BOUNDS=1)"
+echo "  - Loop bounds: 12.7% overhead (TRACE2PASS_ENABLE_LOOP_BOUNDS=1)"
 echo ""
-echo "To enable disabled checks for testing, edit:"
-echo "  instrumentor/src/Trace2PassInstrumentor.cpp lines 88-100"
+echo "Set TRACE2PASS_ENABLE_ALL_CHECKS=1 to enable all 8 checks."
 echo ""
 echo "======================================================="
 echo ""
@@ -97,15 +109,20 @@ run_test() {
     fi
 
     # Run the test
-    if ! ./"${test_name}_instrumented" >/dev/null 2>&1; then
-        echo -e "${YELLOW}SKIPPED${NC} (runtime error - may be expected for some tests)"
+    local exit_code=0
+    ./"${test_name}_instrumented" >/dev/null 2>&1 || exit_code=$?
+
+    if [ "$exit_code" -eq 77 ]; then
+        echo -e "${YELLOW}SKIPPED${NC} (test requested skip)"
         SKIPPED=$((SKIPPED + 1))
-        rm -f "${test_name}_instrumented"
-        return 0
+    elif [ "$exit_code" -ne 0 ]; then
+        echo -e "${YELLOW}SKIPPED${NC} (exit code $exit_code)"
+        SKIPPED=$((SKIPPED + 1))
+    else
+        echo -e "${GREEN}PASSED${NC}"
+        PASSED=$((PASSED + 1))
     fi
 
-    echo -e "${GREEN}PASSED${NC}"
-    PASSED=$((PASSED + 1))
     rm -f "${test_name}_instrumented"
     return 0
 }
