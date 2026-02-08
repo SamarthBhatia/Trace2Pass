@@ -9,6 +9,8 @@ Supported versions: 14, 15, 16, 17, 18, 19, 20, 21
 
 import subprocess
 import os
+import sys
+import platform
 import tempfile
 import shutil
 from pathlib import Path
@@ -46,6 +48,17 @@ class DockerCompiler:
         """Print log message if verbose enabled."""
         if self.verbose:
             print(f"[DockerCompiler] {msg}")
+
+    def _get_docker_platform_args(self) -> list:
+        """Return --platform args only when cross-arch is needed.
+
+        On macOS ARM64, we need x86_64 containers for silkeh/clang images.
+        On native Linux, let Docker use the host architecture.
+        """
+        machine = platform.machine()
+        if sys.platform == "darwin" and machine in ("arm64", "aarch64"):
+            return ["--platform", "linux/amd64"]
+        return []
 
     def _check_docker_available(self) -> bool:
         """Check if Docker is installed and running."""
@@ -300,7 +313,7 @@ class DockerCompiler:
         docker_cmd = [
             "docker", "run",
             "--rm",  # Remove container after execution
-            "--platform", "linux/amd64",  # Force amd64 architecture for consistency
+            *self._get_docker_platform_args(),
             "-v", f"{source_dir}:/src:ro",  # Mount source directory (read-only)
             "-v", f"{output_dir}:/out",      # Mount output directory (read-write)
             self.get_image_name(version),
@@ -369,7 +382,7 @@ class DockerCompiler:
         llc_cmd = [
             "docker", "run",
             "--rm",
-            "--platform", "linux/amd64",
+            *self._get_docker_platform_args(),
             "-v", f"{ir_dir}:/src:ro",
             "-v", f"{output_dir}:/out",  # Mount output dir for .o file
             self.get_image_name(version),
@@ -399,7 +412,7 @@ class DockerCompiler:
         link_cmd = [
             "docker", "run",
             "--rm",
-            "--platform", "linux/amd64",
+            *self._get_docker_platform_args(),
             "-v", f"{output_dir}:/out",
             self.get_image_name(version),
             "clang"
@@ -479,7 +492,7 @@ class DockerCompiler:
         docker_cmd = [
             "docker", "run",
             "--rm",
-            "--platform", "linux/amd64",  # Force amd64 to match compilation architecture
+            *self._get_docker_platform_args(),
             "-v", f"{binary_dir}:/bin_dir",
             image,
             container_binary
