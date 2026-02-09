@@ -220,6 +220,7 @@ def pass_bisect_cmd(source_file: str, test_command: str,
                     use_docker: bool = False,
                     use_instrumentation: bool = False,
                     use_enhanced: bool = False,
+                    use_clang_bisect: bool = False,
                     bug_type: Optional[str] = None) -> Dict[str, Any]:
     """
     Run pass bisection to identify the specific optimization pass responsible.
@@ -246,6 +247,10 @@ def pass_bisect_cmd(source_file: str, test_command: str,
                            When True, compiles with instrumentation and checks for overflow reports
         use_enhanced: Use enhanced pass bisection strategies (default: False)
                      When True, uses heuristic scoring and pass filtering to improve accuracy
+        use_clang_bisect: Use clang -mllvm -opt-bisect-limit=N for bisection (default: False)
+                         When True, bisects within clang's integrated pipeline instead of
+                         using standalone opt. Required for bugs that only manifest in clang's
+                         pipeline (e.g., LLVM #76789).
         bug_type: Optional bug type classification (e.g., 'arithmetic_overflow', 'control_flow')
                  Used by enhanced bisector to filter and prioritize passes
 
@@ -315,8 +320,47 @@ def pass_bisect_cmd(source_file: str, test_command: str,
     # we MUST use that specific version for pass bisection. Otherwise, we'd be
     # analyzing the wrong compiler's pass pipeline.
 
+    # When using clang bisect mode, we only need clang (not opt/llc)
+    # We still set opt/llc to matching tools so PassBisector version check passes
+    if use_clang_bisect:
+        if use_docker and compiler_version:
+            major_version = compiler_version.split('.')[0]
+            clang_path = "clang"
+            opt_path = "opt"
+            llc_path = "llc"
+            print(f"Using clang -opt-bisect-limit mode (Docker, LLVM {major_version})")
+        elif compiler_version:
+            major_version = compiler_version.split('.')[0]
+            import shutil
+            clang_versioned = f"clang-{major_version}"
+            if shutil.which(clang_versioned):
+                clang_path = clang_versioned
+            else:
+                clang_path = "clang"
+                print(f"Warning: {clang_versioned} not found, using system clang")
+            # Try to find matching opt/llc for version check; fall back to using Docker
+            opt_versioned = f"opt-{major_version}"
+            llc_versioned = f"llc-{major_version}"
+            if shutil.which(opt_versioned) and shutil.which(llc_versioned):
+                opt_path = opt_versioned
+                llc_path = llc_versioned
+            else:
+                # Force Docker mode to skip local tool verification
+                # The clang bisect mode doesn't actually use opt/llc
+                use_docker = True
+                opt_path = "opt"
+                llc_path = "llc"
+                print(f"  Note: opt/llc-{major_version} not found locally, using Docker mode")
+            print(f"Using clang -opt-bisect-limit mode (clang={clang_path})")
+        else:
+            major_version = None
+            clang_path = "clang"
+            opt_path = "opt"
+            llc_path = "llc"
+            print("Using clang -opt-bisect-limit mode (system default)")
+
     # When using Docker, skip local tool detection
-    if use_docker and compiler_version:
+    elif use_docker and compiler_version:
         # Docker mode: tools are in container
         major_version = compiler_version.split('.')[0]
         clang_path = "clang"
@@ -443,8 +487,33 @@ def pass_bisect_cmd(source_file: str, test_command: str,
             use_instrumentation=use_instrumentation
         )
 
+        # Use clang -opt-bisect-limit mode if requested
+        if use_clang_bisect:
+            print("Using clang -mllvm -opt-bisect-limit=N for pass bisection")
+            bisector.verbose = True  # Always verbose for clang bisect
+            result = bisector.bisect_clang(source_file, test_func)
+
+            print("=== Pass Bisection Result (clang -opt-bisect-limit) ===")
+            print(f"Verdict: {result.verdict}")
+            print(f"Culprit pass: {result.culprit_pass or 'Not found'}")
+            print(f"Culprit index: {result.culprit_index}")
+            print(f"Total pass executions: {len(result.pass_pipeline)}")
+            print(f"Total tests: {result.total_tests}")
+            print()
+
+            bisector.cleanup()
+
+            return {
+                "verdict": result.verdict,
+                "culprit_pass": result.culprit_pass,
+                "culprit_index": result.culprit_index,
+                "total_passes": len(result.pass_pipeline),
+                "total_tests": result.total_tests,
+                "mode": "clang_opt_bisect_limit"
+            }
+
         # Use enhanced bisection if requested
-        if use_enhanced:
+        elif use_enhanced:
             print("Using enhanced pass bisection strategies (heuristic scoring + filtering)")
             enhanced_bisector = EnhancedPassBisector(
                 base_bisector=bisector,
@@ -826,6 +895,11 @@ def main():
                                  'If not specified, uses system default clang.')
     pass_parser.add_argument('--use-enhanced', action='store_true', default=False,
                             help='Use enhanced pass bisection with heuristic scoring (improves accuracy)')
+    pass_parser.add_argument('--use-clang-bisect', action='store_true', default=False,
+                            help='Use clang -mllvm -opt-bisect-limit=N instead of standalone opt. '
+                                 'Required for bugs that only manifest in clang integrated pipeline.')
+    pass_parser.add_argument('--use-docker', action='store_true', default=False,
+                            help='Use Docker containers for compilation (requires silkeh/clang images)')
 
     # full-pipeline command
     pipeline_parser = subparsers.add_parser(
@@ -865,7 +939,9 @@ def main():
             result = pass_bisect_cmd(args.source_file, args.test_command,
                                     args.optimization_level,
                                     compiler_version=getattr(args, 'compiler_version', None),
-                                    use_enhanced=args.use_enhanced)
+                                    use_docker=getattr(args, 'use_docker', False),
+                                    use_enhanced=args.use_enhanced,
+                                    use_clang_bisect=getattr(args, 'use_clang_bisect', False))
         elif args.command == 'full-pipeline':
             result = full_pipeline_cmd(args.source_file, args.test_command,
                                       args.test_input, args.expected_output,
