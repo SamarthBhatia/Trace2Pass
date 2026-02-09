@@ -25,6 +25,7 @@ class Database:
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row  # Return dict-like rows
         self._create_tables()
+        self._migrate_add_target_arch()
         self._migrate_location_format()
 
     def _create_tables(self):
@@ -40,6 +41,7 @@ class Database:
             stacktrace TEXT,
             compiler_name TEXT NOT NULL,
             compiler_version TEXT NOT NULL,
+            target_arch TEXT,
             optimization_level TEXT NOT NULL,
             flags TEXT,
             source_hash TEXT,
@@ -63,8 +65,16 @@ class Database:
         self.conn.executescript(schema)
         self.conn.commit()
 
+    def _migrate_add_target_arch(self):
+        """Add target_arch column to existing databases that lack it."""
+        try:
+            self.conn.execute("SELECT target_arch FROM reports LIMIT 1")
+        except sqlite3.OperationalError:
+            self.conn.execute("ALTER TABLE reports ADD COLUMN target_arch TEXT")
+            self.conn.commit()
+
     def _migrate_location_format(self):
-        """Migrate old colon-delimited locations to URL-encoded pipe format.
+        r"""Migrate old colon-delimited locations to URL-encoded pipe format.
 
         This handles backwards compatibility for existing database entries that use
         the old "file:line:function" format.
@@ -194,11 +204,11 @@ class Database:
                 """
                 INSERT INTO reports (
                     report_id, timestamp, check_type, location, pc,
-                    stacktrace, compiler_name, compiler_version,
+                    stacktrace, compiler_name, compiler_version, target_arch,
                     optimization_level, flags, source_hash, binary_checksum,
                     check_details, system_info, dedupe_hash,
                     frequency, first_seen, last_seen, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     report['report_id'],
@@ -209,6 +219,7 @@ class Database:
                     json.dumps(report.get('stacktrace', [])),
                     report['compiler']['name'],
                     report['compiler']['version'],
+                    report['compiler'].get('target'),
                     report['build_info']['optimization_level'],
                     json.dumps(report['build_info'].get('flags', [])),
                     report['build_info'].get('source_hash'),
@@ -437,8 +448,8 @@ class Database:
             'stacktrace': json.loads(flat['stacktrace']) if flat.get('stacktrace') else [],
             'compiler': {
                 'name': flat['compiler_name'],
-                'version': flat['compiler_version']
-                # Note: target_arch column doesn't exist yet, omitted
+                'version': flat['compiler_version'],
+                'target': flat.get('target_arch')
             },
             'build_info': {
                 'optimization_level': flat['optimization_level'],
@@ -486,6 +497,7 @@ class Database:
     def get_stats(self) -> Dict[str, Any]:
         """Get dashboard statistics."""
         total_reports = self.conn.execute("SELECT COUNT(*) FROM reports").fetchone()[0]
+        total_occurrences = self.conn.execute("SELECT COALESCE(SUM(frequency), 0) FROM reports").fetchone()[0]
         unique_bugs = self.conn.execute("SELECT COUNT(DISTINCT dedupe_hash) FROM reports").fetchone()[0]
         new_count = self.conn.execute("SELECT COUNT(*) FROM reports WHERE status = 'new'").fetchone()[0]
         diagnosed_count = self.conn.execute("SELECT COUNT(*) FROM reports WHERE status = 'diagnosed'").fetchone()[0]
@@ -503,6 +515,7 @@ class Database:
 
         return {
             'total_reports': total_reports,
+            'total_occurrences': total_occurrences,
             'unique_bugs': unique_bugs,
             'new_reports': new_count,
             'diagnosed_reports': diagnosed_count,

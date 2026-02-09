@@ -6,6 +6,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/Support/raw_ostream.h"
@@ -13,6 +14,12 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include <cstdlib>  // for getenv
 #include <cstring>  // for strcmp
+
+// LLVM API compatibility: getOrInsertDeclaration was added in LLVM 20,
+// replacing the older getDeclaration
+#if LLVM_VERSION_MAJOR < 20
+#define getOrInsertDeclaration getDeclaration
+#endif
 
 using namespace llvm;
 
@@ -31,7 +38,7 @@ private:
   bool instrumentDivisionByZero(Function &F);
   bool instrumentPureFunctionCalls(Function &F);
   bool instrumentLoopBounds(Function &F);
-  void insertOverflowCheck(IRBuilder<> &Builder, Instruction *I,
+  bool insertOverflowCheck(IRBuilder<> &Builder, Instruction *I,
                            Value *LHS, Value *RHS);
   void insertShiftCheck(IRBuilder<> &Builder, Instruction *I,
                         Value *ShiftValue, Value *ShiftAmount);
@@ -95,49 +102,37 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
 
   bool Modified = false;
 
-  // Configuration: Production (5/8 checks, 4% overhead) vs. Test (8/8 checks, all features)
-  // Set TRACE2PASS_ENABLE_ALL_CHECKS=1 to enable all checks for testing
-  const char* enable_all = getenv("TRACE2PASS_ENABLE_ALL_CHECKS");
-  bool test_mode = (enable_all && strcmp(enable_all, "1") == 0);
+  // Configuration: Per-check toggles for fine-grained control
+  //
+  // Always-on checks (production mode, ~4% overhead):
+  //   Arithmetic overflow, unreachable code, division-by-zero, pure functions, shift
+  //
+  // Optional checks (disabled by default due to higher overhead):
+  //   TRACE2PASS_ENABLE_GEP_BOUNDS=1       GEP bounds checking (~18% overhead)
+  //   TRACE2PASS_ENABLE_SIGN_CONVERSION=1  Sign conversion detection (~280% overhead)
+  //   TRACE2PASS_ENABLE_LOOP_BOUNDS=1      Loop iteration bounds (~12.7% overhead)
+  //   TRACE2PASS_ENABLE_ALL_CHECKS=1       Enable ALL checks (overrides above)
+  //
+  auto envIsSet = [](const char *name) -> bool {
+    const char *val = getenv(name);
+    return val && strcmp(val, "1") == 0;
+  };
 
-  if (test_mode) {
-    // TEST MODE: Enable ALL 8 checks for correctness validation
-    // WARNING: 300%+ overhead - only for testing, not production!
-    Modified |= instrumentArithmeticOperations(F);
-    Modified |= instrumentUnreachableCode(F);
-    Modified |= instrumentMemoryAccess(F);           // GEP bounds (18% overhead)
-    Modified |= instrumentSignConversions(F);        // Sign conversions (280% overhead)
-    Modified |= instrumentDivisionByZero(F);
-    Modified |= instrumentPureFunctionCalls(F);
-    Modified |= instrumentLoopBounds(F);             // Loop bounds (12.7% overhead)
-  } else {
-    // PRODUCTION MODE: 5/8 checks achieving 4.0% overhead on SQLite at -O2
-    // Tested all disabled checks - none can be added while staying under 10% target:
-    //   - Sign conversions (refined): 280% overhead
-    //   - GEP bounds (with sampling): 18% overhead
-    //   - Loop bounds (non-atomic): 12.7% overhead
+  bool all_checks   = envIsSet("TRACE2PASS_ENABLE_ALL_CHECKS");
+  bool enable_gep   = all_checks || envIsSet("TRACE2PASS_ENABLE_GEP_BOUNDS");
+  bool enable_sign  = all_checks || envIsSet("TRACE2PASS_ENABLE_SIGN_CONVERSION");
+  bool enable_loop  = all_checks || envIsSet("TRACE2PASS_ENABLE_LOOP_BOUNDS");
 
-    // Instrument arithmetic operations (overflow detection)
-    Modified |= instrumentArithmeticOperations(F);
+  // Always-on checks (production)
+  Modified |= instrumentArithmeticOperations(F);
+  Modified |= instrumentUnreachableCode(F);
+  Modified |= instrumentDivisionByZero(F);
+  Modified |= instrumentPureFunctionCalls(F);
 
-    // Instrument unreachable code (CFI violation)
-    Modified |= instrumentUnreachableCode(F);
-
-    // DISABLED: GEP bounds - 18% overhead even with sampling
-    // Modified |= instrumentMemoryAccess(F);
-
-    // DISABLED: Sign conversions - even refined version has 280% overhead
-    // Modified |= instrumentSignConversions(F);
-
-    // Instrument division by zero (critical bug detection)
-    Modified |= instrumentDivisionByZero(F);
-
-    // Instrument pure function consistency
-    Modified |= instrumentPureFunctionCalls(F);
-
-    // DISABLED: Loop bounds - adds 12.9% overhead (close to 10% target)
-    // Modified |= instrumentLoopBounds(F);
-  }
+  // Optional checks (individually toggleable)
+  if (enable_gep)   Modified |= instrumentMemoryAccess(F);
+  if (enable_sign)  Modified |= instrumentSignConversions(F);
+  if (enable_loop)  Modified |= instrumentLoopBounds(F);
 
   if (Modified) {
     errs() << "Trace2Pass: Instrumented " << NumInstrumented
@@ -352,17 +347,17 @@ bool Trace2PassInstrumentorPass::instrumentArithmeticOperations(Function &F) {
     Value *LHS = I->getOperand(0);
     Value *RHS = I->getOperand(1);
 
-    // Insert overflow check
-    insertOverflowCheck(Builder, I, LHS, RHS);
-
-    Modified = true;
-    NumInstrumented++;
+    // Insert overflow check (only counts if nsw/nuw flags present)
+    if (insertOverflowCheck(Builder, I, LHS, RHS)) {
+      Modified = true;
+      NumInstrumented++;
+    }
   }
 
   return Modified;
 }
 
-void Trace2PassInstrumentorPass::insertOverflowCheck(IRBuilder<> &Builder,
+bool Trace2PassInstrumentorPass::insertOverflowCheck(IRBuilder<> &Builder,
                                                       Instruction *I,
                                                       Value *LHS, Value *RHS) {
   Module &M = *I->getModule();
@@ -372,7 +367,7 @@ void Trace2PassInstrumentorPass::insertOverflowCheck(IRBuilder<> &Builder,
   // Handle shift operations separately (no intrinsic available)
   if (I->getOpcode() == Instruction::Shl) {
     insertShiftCheck(Builder, I, LHS, RHS);
-    return;
+    return true;  // Shift checks always instrument
   }
 
   // Determine if we should check signed or unsigned overflow
@@ -403,7 +398,7 @@ void Trace2PassInstrumentorPass::insertOverflowCheck(IRBuilder<> &Builder,
   // (Previous buggy behavior: defaulted to signed, causing false positives)
   if (!checkSigned && !checkUnsigned) {
     // No overflow flags present - wrapping is legal, nothing to instrument
-    return;
+    return false;
   }
 
   // Lambda to emit a single overflow check for given signedness
@@ -511,9 +506,13 @@ void Trace2PassInstrumentorPass::insertOverflowCheck(IRBuilder<> &Builder,
   }
 
   // Replace uses of the original instruction with our computed result
+  // and erase the dead instruction to keep the IR clean
   if (FinalResult) {
     I->replaceAllUsesWith(FinalResult);
+    I->eraseFromParent();
   }
+
+  return true;
 }
 
 void Trace2PassInstrumentorPass::insertShiftCheck(IRBuilder<> &Builder,
@@ -1107,7 +1106,7 @@ FunctionCallee Trace2PassInstrumentorPass::getBoundsViolationReportFunc(Module &
   Type *VoidPtrTy = PointerType::getUnqual(Ctx);
   Type *CharPtrTy = PointerType::getUnqual(Ctx);
   Type *I32Ty = Type::getInt32Ty(Ctx);
-  Type *SizeTy = Type::getInt64Ty(Ctx); // size_t is i64 on 64-bit systems
+  Type *SizeTy = M.getDataLayout().getIntPtrType(Ctx); // Matches size_t on any target
 
   FunctionType *FT = FunctionType::get(
       VoidTy,

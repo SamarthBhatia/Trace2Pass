@@ -118,11 +118,17 @@ static int bloom_check_and_insert(uint64_t* bloom, uint64_t hash) {
     return (old_value & bit) != 0;  // Returns 1 if already present
 }
 
-// Helper: Format timestamp
+// Helper: Format timestamp (thread-safe using gmtime_r)
 static void get_timestamp(char* buf, size_t len) {
     time_t now = time(NULL);
-    struct tm* tm_info = gmtime(&now);
-    strftime(buf, len, "%Y-%m-%dT%H:%M:%SZ", tm_info);
+    struct tm tm_storage;
+    struct tm* tm_info = gmtime_r(&now, &tm_storage);
+    if (tm_info) {
+        strftime(buf, len, "%Y-%m-%dT%H:%M:%SZ", tm_info);
+    } else {
+        strncpy(buf, "1970-01-01T00:00:00Z", len);
+        buf[len - 1] = '\0';
+    }
 }
 
 // Helper: Serialize compiler flags as JSON array
@@ -1236,8 +1242,9 @@ void trace2pass_check_pure_consistency(void* pc, const char* file, int line, con
                                         int64_t result) {
     uint64_t func_hash = hash_string(func_name);
 
-    // Compute cache index
-    uint64_t combined_hash = func_hash ^ ((uint64_t)arg0) ^ ((uint64_t)arg1 << 16);
+    // Compute cache index using multiplicative hash to reduce collisions
+    // (XOR alone causes f(1,2) and f(2,1) to collide when func_hash cancels)
+    uint64_t combined_hash = func_hash * 2654435761ULL + (uint64_t)arg0 * 40503ULL + (uint64_t)arg1 * 12345ULL;
     size_t idx = combined_hash % PURE_CACHE_SIZE;
 
     pure_cache_entry_t* entry = &pure_cache[idx];
