@@ -141,6 +141,59 @@ class PassBisector:
             # Run command directly
             return subprocess.run(cmd, **kwargs)
 
+    def _run_test_in_docker(self, binary_path: str, test_func: Callable[[str], bool]) -> bool:
+        """
+        Run a test binary inside Docker and apply the test function to the output.
+
+        When bisecting in Docker mode, compiled binaries are Linux ELF files that
+        cannot execute on a non-Linux host (e.g., macOS ARM64). This method runs
+        the binary inside the same Docker image, captures its output and exit code,
+        and feeds a wrapper to the test function that replays that output.
+
+        Args:
+            binary_path: Path to the compiled binary (on host filesystem)
+            test_func: Test function expecting a binary path, returns True if test passes
+
+        Returns:
+            True if test passes (no bug), False if bug manifests
+        """
+        binary_dir = os.path.dirname(os.path.abspath(binary_path))
+        docker_cmd = [
+            "docker", "run", "--rm",
+            "-v", f"{binary_dir}:{binary_dir}",
+            "-w", binary_dir,
+            f"silkeh/clang:{self.docker_version}",
+            binary_path
+        ]
+
+        try:
+            result = subprocess.run(
+                docker_cmd, capture_output=True, timeout=15, text=True
+            )
+        except (subprocess.TimeoutExpired, OSError):
+            return False
+
+        # Create a wrapper script on host that replays Docker's stdout/stderr/exitcode
+        # so the existing test_func can evaluate the result
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.sh', delete=False, dir=binary_dir) as wrapper:
+            # Shell script that outputs what Docker captured and exits with same code
+            wrapper.write("#!/bin/sh\n")
+            # Use printf to avoid echo portability issues
+            stdout_escaped = result.stdout.replace("\\", "\\\\").replace("'", "'\\''")
+            wrapper.write(f"printf '%s' '{stdout_escaped}'\n")
+            if result.stderr:
+                stderr_escaped = result.stderr.replace("\\", "\\\\").replace("'", "'\\''")
+                wrapper.write(f"printf '%s' '{stderr_escaped}' >&2\n")
+            wrapper.write(f"exit {result.returncode}\n")
+            wrapper_path = wrapper.name
+
+        os.chmod(wrapper_path, 0o755)
+        try:
+            return test_func(wrapper_path)
+        finally:
+            os.unlink(wrapper_path)
+
     def _get_tool_version(self, tool_path: str) -> Optional[str]:
         """
         Extract LLVM version from tool (clang, opt, or llc).
@@ -423,8 +476,12 @@ class PassBisector:
             return False, details
 
         # Run test function
+        # When using Docker, the binary is a Linux ELF — run it inside Docker
         try:
-            test_passed = test_func(binary_file)
+            if self.use_docker and self.docker_version:
+                test_passed = self._run_test_in_docker(binary_file, test_func)
+            else:
+                test_passed = test_func(binary_file)
             details["test_result"] = "pass" if test_passed else "fail"
             return test_passed, details
         except Exception as e:

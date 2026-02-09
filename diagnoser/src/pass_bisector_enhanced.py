@@ -15,6 +15,7 @@ Author: Enhanced for Trace2Pass
 
 from typing import List, Dict, Set, Tuple, Optional
 import subprocess
+import tempfile
 from dataclasses import dataclass
 
 
@@ -133,9 +134,9 @@ class PassFilter:
             # Unknown bug type, return all passes
             return all_passes, list(range(len(all_passes)))
 
-        suspects = cls.PASS_SUSPECTS[bug_type]['primary']
+        suspects = list(cls.PASS_SUSPECTS[bug_type]['primary'])
         if use_secondary:
-            suspects.extend(cls.PASS_SUSPECTS[bug_type]['secondary'])
+            suspects = suspects + cls.PASS_SUSPECTS[bug_type]['secondary']
 
         # Find passes in pipeline that match suspects
         filtered = []
@@ -555,6 +556,84 @@ class EnhancedPassBisector:
         if self.verbose:
             print(f"[EnhancedPassBisector] {msg}")
 
+    @staticmethod
+    def _extract_subpasses(pass_name: str) -> List[str]:
+        """Extract individual sub-passes from a nested pass manager string.
+
+        e.g. 'cgscc(devirt<4>(inline,gvn<>,dse))' -> ['inline', 'gvn<>', 'dse']
+        Pass managers use '(' for sub-pass lists and '<' for parameters.
+        We find the outermost '(' and extract/split its contents.
+        """
+        # Find the outermost '(' — this contains sub-passes
+        # (angle brackets '<>' are parameters, not sub-pass lists)
+        first_paren = pass_name.find('(')
+
+        if first_paren == -1:
+            # No parentheses, return single pass (strip any <params>)
+            return [pass_name.strip()] if pass_name.strip() else []
+
+        # Find matching ')' for this '('
+        depth = 0
+        match_close = -1
+        for i in range(first_paren, len(pass_name)):
+            if pass_name[i] == '(':
+                depth += 1
+            elif pass_name[i] == ')':
+                depth -= 1
+                if depth == 0:
+                    match_close = i
+                    break
+
+        if match_close == -1:
+            return [pass_name.strip()]
+
+        inner = pass_name[first_paren + 1:match_close].strip()
+        if not inner:
+            return []
+
+        # Check if inner content has a top-level comma
+        # (if not, it might be a single nested pass manager we should recurse into)
+        depth = 0
+        has_top_level_comma = False
+        for ch in inner:
+            if ch in '(<':
+                depth += 1
+            elif ch in ')>':
+                depth -= 1
+            elif ch == ',' and depth == 0:
+                has_top_level_comma = True
+                break
+
+        if not has_top_level_comma:
+            # Single item inside — might itself contain sub-passes
+            if '(' in inner:
+                return EnhancedPassBisector._extract_subpasses(inner)
+            return [inner.strip()] if inner.strip() else []
+
+        # Split on top-level commas (respecting nesting depth)
+        passes = []
+        current = []
+        depth = 0
+        for ch in inner:
+            if ch in '(<':
+                depth += 1
+                current.append(ch)
+            elif ch in ')>':
+                depth -= 1
+                current.append(ch)
+            elif ch == ',' and depth == 0:
+                token = ''.join(current).strip()
+                if token:
+                    passes.append(token)
+                current = []
+            else:
+                current.append(ch)
+        token = ''.join(current).strip()
+        if token:
+            passes.append(token)
+
+        return passes
+
     def bisect_enhanced(
         self,
         source_file: str,
@@ -563,14 +642,18 @@ class EnhancedPassBisector:
         strategies: List[str] = None
     ) -> EnhancedBisectionResult:
         """
-        Enhanced bisection with multiple strategies.
+        Enhanced bisection with actual compile-and-test verification.
+
+        Uses heuristic-guided binary search: probes heuristic-ranked suspect
+        indices first to quickly narrow the search region, then binary searches
+        within the identified region.
 
         Args:
             source_file: Source file with bug
             bug_type: Type of anomaly
-            test_func: Test function (returns True if passes)
+            test_func: Test function (returns True if test passes / no bug)
             strategies: List of strategies to use (default: all)
-                       ['filter', 'combination', 'heuristic', 'differential']
+                       ['filter', 'heuristic', 'combination']
 
         Returns:
             EnhancedBisectionResult
@@ -579,7 +662,11 @@ class EnhancedPassBisector:
             strategies = ['filter', 'heuristic', 'combination']
 
         # Extract full pass pipeline
-        pass_pipeline = self.base.extract_pass_pipeline(source_file)
+        try:
+            pass_pipeline = self.base.extract_pass_pipeline(source_file)
+        except Exception as e:
+            self._log(f"Failed to extract pipeline: {e}")
+            pass_pipeline = []
 
         if not pass_pipeline:
             return EnhancedBisectionResult(
@@ -593,76 +680,247 @@ class EnhancedPassBisector:
 
         self._log(f"Total passes in pipeline: {len(pass_pipeline)}")
 
-        # Strategy 1: Bug-type filtering + heuristic scoring
-        if 'filter' in strategies or 'heuristic' in strategies:
-            self._log(f"Strategy: Bug-type filtering for '{bug_type}'")
+        tested_indices = []
+        total_tests = 0
 
-            # Get ordered list of suspects
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # ── Phase 1: Validate baseline and full pipeline ──
+            self._log("Phase 1: Validating baseline and full pipeline")
+
+            # Test 0 passes (baseline) — must PASS
+            baseline_ok, _ = self.base._compile_and_test_with_passes(
+                source_file, pass_pipeline, 0, test_func, tmpdir
+            )
+            tested_indices.append(0)
+            total_tests += 1
+
+            if not baseline_ok:
+                self._log("Baseline (0 passes) fails — not an optimization bug")
+                return EnhancedBisectionResult(
+                    culprit_passes=[],
+                    culprit_indices=[],
+                    confidence=1.0,
+                    strategy_used='baseline_check',
+                    all_candidates=[],
+                    verdict='baseline_fails'
+                )
+
+            # Test all passes — must FAIL
+            full_ok, _ = self.base._compile_and_test_with_passes(
+                source_file, pass_pipeline, len(pass_pipeline), test_func, tmpdir
+            )
+            tested_indices.append(len(pass_pipeline))
+            total_tests += 1
+
+            if full_ok:
+                self._log("Full pipeline passes — bug does not manifest")
+                # Fall through to combination testing if enabled
+                if 'combination' not in strategies:
+                    return EnhancedBisectionResult(
+                        culprit_passes=[],
+                        culprit_indices=[],
+                        confidence=1.0,
+                        strategy_used='full_check',
+                        all_candidates=[],
+                        verdict='full_passes'
+                    )
+                # Skip to Phase 4 (combination testing)
+                return self._try_combination_testing(
+                    source_file, bug_type, test_func, pass_pipeline,
+                    tmpdir, tested_indices, total_tests
+                )
+
+            # ── Phase 2: Heuristic-guided binary search ──
+            self._log(f"Phase 2: Heuristic-guided binary search for '{bug_type}'")
+
+            # Get heuristic-ordered suspect indices
             test_order = IterativePassBisector.generate_test_order(
                 pass_pipeline, bug_type
             )
+            self._log(f"Heuristic ordering: {len(test_order)} suspects from {len(pass_pipeline)} passes")
 
-            self._log(f"Filtered to {len(test_order)} suspect passes (from {len(pass_pipeline)})")
+            # Probe suspect indices to find a failing prefix quickly
+            left = 0   # known good
+            right = len(pass_pipeline)  # known bad
 
-            # Test each suspect in order
-            for idx in test_order[:10]:  # Test top 10 suspects
-                pass_name = pass_pipeline[idx]
-                self._log(f"Testing suspect: {pass_name} (index {idx})")
+            # Probe top suspects as midpoints to narrow the search faster
+            for probe_idx in test_order[:10]:
+                # probe_idx is a pass index; test with passes[0..probe_idx+1]
+                num_passes = probe_idx + 1
+                if num_passes in tested_indices:
+                    continue
+                if num_passes <= left or num_passes >= right:
+                    continue
 
-                # Test with passes up to and including this one
-                # (Implementation would call base bisector's test method)
-                # For now, return as top candidate
+                probe_ok, _ = self.base._compile_and_test_with_passes(
+                    source_file, pass_pipeline, num_passes, test_func, tmpdir
+                )
+                tested_indices.append(num_passes)
+                total_tests += 1
 
-                # Score this candidate
-                score = PassHeuristicScorer.score_pass(
-                    pass_name, idx, len(pass_pipeline), bug_type
+                if probe_ok:
+                    # Passes up to probe_idx are good
+                    if num_passes > left:
+                        left = num_passes
+                        self._log(f"  Probe {num_passes}: PASS (new left={left})")
+                else:
+                    # Bug manifests at probe_idx
+                    if num_passes < right:
+                        right = num_passes
+                        self._log(f"  Probe {num_passes}: FAIL (new right={right})")
+                    break  # Found a tighter upper bound, proceed to binary search
+
+            # Standard binary search between left and right
+            self._log(f"Binary search between {left} and {right}")
+            while left < right - 1:
+                mid = (left + right) // 2
+                if mid in tested_indices:
+                    # Already tested; decide direction based on neighbors
+                    # This shouldn't happen often, but handle gracefully
+                    left = mid
+                    continue
+
+                mid_ok, _ = self.base._compile_and_test_with_passes(
+                    source_file, pass_pipeline, mid, test_func, tmpdir
+                )
+                tested_indices.append(mid)
+                total_tests += 1
+
+                if mid_ok:
+                    left = mid
+                    self._log(f"  mid={mid}: PASS")
+                else:
+                    right = mid
+                    self._log(f"  mid={mid}: FAIL")
+
+            # Culprit is the pass at index right-1
+            culprit_idx = right - 1
+            culprit_pass = pass_pipeline[culprit_idx]
+            self._log(f"Phase 2 culprit: {culprit_pass} at index {culprit_idx}")
+
+            # ── Phase 3: Sub-pass decomposition ──
+            subpasses = self._extract_subpasses(culprit_pass)
+            if len(subpasses) > 1:
+                self._log(f"Phase 3: Decomposing nested pass into {len(subpasses)} sub-passes")
+                # Build prefix up to (but not including) the culprit
+                prefix = pass_pipeline[:culprit_idx]
+                # Binary search within subpasses
+                sub_left = 0
+                sub_right = len(subpasses)
+
+                # Test prefix + all subpasses should FAIL (same as prefix + culprit)
+                # Test prefix alone should PASS (we already know left passes)
+                # Binary search over subpasses
+                while sub_left < sub_right - 1:
+                    sub_mid = (sub_left + sub_right) // 2
+                    test_pipeline = prefix + subpasses[:sub_mid]
+                    sub_ok, _ = self.base._compile_and_test_with_passes(
+                        source_file, test_pipeline, len(test_pipeline),
+                        test_func, tmpdir
+                    )
+                    total_tests += 1
+
+                    if sub_ok:
+                        sub_left = sub_mid
+                    else:
+                        sub_right = sub_mid
+
+                sub_culprit = subpasses[sub_right - 1] if sub_right > 0 else culprit_pass
+                self._log(f"Phase 3 sub-pass culprit: {sub_culprit}")
+
+                # Build score-based candidates list
+                all_candidates = self._build_candidates(pass_pipeline, bug_type)
+
+                return EnhancedBisectionResult(
+                    culprit_passes=[sub_culprit],
+                    culprit_indices=[culprit_idx],
+                    confidence=1.0,
+                    strategy_used='heuristic_bisect+subpass',
+                    all_candidates=all_candidates,
+                    verdict='bisected'
                 )
 
-                # If high confidence, return
-                if score > 0.7:
-                    return EnhancedBisectionResult(
-                        culprit_passes=[pass_name],
-                        culprit_indices=[idx],
-                        confidence=score,
-                        strategy_used='filter+heuristic',
-                        all_candidates=[(pass_name, score)],
-                        verdict='high_confidence'
-                    )
+            # Build score-based candidates list
+            all_candidates = self._build_candidates(pass_pipeline, bug_type)
 
-        # Strategy 2: Combination testing
-        if 'combination' in strategies:
-            self._log("Strategy: Testing known problematic combinations")
-
-            combinations = PassCombinationTester.get_combinations_to_test(
-                pass_pipeline, bug_type
+            return EnhancedBisectionResult(
+                culprit_passes=[culprit_pass],
+                culprit_indices=[culprit_idx],
+                confidence=1.0,
+                strategy_used='heuristic_bisect',
+                all_candidates=all_candidates,
+                verdict='bisected'
             )
 
-            self._log(f"Found {len(combinations)} combinations to test")
+    def _try_combination_testing(
+        self,
+        source_file: str,
+        bug_type: str,
+        test_func,
+        pass_pipeline: List[str],
+        tmpdir: str,
+        tested_indices: List[int],
+        total_tests: int
+    ) -> EnhancedBisectionResult:
+        """Phase 4: Test known problematic pass combinations."""
+        self._log("Phase 4: Combination testing")
 
-            # Test combinations
-            # (Implementation would test each combination)
-            # Return if found
+        combinations = PassCombinationTester.get_combinations_to_test(
+            pass_pipeline, bug_type
+        )
+        self._log(f"Found {len(combinations)} combinations to test")
 
-        # Fallback: Return top candidates with confidence scores
+        for combo_indices in combinations:
+            # Build a pipeline with only the passes at these indices
+            combo_pipeline = [pass_pipeline[i] for i in combo_indices]
+            combo_ok, _ = self.base._compile_and_test_with_passes(
+                source_file, combo_pipeline, len(combo_pipeline),
+                test_func, tmpdir
+            )
+            total_tests += 1
+
+            if not combo_ok:
+                # This combination triggers the bug
+                combo_names = [pass_pipeline[i] for i in combo_indices]
+                self._log(f"Combination triggers bug: {combo_names}")
+
+                all_candidates = self._build_candidates(pass_pipeline, bug_type)
+                return EnhancedBisectionResult(
+                    culprit_passes=combo_names,
+                    culprit_indices=combo_indices,
+                    confidence=0.9,
+                    strategy_used='combination',
+                    all_candidates=all_candidates,
+                    verdict='bisected_combination'
+                )
+
+        # No combination found
+        all_candidates = self._build_candidates(pass_pipeline, bug_type)
+        return EnhancedBisectionResult(
+            culprit_passes=[],
+            culprit_indices=[],
+            confidence=0.0,
+            strategy_used='combination',
+            all_candidates=all_candidates,
+            verdict='full_passes'
+        )
+
+    def _build_candidates(
+        self,
+        pass_pipeline: List[str],
+        bug_type: str
+    ) -> List[Tuple[str, float]]:
+        """Build a scored candidate list for the result."""
         test_order = IterativePassBisector.generate_test_order(
             pass_pipeline, bug_type
         )
-
-        top_candidates = []
+        candidates = []
         for idx in test_order[:5]:
             score = PassHeuristicScorer.score_pass(
                 pass_pipeline[idx], idx, len(pass_pipeline), bug_type
             )
-            top_candidates.append((pass_pipeline[idx], score))
-
-        return EnhancedBisectionResult(
-            culprit_passes=[pass_pipeline[test_order[0]]],
-            culprit_indices=[test_order[0]],
-            confidence=top_candidates[0][1],
-            strategy_used='heuristic_fallback',
-            all_candidates=top_candidates,
-            verdict='moderate_confidence'
-        )
+            candidates.append((pass_pipeline[idx], score))
+        return candidates
 
 
 # ============================================================================

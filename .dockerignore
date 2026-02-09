@@ -1,0 +1,17 @@
+**/build/
+**/build-docker*/
+**/.git
+**/node_modules
+**/*.o
+**/*.so
+**/*.a
+**/._*
+evaluation/
+demo/
+docs/
+benchmarks/
+tests/
+.git/
+package-lock.json
+status.md
+CLAUDE.md

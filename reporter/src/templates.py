@@ -6,6 +6,18 @@ from typing import Dict, Any, Optional
 from abc import ABC, abstractmethod
 
 
+def _to_float(val, default=0.0):
+    """Safely convert a value to float, handling strings like '80.00%'."""
+    if isinstance(val, (int, float)):
+        return float(val)
+    if isinstance(val, str):
+        try:
+            return float(val.rstrip('%')) / (100 if '%' in val else 1)
+        except ValueError:
+            return default
+    return default
+
+
 class ReportTemplate(ABC):
     """Base class for report templates."""
 
@@ -50,7 +62,7 @@ class PlainTextTemplate(ReportTemplate):
             ub = diagnosis["ub_detection"]
             lines.append("UB Detection:")
             lines.append(f"  Verdict: {ub.get('verdict', 'unknown')}")
-            lines.append(f"  Confidence: {ub.get('confidence', 0) * 100:.1f}%")
+            lines.append(f"  Confidence: {_to_float(ub.get('confidence', 0)) * 100:.1f}%")
             lines.append(f"  UBSan Clean: {ub.get('ubsan_clean', False)}")
             lines.append(f"  Optimization Sensitive: {ub.get('optimization_sensitive', False)}")
             lines.append(f"  Multi-compiler Differs: {ub.get('multi_compiler_differs', False)}")
@@ -124,7 +136,7 @@ class MarkdownTemplate(ReportTemplate):
             lines.append("## UB Detection")
             lines.append("")
             lines.append(f"- **Verdict:** {ub.get('verdict', 'unknown')}")
-            lines.append(f"- **Confidence:** {ub.get('confidence', 0) * 100:.1f}%")
+            lines.append(f"- **Confidence:** {_to_float(ub.get('confidence', 0)) * 100:.1f}%")
             lines.append(f"- **UBSan Clean:** {ub.get('ubsan_clean', False)}")
             lines.append(f"- **Optimization Sensitive:** {ub.get('optimization_sensitive', False)}")
             lines.append(f"- **Multi-compiler Differs:** {ub.get('multi_compiler_differs', False)}")
