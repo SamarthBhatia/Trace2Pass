@@ -222,6 +222,33 @@ echo "  NOTE: Negative test compiled WITHOUT TRACE2PASS_ENABLE_LOOP_BOUNDS"
 echo "  to verify check is disabled by default."
 echo ""
 
+echo "============================================================"
+echo "  CHECK TYPE 9: Right Shift (ashr/lshr) Detection"
+echo "============================================================"
+echo ""
+run_validation_test "rshift" "test_rshift_detection.c" "arithmetic_overflow" 1
+
+echo "============================================================"
+echo "  CHECK TYPE 10: Select Consistency (Negative Test)"
+echo "  (Requires TRACE2PASS_ENABLE_SELECT_CHECK=1)"
+echo "============================================================"
+echo ""
+run_negative_test "select_consistency" "test_select_detection.c" "select_inconsistency" "TRACE2PASS_ENABLE_SELECT_CHECK=1"
+
+echo "============================================================"
+echo "  CHECK TYPE 11: Range Metadata Verification (Negative Test)"
+echo "  (Requires TRACE2PASS_ENABLE_RANGE_CHECK=1)"
+echo "============================================================"
+echo ""
+run_negative_test "range_check" "test_range_check_detection.c" "range_violation" "TRACE2PASS_ENABLE_RANGE_CHECK=1"
+
+echo "============================================================"
+echo "  CHECK TYPE 12: Store-Load Consistency (Negative Test)"
+echo "  (Requires TRACE2PASS_ENABLE_STORE_LOAD_CHECK=1)"
+echo "============================================================"
+echo ""
+run_negative_test "storeload_check" "test_storeload_detection.c" "store_load_inconsistency" "TRACE2PASS_ENABLE_STORE_LOAD_CHECK=1"
+
 echo ""
 echo "============================================================"
 echo "  RESULTS SUMMARY"

@@ -40,6 +40,22 @@ void trace2pass_report_unreachable(void* pc, const char* file, int line, const c
 void trace2pass_report_bounds_violation(void* pc, const char* file, int line, const char* function,
                                          void* ptr, size_t offset, size_t size);
 
+// Select Consistency Checks
+
+void trace2pass_report_select_inconsistency(void* pc, const char* file, int line, const char* function,
+                                             int64_t condition, int64_t true_val, int64_t false_val,
+                                             int64_t actual_result);
+
+// Range Verification Checks
+
+void trace2pass_report_range_violation(void* pc, const char* file, int line, const char* function,
+                                       int64_t actual_value, int64_t range_lo, int64_t range_hi);
+
+// Store-Load Consistency Checks
+
+void trace2pass_report_store_load_inconsistency(void* pc, const char* file, int line, const char* function,
+                                                 int64_t stored_value, int64_t loaded_value);
+
 // Sampling Control
 
 int trace2pass_should_sample(void);
