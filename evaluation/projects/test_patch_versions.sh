@@ -490,6 +490,31 @@ for entry in "${BUGS[@]}"; do
         2>&1) || PASS_RESULT="TIMEOUT or ERROR"
     echo "$PASS_RESULT" > "$BUG_PIPELINE_DIR/step_c3_pass_bisect.txt"
 
+    # Fallback: If opt-based bisection fails (full_passes or TIMEOUT),
+    # retry with clang -opt-bisect-limit which works for bugs that only
+    # manifest in clang's integrated pipeline (e.g., #76789)
+    if echo "$PASS_RESULT" | grep -qE "full_passes|TIMEOUT"; then
+        echo -e "    ${YELLOW}opt-based bisection inconclusive, retrying with clang -opt-bisect-limit...${NC}"
+        CLANG_BISECT_RESULT=$(timeout 300 python3 diagnose.py pass-bisect \
+            "$BUG_DIR/$test_file" \
+            "$TEST_CMD" \
+            --optimization-level="$opt_flag" \
+            --compiler-version "$PASS_BISECT_VER" \
+            --use-docker \
+            --use-clang-bisect \
+            2>&1) || CLANG_BISECT_RESULT="TIMEOUT or ERROR"
+        echo "$CLANG_BISECT_RESULT" > "$BUG_PIPELINE_DIR/step_c3_clang_bisect.txt"
+
+        # Use clang bisect result if it found a culprit
+        if echo "$CLANG_BISECT_RESULT" | grep -q '"verdict": "bisected"'; then
+            PASS_RESULT="$CLANG_BISECT_RESULT"
+            echo "$PASS_RESULT" > "$BUG_PIPELINE_DIR/step_c3_pass_bisect.txt"
+            echo -e "    ${GREEN}clang -opt-bisect-limit found culprit!${NC}"
+        else
+            echo -e "    ${YELLOW}clang -opt-bisect-limit also inconclusive${NC}"
+        fi
+    fi
+
     CULPRIT_PASS=$(echo "$PASS_RESULT" | sed -n 's/.*Culprit pass\(es\)*: \([^ ]*\).*/\2/p' | head -1)
     CULPRIT_PASS=${CULPRIT_PASS:-N/A}
     PASS_CONFIDENCE=$(echo "$PASS_RESULT" | sed -n 's/.*Confidence: \([0-9.]*%\).*/\1/p' | head -1)

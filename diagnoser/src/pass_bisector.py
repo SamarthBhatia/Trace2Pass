@@ -762,6 +762,342 @@ class PassBisector:
                 details=details
             )
 
+    def _discover_total_passes(
+        self,
+        source_file: str,
+        tmpdir: str
+    ) -> Tuple[int, List[Tuple[int, str]]]:
+        """
+        Discover total number of optimization passes by running clang with -opt-bisect-limit=-1.
+
+        This runs all passes and prints BISECT: lines to stderr showing each pass index and name.
+
+        Args:
+            source_file: Path to source C/C++ file
+            tmpdir: Temporary directory for build artifacts
+
+        Returns:
+            (max_index, passes) where passes is a list of (index, pass_name) tuples
+        """
+        self._log("Discovering total passes via -opt-bisect-limit=-1")
+
+        cmd = [self.clang_path, "-mllvm", "-opt-bisect-limit=-1",
+               self.opt_level, source_file, "-o", os.path.join(tmpdir, "discover.o"),
+               "-c"]  # Compile only (no link needed for discovery)
+        cmd.extend(self.extra_compile_flags)
+
+        try:
+            result = self._run_command(
+                cmd,
+                work_dir=tmpdir,
+                extra_mounts=[os.path.dirname(os.path.abspath(source_file))],
+                capture_output=True,
+                text=True,
+                timeout=self.timeout_sec * 2  # Allow extra time for full pipeline
+            )
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("Timeout while discovering passes with -opt-bisect-limit=-1")
+
+        # Parse BISECT: lines from stderr
+        # Format: BISECT: running pass (N) PassName on Type (Unit)
+        #     or: BISECT: NOT running pass (N) PassName on Type (Unit)
+        pattern = re.compile(
+            r'BISECT:\s+(?:running|NOT running)\s+pass\s+\((\d+)\)\s+(.+?)\s+on\s+'
+        )
+
+        passes = []
+        max_index = -1
+        for line in result.stderr.splitlines():
+            m = pattern.search(line)
+            if m:
+                idx = int(m.group(1))
+                name = m.group(2).strip()
+                passes.append((idx, name))
+                if idx > max_index:
+                    max_index = idx
+
+        if max_index < 0:
+            raise RuntimeError(
+                f"No BISECT lines found in clang stderr. "
+                f"Clang may not support -opt-bisect-limit. "
+                f"Return code: {result.returncode}\n"
+                f"Stderr (first 500 chars): {result.stderr[:500]}"
+            )
+
+        self._log(f"Discovered {len(passes)} pass executions, max index = {max_index}")
+        return max_index, passes
+
+    def _compile_with_bisect_limit(
+        self,
+        source_file: str,
+        limit: int,
+        tmpdir: str
+    ) -> Tuple[str, str]:
+        """
+        Compile source with clang -mllvm -opt-bisect-limit=<limit>.
+
+        Only the first `limit` passes are executed; the rest are skipped.
+
+        Args:
+            source_file: Path to source C/C++ file
+            limit: Pass limit (0 = no passes, -1 = all passes)
+            tmpdir: Temporary directory for build artifacts
+
+        Returns:
+            (binary_path, stderr) tuple
+        """
+        binary_path = os.path.join(tmpdir, f"test_limit_{limit}")
+
+        cmd = [self.clang_path, "-mllvm", f"-opt-bisect-limit={limit}",
+               self.opt_level, source_file, "-o", binary_path]
+        cmd.extend(self.extra_compile_flags)
+
+        # Add instrumentation flags if enabled
+        if self.use_instrumentation:
+            cmd.extend([
+                f"-fpass-plugin={self.instrumentor_so}",
+                f"-L{self.runtime_lib_dir}",
+                "-lTrace2PassRuntime",
+                "-lpthread",
+            ])
+            if sys.platform.startswith('linux') or self.use_docker:
+                cmd.append("-ldl")
+
+        try:
+            result = self._run_command(
+                cmd,
+                work_dir=tmpdir,
+                extra_mounts=[os.path.dirname(os.path.abspath(source_file))],
+                capture_output=True,
+                text=True,
+                timeout=self.timeout_sec
+            )
+        except subprocess.TimeoutExpired:
+            raise RuntimeError(f"Timeout compiling with -opt-bisect-limit={limit}")
+
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"Compilation failed with -opt-bisect-limit={limit}: {result.stderr[:500]}"
+            )
+
+        return binary_path, result.stderr
+
+    def _parse_bisect_pass_name(
+        self,
+        stderr: str,
+        target_index: int
+    ) -> Optional[str]:
+        """
+        Extract the pass name at a specific index from BISECT stderr output.
+
+        Args:
+            stderr: Stderr output from clang -mllvm -opt-bisect-limit
+            target_index: The pass index to look up
+
+        Returns:
+            Pass name string, or None if not found
+        """
+        pattern = re.compile(
+            r'BISECT:\s+(?:running|NOT running)\s+pass\s+\((\d+)\)\s+(.+?)\s+on\s+'
+        )
+        for line in stderr.splitlines():
+            m = pattern.search(line)
+            if m and int(m.group(1)) == target_index:
+                return m.group(2).strip()
+        return None
+
+    def bisect_clang(
+        self,
+        source_file: str,
+        test_func: Callable[[str], bool]
+    ) -> PassBisectionResult:
+        """
+        Bisect over clang's integrated pass pipeline using -opt-bisect-limit.
+
+        Unlike bisect() which uses standalone `opt`, this method uses
+        `clang -mllvm -opt-bisect-limit=N` to binary search within clang's
+        integrated optimization pipeline. This catches bugs that only manifest
+        in clang's pipeline (e.g., LLVM #76789 with BasicAA/LICM).
+
+        Args:
+            source_file: Path to source file exhibiting the bug
+            test_func: Function that tests a compiled binary.
+                       Returns True if test passes (no bug), False if bug manifests.
+
+        Returns:
+            PassBisectionResult with culprit pass identified
+
+        Algorithm:
+        1. Discover total passes (N) via -opt-bisect-limit=-1
+        2. Test baseline (limit=0) — should PASS (no optimization)
+        3. Test full pipeline (limit=N) — should FAIL (bug manifests)
+        4. Binary search: find smallest limit where test fails
+        5. Culprit = pass at that limit index
+        """
+        details = {
+            "source_file": source_file,
+            "opt_level": self.opt_level,
+            "clang": self.clang_path,
+            "mode": "clang_opt_bisect_limit"
+        }
+
+        tested_indices = []
+        total_tests = 0
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Step 1: Discover total passes
+            try:
+                max_index, all_passes = self._discover_total_passes(source_file, tmpdir)
+            except Exception as e:
+                return PassBisectionResult(
+                    culprit_pass=None,
+                    culprit_index=None,
+                    last_good_index=None,
+                    tested_indices=[],
+                    total_tests=0,
+                    verdict="error",
+                    pass_pipeline=[name for _, name in all_passes] if 'all_passes' in dir() else [],
+                    details={"error": f"Failed to discover passes: {str(e)}"}
+                )
+
+            pass_names = [name for _, name in all_passes]
+            details["total_pass_executions"] = len(all_passes)
+            details["max_pass_index"] = max_index
+
+            self._log(f"Max pass index: {max_index}, total executions: {len(all_passes)}")
+
+            # Step 2: Test baseline (limit=0 — no optimization passes)
+            self._log("Testing baseline (limit=0)")
+            try:
+                baseline_binary, baseline_stderr = self._compile_with_bisect_limit(
+                    source_file, 0, tmpdir
+                )
+                if self.use_docker and self.docker_version:
+                    baseline_passes = self._run_test_in_docker(baseline_binary, test_func)
+                else:
+                    baseline_passes = test_func(baseline_binary)
+                tested_indices.append(0)
+                total_tests += 1
+            except Exception as e:
+                return PassBisectionResult(
+                    culprit_pass=None, culprit_index=None, last_good_index=None,
+                    tested_indices=tested_indices, total_tests=total_tests,
+                    verdict="error", pass_pipeline=pass_names,
+                    details={**details, "error": f"Baseline compilation failed: {str(e)}"}
+                )
+
+            if not baseline_passes:
+                return PassBisectionResult(
+                    culprit_pass=None, culprit_index=None, last_good_index=None,
+                    tested_indices=tested_indices, total_tests=total_tests,
+                    verdict="baseline_fails", pass_pipeline=pass_names,
+                    details={**details, "note": "Bug manifests without optimizations (limit=0)"}
+                )
+
+            self._log("  Baseline PASS (no bug at limit=0)")
+
+            # Step 3: Test full pipeline (limit=max_index)
+            self._log(f"Testing full pipeline (limit={max_index})")
+            try:
+                full_binary, full_stderr = self._compile_with_bisect_limit(
+                    source_file, max_index, tmpdir
+                )
+                if self.use_docker and self.docker_version:
+                    full_passes = self._run_test_in_docker(full_binary, test_func)
+                else:
+                    full_passes = test_func(full_binary)
+                tested_indices.append(max_index)
+                total_tests += 1
+            except Exception as e:
+                return PassBisectionResult(
+                    culprit_pass=None, culprit_index=None, last_good_index=None,
+                    tested_indices=tested_indices, total_tests=total_tests,
+                    verdict="error", pass_pipeline=pass_names,
+                    details={**details, "error": f"Full pipeline compilation failed: {str(e)}"}
+                )
+
+            if full_passes:
+                return PassBisectionResult(
+                    culprit_pass=None, culprit_index=None,
+                    last_good_index=max_index,
+                    tested_indices=tested_indices, total_tests=total_tests,
+                    verdict="full_passes", pass_pipeline=pass_names,
+                    details={**details, "note": "Bug does not manifest with full pipeline (clang mode)"}
+                )
+
+            self._log("  Full pipeline FAIL (bug at full limit)")
+
+            # Step 4: Binary search
+            left = 0       # Known good
+            right = max_index  # Known bad
+            last_good = 0
+
+            self._log(f"Binary searching between limit {left} and {right}")
+
+            while left < right - 1:
+                mid = (left + right) // 2
+                self._log(f"  Testing limit={mid}")
+
+                try:
+                    mid_binary, mid_stderr = self._compile_with_bisect_limit(
+                        source_file, mid, tmpdir
+                    )
+                    if self.use_docker and self.docker_version:
+                        mid_passes = self._run_test_in_docker(mid_binary, test_func)
+                    else:
+                        mid_passes = test_func(mid_binary)
+                    tested_indices.append(mid)
+                    total_tests += 1
+                except Exception as e:
+                    self._log(f"  Compilation at limit={mid} failed: {e}, treating as FAIL")
+                    mid_passes = False
+                    tested_indices.append(mid)
+                    total_tests += 1
+
+                if mid_passes:
+                    left = mid
+                    last_good = mid
+                    self._log(f"    -> PASS (last good: {last_good})")
+                else:
+                    right = mid
+                    self._log(f"    -> FAIL (first bad: {right})")
+
+            # Step 5: Identify culprit pass
+            # The culprit is the pass at index `right` — the first limit that fails
+            # We need to get its name from the discovery output
+            culprit_name = None
+            for idx, name in all_passes:
+                if idx == right:
+                    culprit_name = name
+                    break
+
+            # If not found in discovery list, try parsing from a fresh compilation
+            if culprit_name is None:
+                try:
+                    _, right_stderr = self._compile_with_bisect_limit(
+                        source_file, right, tmpdir
+                    )
+                    culprit_name = self._parse_bisect_pass_name(right_stderr, right)
+                    total_tests += 1
+                except Exception:
+                    pass
+
+            culprit_name = culprit_name or f"unknown_pass_at_index_{right}"
+
+            self._log(f"Found culprit: {culprit_name} at index {right}")
+            self._log(f"Total compilations: {total_tests}")
+
+            return PassBisectionResult(
+                culprit_pass=culprit_name,
+                culprit_index=right,
+                last_good_index=last_good,
+                tested_indices=sorted(tested_indices),
+                total_tests=total_tests,
+                verdict="bisected",
+                pass_pipeline=pass_names,
+                details=details
+            )
+
     def generate_report(self, result: PassBisectionResult) -> str:
         """Generate human-readable report from bisection result."""
         lines = []
