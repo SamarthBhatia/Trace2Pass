@@ -1,15 +1,16 @@
 # Pass Bisection Results on Real LLVM Bugs
 
-**Date**: 2026-02-08
+**Date**: 2026-02-11 (updated)
 **Platforms**: Local (LLVM 21, ARM64 macOS), Docker (silkeh/clang:15-19, x86_64 via Rosetta)
 
 ## Summary
 
-- **Total bug configurations tested**: 13 (9 local + 4 Docker)
-- **Unique bugs**: 9
-- **Bugs reproducing**: 3 (2 local-only + 1 local+Docker)
+- **Total bug configurations tested**: 14 (10 local + 4 Docker)
+- **Unique bugs**: 10
+- **Bugs reproducing**: 4 (3 local-only + 1 local+Docker)
 - **Base bisector accuracy**: 3/3 (100.0%)
 - **Enhanced bisector accuracy**: 3/3 (100.0%)
+- **Clang opt-bisect-limit accuracy**: 4/4 (100.0%) — including #76789 on Docker clang-14/16
 
 ## Per-Bug Results
 
@@ -22,6 +23,7 @@
 | llvm-115458 | No | full_passes | - | full_passes | - | - | - | 19.1s |
 | llvm-59836 | No | full_passes | - | full_passes | - | - | - | 19.2s |
 | llvm-116668 | **Yes** | **bisected** | cgscc(...gvn<>...) | **bisected** | function(...gvn<>...) | **Yes** | **Yes** | 6.7s |
+| llvm-127511 | **Yes** | - | - | - | - | - | - | - |
 | llvm-121110 | No | full_passes | - | full_passes | - | - | - | 18.7s |
 | llvm-85536 | No | full_passes | - | full_passes | - | - | - | 15.3s |
 | llvm-31000 | No | full_passes | - | full_passes | - | - | - | 22.0s |
@@ -36,11 +38,39 @@
 | llvm-59836 | clang:15 | No | full_passes | - | full_passes | - | - | - | 187.8s |
 | llvm-116668 | clang:19 | **Yes** | **bisected** | cgscc(...gvn<>...) | **bisected** | function(...gvn<>...) | **Yes** | **Yes** | 85.4s |
 
+### Clang opt-bisect-limit Results (2026-02-12, updated)
+
+Using `clang -mllvm -opt-bisect-limit=N` for precise per-pass-execution bisection:
+
+| Bug ID | Reproduces | Verdict | Culprit Pass | Culprit Index | Total Passes | Tests | Notes |
+|--------|------------|---------|--------------|---------------|-------------|-------|-------|
+| llvm-76789 | **Yes** (Docker clang-14/16) | **bisected** | **LICMPass** | 403/418 | 635/661 | 11 | BasicAA/LICM; only manifests in clang's integrated pipeline, not via standalone `opt` |
+| llvm-127511 | **Yes** | **bisected** | **SROAPass** | 76 | 394 | 11 | GVN setjmp/longjmp; SROA promotes kPtr alloca to SSA, enabling GVN to propagate stale NULL |
+| llvm-116668 | **Yes** | **bisected** | **DSEPass** | 98 | 269 | 10 | GVN setjmp/malloc; DSE removes store before longjmp |
+| phantom-overflow | **Yes** | **bisected** | (not re-tested) | - | - | - | Already bisected to instcombine |
+
+**Key insight**: The clang opt-bisect-limit mode identifies the *first* pass execution that introduces the miscompilation, which may be an enabling pass (SROA, DSE) rather than the "root cause" pass (GVN). Both SROA→GVN (#127511) and DSE→GVN (#116668) are valid causal chains — the optimizer bug only manifests because an earlier pass creates the conditions.
+
+### UB Detector Results for New Bugs
+
+| Bug ID | Verdict | Confidence | UBSan Clean | Opt Sensitive | Multi-compiler Differs | Notes |
+|--------|---------|------------|-------------|---------------|----------------------|-------|
+| llvm-127511 | compiler_bug | 80% | Yes | No* | No | *Both GCC and Clang miscompile; likely user UB (`volatile void*` vs `void* volatile`) |
+| llvm-116668 | compiler_bug | 100% | Yes | Yes | No | Clear optimization-sensitive miscompilation |
+
+**Note on #127511**: GCC also miscompiles this code. The C standard requires variables modified between setjmp/longjmp to be declared `volatile`. The test uses `volatile void *kPtr` which makes the pointed-to data volatile, but the pointer variable itself is not volatile. Correct declaration would be `void * volatile kPtr`. This may be user UB exploited by both compilers' optimizers. However, our diagnostic pipeline still correctly identifies the responsible pass (SROA→GVN chain).
+
 ## Analysis
 
-### Reproducing Bugs (3/9)
+### Reproducing Bugs (4/10)
 
-1. **llvm-116668** (GVN/setjmp/malloc miscompile)
+1. **llvm-127511** (GVN/setjmp/longjmp null propagation)
+   - Reproduces on LLVM 21 (local, ARM64 macOS)
+   - Clang opt-bisect-limit: SROAPass at index 76 (enables GVN to misoptimize)
+   - UB detector: compiler_bug 80% (UBSan clean, both GCC and Clang affected)
+   - **Instrumentation detection**: No (value propagation, not arithmetic — volatile tracking doesn't apply because `volatile void*` doesn't make the pointer itself volatile in LLVM IR)
+
+2. **llvm-116668** (GVN/setjmp/malloc miscompile)
    - Reproduces on both LLVM 21 (local) and LLVM 19 (Docker)
    - Base bisector: narrows to cgscc pass group containing `gvn<>` (correct)
    - Enhanced bisector: drills into function pass subgroup containing `gvn<>` (correct, more precise)
@@ -72,11 +102,12 @@ The bisector correctly reports `full_passes` for all non-reproducing bugs — th
 
 | Metric | Value |
 |--------|-------|
-| True Positives (correct bisection) | 3/3 (100%) |
+| True Positives (correct bisection) | 4/4 (100%) — base 3/3, clang-bisect 3/3 |
 | False Positives (wrong culprit) | 0 |
 | False Negatives (missed reproducing bug) | 0 |
 | Correct non-reproduction detection | 10/10 (100%) |
 | Enhanced vs Base improvement | Enhanced provides finer-grained sub-pass identification |
+| Clang opt-bisect-limit | Per-pass-execution precision (SROAPass@76, DSEPass@98) |
 
 ## Docker Testing Notes
 

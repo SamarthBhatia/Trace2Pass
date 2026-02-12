@@ -38,9 +38,10 @@ int bar(void **ptr) {
     return 0;
 }
 
-void foo() {
+int foo() {
     volatile void *kPtr = NULL;
     static int trace = 0;
+    int bug_detected = 0;
 
     if (setjmp(buf) == 0) {
         bar((void **)&kPtr);
@@ -54,16 +55,18 @@ void foo() {
                    (void *)kPtr, ((aFlag *)kPtr)->flg);
         } else {
             printf("BUG: kPtr is NULL (GVN removed check or propagated NULL)\n");
+            bug_detected = 1;
         }
     }
     printf("trace: %d\n", trace);
+    return bug_detected;
 }
 
 int main() {
     printf("=== LLVM #127511: GVN setjmp/longjmp Bug ===\n\n");
-    foo();
+    int result = foo();
     printf("\n=== Test Complete ===\n");
     printf("If 'Flag set successfully' printed, behavior is correct.\n");
     printf("If 'BUG: kPtr is NULL' printed, GVN misoptimized.\n");
-    return 0;
+    return result;
 }
