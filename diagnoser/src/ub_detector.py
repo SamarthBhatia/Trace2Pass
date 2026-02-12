@@ -5,9 +5,10 @@ Distinguishes compiler bugs from undefined behavior in user code using multiple 
 
 Strategy:
 1. UBSan check - Recompile with -fsanitize=undefined
-2. Optimization sensitivity - Test at -O0, -O1, -O2, -O3, -Os, -Oz
-3. Multi-compiler differential - Compare GCC vs Clang
-4. Confidence scoring - Combine signals to estimate likelihood
+2. MSan check - Recompile with -fsanitize=memory (Linux only, detects uninit reads)
+3. Optimization sensitivity - Test at -O0, -O2, -O3
+4. Multi-compiler differential - Compare GCC vs Clang
+5. Confidence scoring - Combine signals to estimate likelihood
 """
 
 import subprocess
@@ -25,6 +26,7 @@ class UBDetectionResult:
     verdict: str  # "compiler_bug", "user_ub", "inconclusive"
     confidence: float  # 0.0 to 1.0
     ubsan_clean: bool
+    msan_clean: Optional[bool]  # None if MSan unavailable (e.g., macOS)
     optimization_sensitive: bool
     multi_compiler_differs: bool
     details: Dict[str, Any]
@@ -76,12 +78,15 @@ class UBDetector:
         # Signal 1: UBSan check
         ubsan_clean = self._check_ubsan(source_file, test_input, details)
 
-        # Signal 2: Optimization sensitivity
+        # Signal 2: MSan check (Linux only, detects uninitialized reads)
+        msan_clean = self._check_msan(source_file, test_input, details)
+
+        # Signal 3: Optimization sensitivity
         optimization_sensitive = self._check_optimization_sensitivity(
             source_file, test_input, expected_output, details
         )
 
-        # Signal 3: Multi-compiler differential (optional, if GCC available)
+        # Signal 4: Multi-compiler differential (optional, if GCC available)
         multi_compiler_differs = False
         if self.gcc and self.clang:
             multi_compiler_differs = self._check_multi_compiler(
@@ -104,6 +109,7 @@ class UBDetector:
                 verdict="inconclusive",
                 confidence=0.5,  # Neutral - no optimization data
                 ubsan_clean=ubsan_clean,
+                msan_clean=msan_clean,
                 optimization_sensitive=False,  # Couldn't determine
                 multi_compiler_differs=multi_compiler_differs,
                 details=details
@@ -132,6 +138,7 @@ class UBDetector:
                 verdict="inconclusive",
                 confidence=0.5,  # Neutral - we couldn't test
                 ubsan_clean=ubsan_clean,
+                msan_clean=msan_clean,
                 optimization_sensitive=False,  # Couldn't determine (override None)
                 multi_compiler_differs=multi_compiler_differs,
                 details=details
@@ -156,7 +163,7 @@ class UBDetector:
 
         # Compute confidence score
         confidence = self._compute_confidence(
-            ubsan_clean, optimization_sensitive, multi_compiler_differs, details
+            ubsan_clean, msan_clean, optimization_sensitive, multi_compiler_differs, details
         )
 
         # Determine verdict
@@ -171,6 +178,7 @@ class UBDetector:
             verdict=verdict,
             confidence=confidence,
             ubsan_clean=ubsan_clean,
+            msan_clean=msan_clean,
             optimization_sensitive=optimization_sensitive,
             multi_compiler_differs=multi_compiler_differs,
             details=details
@@ -235,6 +243,82 @@ class UBDetector:
         }
 
         return not ubsan_triggered
+
+    def _check_msan(
+        self,
+        source_file: str,
+        test_input: Optional[str],
+        details: Dict[str, Any]
+    ) -> Optional[bool]:
+        """
+        Check if code triggers MemorySanitizer (detects uninitialized reads).
+
+        MSan is only available on Linux. On macOS or if compilation fails,
+        returns None (unavailable).
+
+        Returns:
+            True if MSan clean (no issues), False if MSan triggered, None if unavailable
+        """
+        if not self.clang:
+            details['msan'] = {'error': 'clang not available'}
+            return None
+
+        binary = os.path.join(self.work_dir, "test_msan")
+
+        # Compile with MSan (requires PIE on some platforms)
+        compile_result = subprocess.run(
+            [
+                self.clang,
+                "-fsanitize=memory",
+                "-fPIE", "-pie",
+                "-g",
+                "-O0",
+                source_file,
+                "-o", binary
+            ],
+            capture_output=True,
+            text=True
+        )
+
+        if compile_result.returncode != 0:
+            # MSan unavailable (macOS, missing runtime, etc.)
+            details['msan'] = {
+                'available': False,
+                'compile_error': compile_result.stderr[:500] if compile_result.stderr else None
+            }
+            return None
+
+        # Execute with MSan
+        try:
+            run_result = subprocess.run(
+                [binary],
+                input=test_input,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+        except subprocess.TimeoutExpired:
+            details['msan'] = {
+                'available': True,
+                'timeout': True
+            }
+            return None
+
+        # Check for MSan reports in stderr
+        msan_triggered = (
+            "MemorySanitizer:" in run_result.stderr or
+            "use-of-uninitialized-value" in run_result.stderr
+        )
+
+        details['msan'] = {
+            'available': True,
+            'clean': not msan_triggered,
+            'returncode': run_result.returncode,
+            'stderr': run_result.stderr[:500] if run_result.stderr else None,
+            'stdout': run_result.stdout[:500] if run_result.stdout else None
+        }
+
+        return not msan_triggered
 
     def _check_optimization_sensitivity(
         self,
@@ -494,6 +578,7 @@ class UBDetector:
     def _compute_confidence(
         self,
         ubsan_clean: bool,
+        msan_clean: Optional[bool],
         optimization_sensitive: bool,
         multi_compiler_differs: bool,
         details: Dict[str, Any] = None
@@ -505,6 +590,9 @@ class UBDetector:
         - Start at 0.5 (baseline)
         - UBSan clean: +0.3
         - UBSan triggers: -0.4 (likely UB)
+        - MSan clean: +0.1 (mild positive, only covers uninit reads)
+        - MSan triggers: -0.5 (very strong UB signal, MSan has near-zero FP rate)
+        - MSan unavailable (None): no effect
         - Optimization sensitive (O0 works, O2 fails): +0.2
         - Multi-compiler differs (output): +0.15
         - Multi-compiler differs (crash): +0.25 (stronger signal)
@@ -519,6 +607,13 @@ class UBDetector:
             confidence += 0.3
         else:
             confidence -= 0.4  # Strong signal of UB
+
+        # MSan signal (uninit reads - very high precision)
+        if msan_clean is not None:
+            if msan_clean:
+                confidence += 0.1  # Mild positive (MSan only covers one UB class)
+            else:
+                confidence -= 0.5  # Very strong UB signal (near-zero FP rate)
 
         # Optimization sensitivity
         if optimization_sensitive:
@@ -589,6 +684,7 @@ def analyze_report(report: Dict[str, Any]) -> UBDetectionResult:
             verdict="inconclusive",
             confidence=0.0,
             ubsan_clean=False,
+            msan_clean=None,
             optimization_sensitive=False,
             multi_compiler_differs=False,
             details={
@@ -773,6 +869,40 @@ int main(void) {{
         count++;
     }}
     return count;
+}}
+"""
+
+    elif check_type == "value_propagation":
+        optimized = check_details.get('optimized_value', 0)
+        actual = check_details.get('actual_value', 0)
+
+        # Value propagation mismatches typically arise from GVN folding loads
+        # across setjmp/longjmp boundaries. Generate a reproducer that tests
+        # whether a local variable retains its modified value after longjmp.
+        return f"""// Minimal reproducer for value_propagation
+// GVN folded a load to {optimized}, but actual memory contained {actual}
+// This pattern tests whether the optimizer incorrectly propagates values
+// across setjmp/longjmp boundaries.
+
+#include <setjmp.h>
+#include <stdlib.h>
+
+static jmp_buf buf;
+
+__attribute__((noinline))
+void modify_and_longjmp(int *p) {{
+    *p = {actual};
+    longjmp(buf, 1);
+}}
+
+int main(void) {{
+    int val = {optimized};
+    if (setjmp(buf) == 0) {{
+        modify_and_longjmp(&val);
+    }}
+    // After longjmp, val should be {actual} (modified before longjmp).
+    // A GVN bug may propagate the pre-setjmp value {optimized} instead.
+    return (val == {actual}) ? 0 : 1;
 }}
 """
 

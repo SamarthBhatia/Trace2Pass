@@ -1564,6 +1564,227 @@ void trace2pass_report_range_violation(void* pc, const char* file, int line, con
     pthread_mutex_unlock(&output_mutex);
 }
 
+// Shadow memory for volatile tracking (cross-BB store-load consistency)
+// Uses a small hash map: addr → expected_value
+// Thread-safe via atomic operations on the value slots
+#define SHADOW_MAP_SIZE 4096
+#define SHADOW_MAP_MASK (SHADOW_MAP_SIZE - 1)
+
+typedef struct {
+    uintptr_t addr;   // Address being tracked (0 = empty)
+    int64_t   value;  // Last stored value
+} shadow_entry_t;
+
+static shadow_entry_t shadow_map[SHADOW_MAP_SIZE];
+
+void trace2pass_shadow_store(void* addr, int64_t value) {
+    uintptr_t key = (uintptr_t)addr;
+    // Multiplicative hash (same as pure function cache)
+    size_t idx = (size_t)((key * 0x9E3779B97F4A7C15ULL) >> 48) & SHADOW_MAP_MASK;
+
+    // Linear probe (max 4 slots)
+    for (int i = 0; i < 4; i++) {
+        size_t slot = (idx + i) & SHADOW_MAP_MASK;
+        uintptr_t existing = __atomic_load_n(&shadow_map[slot].addr, __ATOMIC_RELAXED);
+        if (existing == key || existing == 0) {
+            __atomic_store_n(&shadow_map[slot].addr, key, __ATOMIC_RELAXED);
+            __atomic_store_n(&shadow_map[slot].value, value, __ATOMIC_RELEASE);
+            return;
+        }
+    }
+    // All 4 slots full — evict first slot
+    size_t slot = idx & SHADOW_MAP_MASK;
+    __atomic_store_n(&shadow_map[slot].addr, key, __ATOMIC_RELAXED);
+    __atomic_store_n(&shadow_map[slot].value, value, __ATOMIC_RELEASE);
+}
+
+void trace2pass_shadow_check(void* pc, const char* file, int line, const char* function,
+                              void* addr, int64_t loaded_value) {
+    uintptr_t key = (uintptr_t)addr;
+    size_t idx = (size_t)((key * 0x9E3779B97F4A7C15ULL) >> 48) & SHADOW_MAP_MASK;
+
+    // Linear probe (max 4 slots)
+    for (int i = 0; i < 4; i++) {
+        size_t slot = (idx + i) & SHADOW_MAP_MASK;
+        uintptr_t existing = __atomic_load_n(&shadow_map[slot].addr, __ATOMIC_RELAXED);
+        if (existing == key) {
+            int64_t expected = __atomic_load_n(&shadow_map[slot].value, __ATOMIC_ACQUIRE);
+            if (expected != loaded_value) {
+                // Mismatch! Report volatile tracking inconsistency
+                uint64_t hash = hash_report(pc, "volatile_tracking", file, line, function);
+                if (bloom_check_and_insert(seen_reports, hash)) return;
+
+                char timestamp[32];
+                get_timestamp(timestamp, sizeof(timestamp));
+
+                char callsite_id[32];
+                generate_callsite_id(pc, "volatile", callsite_id, sizeof(callsite_id));
+
+                char report_id[64];
+                generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+                char file_escaped[512];
+                json_escape_string(file ? file : "unknown", file_escaped, sizeof(file_escaped));
+
+                char function_escaped[256];
+                json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
+
+                char flags_json[2048];
+                if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
+                    strcpy(flags_json, "[\"<truncated>\"]");
+                }
+
+                char json[4096];
+                snprintf(json, sizeof(json),
+                    "{"
+                    "\"report_id\":\"%s\","
+                    "\"timestamp\":\"%s\","
+                    "\"check_type\":\"volatile_tracking\","
+                    "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
+                    "\"pc\":\"0x%llx\","
+                    "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
+                    "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":%s},"
+                    "\"check_details\":{\"address\":\"0x%llx\",\"expected_value\":%lld,\"loaded_value\":%lld}"
+                    "}",
+                    report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
+                    build_opt_level ? build_opt_level : "unknown",
+                    flags_json,
+                    (unsigned long long)(uintptr_t)addr, (long long)expected, (long long)loaded_value);
+
+                if (collector_url) {
+                    http_post_json(collector_url, json);
+                }
+
+                pthread_mutex_lock(&output_mutex);
+                FILE* out = get_output_file();
+
+                if (json_output) {
+                    fprintf(out, "%s\n", json);
+                } else {
+                    fprintf(out, "\n=== Trace2Pass Report ===\n");
+                    fprintf(out, "Timestamp: %s\n", timestamp);
+                    fprintf(out, "Type: volatile_tracking\n");
+                    fprintf(out, "Location: %s:%d in %s\n", file ? file : "unknown", line, function ? function : "unknown");
+                    fprintf(out, "PC: %p\n", pc);
+                    fprintf(out, "Address: %p\n", addr);
+                    fprintf(out, "Expected: %lld, Loaded: %lld\n", (long long)expected, (long long)loaded_value);
+                    fprintf(out, "========================\n\n");
+                }
+
+                fflush(out);
+                pthread_mutex_unlock(&output_mutex);
+            }
+            return;
+        }
+        if (existing == 0) return;  // Not found
+    }
+    // Not found — no shadow store recorded for this address
+}
+
+// Cross-BB Value Propagation: Opaque memory read
+// This function reads actual memory contents. Its value is being opaque to
+// LLVM's GVN pass — if GVN incorrectly folds a load to a constant, the
+// opaque_read still returns the real value, creating a detectable mismatch.
+// This function is declared with readonly+nounwind+willreturn in LLVM IR.
+// readonly allows GVN to fold the guarded load (exercising potential bugs),
+// while the external linkage + opaque body prevents GVN from predicting
+// the return value. DO NOT add readnone — that would let GVN eliminate the call.
+int64_t trace2pass_opaque_read(void* addr, int32_t size_bytes) {
+    if (!addr) return 0;
+    switch (size_bytes) {
+        case 1: return (int64_t)(*(uint8_t*)addr);
+        case 2: return (int64_t)(*(uint16_t*)addr);
+        case 4: return (int64_t)(*(uint32_t*)addr);
+        case 8: return (int64_t)(*(uint64_t*)addr);
+        default: return 0;
+    }
+}
+
+void trace2pass_report_value_propagation(void* pc, const char* file, int line,
+    const char* function, void* addr, int64_t optimized_value, int64_t actual_value) {
+    uint64_t hash = hash_report(pc, "value_propagation", file, line, function);
+    if (bloom_check_and_insert(seen_reports, hash)) return;
+
+    char timestamp[32];
+    get_timestamp(timestamp, sizeof(timestamp));
+
+    char callsite_id[32];
+    generate_callsite_id(pc, "valprop", callsite_id, sizeof(callsite_id));
+
+    char report_id[64];
+    generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+    char file_escaped[512];
+    json_escape_string(file ? file : "unknown", file_escaped, sizeof(file_escaped));
+
+    char function_escaped[256];
+    json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
+
+    char flags_json[2048];
+    if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
+        strcpy(flags_json, "[\"<truncated>\"]");
+    }
+
+    char json[4096];
+    snprintf(json, sizeof(json),
+        "{"
+        "\"report_id\":\"%s\","
+        "\"timestamp\":\"%s\","
+        "\"check_type\":\"value_propagation\","
+        "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
+        "\"pc\":\"0x%llx\","
+        "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":%s},"
+        "\"check_details\":{\"address\":\"0x%llx\",\"optimized_value\":%lld,\"actual_value\":%lld}"
+        "}",
+        report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
+        build_opt_level ? build_opt_level : "unknown",
+        flags_json,
+        (unsigned long long)(uintptr_t)addr, (long long)optimized_value, (long long)actual_value);
+
+    if (collector_url) {
+        http_post_json(collector_url, json);
+    }
+
+    pthread_mutex_lock(&output_mutex);
+    FILE* out = get_output_file();
+
+    if (json_output) {
+        fprintf(out, "%s\n", json);
+    } else {
+        fprintf(out, "\n=== Trace2Pass Report ===\n");
+        fprintf(out, "Timestamp: %s\n", timestamp);
+        fprintf(out, "Type: value_propagation\n");
+        fprintf(out, "Location: %s:%d in %s\n", file ? file : "unknown", line, function ? function : "unknown");
+        fprintf(out, "PC: %p\n", pc);
+        fprintf(out, "Address: %p\n", addr);
+        fprintf(out, "Optimized Value: %lld\n", (long long)optimized_value);
+        fprintf(out, "Actual Value: %lld\n", (long long)actual_value);
+        fprintf(out, "Note: GVN may have incorrectly folded a load to a constant\n");
+        fprintf(out, "========================\n\n");
+    }
+
+    fflush(out);
+    pthread_mutex_unlock(&output_mutex);
+}
+
+// Consolidated cross-BB check: reads memory, compares with optimizer's value,
+// and reports if there's a mismatch. Declared with memory(inaccessiblemem: readwrite)
+// in LLVM IR — this tells GVN the call doesn't access program-visible memory,
+// so GVN can still fold the guarded load (exercising potential bugs).
+// The "lie" is intentional: we want GVN to optimize freely, then detect mismatches.
+void trace2pass_check_cross_bb(void* addr, int32_t size_bytes,
+                                int64_t optimized_value, const char* file,
+                                int32_t line, const char* function) {
+    int64_t actual_value = trace2pass_opaque_read(addr, size_bytes);
+    if (actual_value == optimized_value) return;
+
+    // Mismatch detected — GVN likely folded a load incorrectly
+    void* pc = __builtin_return_address(0);
+    trace2pass_report_value_propagation(pc, file, line, function,
+                                         addr, optimized_value, actual_value);
+}
+
 void trace2pass_report_store_load_inconsistency(void* pc, const char* file, int line, const char* function,
                                                  int64_t stored_value, int64_t loaded_value) {
     uint64_t hash = hash_report(pc, "store_load_inconsistency", file, line, function);

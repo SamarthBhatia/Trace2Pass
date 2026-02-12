@@ -152,6 +152,8 @@ run_test "test_bounds.c"               # GEP bounds ❌ DISABLED (18% overhead)
 run_test "test_bounds_advanced.c"      # GEP bounds ❌ DISABLED (18% overhead)
 run_test "test_sign_conversion.c"      # Sign conversion ❌ DISABLED (280% overhead)
 run_test "test_loop_bounds.c"          # Loop bounds ❌ DISABLED (12.7% overhead)
+run_test "test_volatile_consistency.c" # Volatile tracking ❌ DISABLED (targets GVN bugs)
+run_test "test_cross_bb_consistency.c" # Cross-BB check ❌ DISABLED (targets GVN bugs)
 unset TRACE2PASS_ENABLE_ALL_CHECKS
 
 echo ""

@@ -43,6 +43,8 @@ private:
   bool instrumentSelectConsistency(Function &F);
   bool instrumentRangeChecks(Function &F);
   bool instrumentStoreLoadConsistency(Function &F);
+  bool instrumentVolatileConsistency(Function &F);
+  bool instrumentCrossBBConsistency(Function &F);
   bool insertOverflowCheck(IRBuilder<> &Builder, Instruction *I,
                            Value *LHS, Value *RHS);
   void insertShiftCheck(IRBuilder<> &Builder, Instruction *I,
@@ -71,7 +73,17 @@ private:
   FunctionCallee getSelectInconsistencyReportFunc(Module &M);
   FunctionCallee getRangeViolationReportFunc(Module &M);
   FunctionCallee getStoreLoadInconsistencyReportFunc(Module &M);
+  FunctionCallee getShadowStoreFunc(Module &M);
+  FunctionCallee getShadowCheckFunc(Module &M);
+  FunctionCallee getOpaqueReadFunc(Module &M);
+  FunctionCallee getValuePropagationReportFunc(Module &M);
+  FunctionCallee getCrossBBCheckFunc(Module &M);
   FunctionCallee getShouldSampleFunc(Module &M);
+
+  // Cross-BB consistency helpers
+  AllocaInst *findRootAlloca(Value *V);
+  bool isAddressTaken(AllocaInst *AI);
+  bool hasSetjmp(Function &F);
 
   // Statistics
   unsigned NumInstrumented = 0;
@@ -84,6 +96,8 @@ private:
   unsigned NumSelectInstrumented = 0;
   unsigned NumRangeInstrumented = 0;
   unsigned NumStoreLoadInstrumented = 0;
+  unsigned NumVolatileInstrumented = 0;
+  unsigned NumCrossBBInstrumented = 0;
 };
 
 PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
@@ -113,6 +127,8 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
   NumSelectInstrumented = 0;
   NumRangeInstrumented = 0;
   NumStoreLoadInstrumented = 0;
+  NumVolatileInstrumented = 0;
+  NumCrossBBInstrumented = 0;
 
   bool Modified = false;
 
@@ -139,6 +155,8 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
   bool enable_select    = all_checks || envIsSet("TRACE2PASS_ENABLE_SELECT_CHECK");
   bool enable_range     = all_checks || envIsSet("TRACE2PASS_ENABLE_RANGE_CHECK");
   bool enable_storeload = all_checks || envIsSet("TRACE2PASS_ENABLE_STORE_LOAD_CHECK");
+  bool enable_volatile  = all_checks || envIsSet("TRACE2PASS_ENABLE_VOLATILE_TRACKING");
+  bool enable_crossbb   = all_checks || envIsSet("TRACE2PASS_ENABLE_CROSS_BB_CHECK");
 
   // Always-on checks (production)
   Modified |= instrumentArithmeticOperations(F);
@@ -153,6 +171,8 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
   if (enable_select)    Modified |= instrumentSelectConsistency(F);
   if (enable_range)     Modified |= instrumentRangeChecks(F);
   if (enable_storeload) Modified |= instrumentStoreLoadConsistency(F);
+  if (enable_volatile)  Modified |= instrumentVolatileConsistency(F);
+  if (enable_crossbb)   Modified |= instrumentCrossBBConsistency(F);
 
   if (Modified) {
     errs() << "Trace2Pass: Instrumented " << NumInstrumented
@@ -183,6 +203,12 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
     }
     if (NumStoreLoadInstrumented > 0) {
       errs() << ", " << NumStoreLoadInstrumented << " store-load checks";
+    }
+    if (NumVolatileInstrumented > 0) {
+      errs() << ", " << NumVolatileInstrumented << " volatile tracking checks";
+    }
+    if (NumCrossBBInstrumented > 0) {
+      errs() << ", " << NumCrossBBInstrumented << " cross-BB consistency checks";
     }
     errs() << " in " << F.getName() << "\n";
 
@@ -1693,6 +1719,405 @@ FunctionCallee Trace2PassInstrumentorPass::getStoreLoadInconsistencyReportFunc(M
       false);
 
   return M.getOrInsertFunction("trace2pass_report_store_load_inconsistency", FT);
+}
+
+// Volatile tracking: cross-BB consistency for volatile loads/stores
+// Targets GVN bugs where volatile semantics are violated (e.g., #127511, #116668)
+bool Trace2PassInstrumentorPass::instrumentVolatileConsistency(Function &F) {
+  Module &M = *F.getParent();
+  bool Modified = false;
+
+  FunctionCallee ShadowStoreFunc = getShadowStoreFunc(M);
+  FunctionCallee ShadowCheckFunc = getShadowCheckFunc(M);
+
+  // Collect volatile stores and loads first to avoid iterator invalidation
+  SmallVector<StoreInst*, 8> VolStores;
+  SmallVector<LoadInst*, 8> VolLoads;
+
+  for (BasicBlock &BB : F) {
+    for (Instruction &I : BB) {
+      if (auto *SI = dyn_cast<StoreInst>(&I)) {
+        if (SI->isVolatile()) {
+          Type *StoredTy = SI->getValueOperand()->getType();
+          // Only track integer and pointer types (can be cast to i64)
+          if (StoredTy->isIntegerTy() || StoredTy->isPointerTy())
+            VolStores.push_back(SI);
+        }
+      } else if (auto *LI = dyn_cast<LoadInst>(&I)) {
+        if (LI->isVolatile()) {
+          Type *LoadedTy = LI->getType();
+          if (LoadedTy->isIntegerTy() || LoadedTy->isPointerTy())
+            VolLoads.push_back(LI);
+        }
+      }
+    }
+  }
+
+  // Insert shadow stores after each volatile store
+  for (StoreInst *SI : VolStores) {
+    Instruction *InsertPt = SI->getNextNonDebugInstruction();
+    if (!InsertPt) continue;
+
+    IRBuilder<> Builder(InsertPt);
+    Value *Ptr = SI->getPointerOperand();
+    Value *Val = SI->getValueOperand();
+
+    // Cast pointer to void*
+    Value *PtrCast = Builder.CreateBitCast(Ptr, Builder.getPtrTy());
+    // Cast value to i64
+    Value *Val_i64;
+    if (Val->getType()->isPointerTy()) {
+      Val_i64 = Builder.CreatePtrToInt(Val, Builder.getInt64Ty());
+    } else {
+      Val_i64 = Builder.CreateSExtOrTrunc(Val, Builder.getInt64Ty());
+    }
+
+    Builder.CreateCall(ShadowStoreFunc, {PtrCast, Val_i64});
+    Modified = true;
+    NumVolatileInstrumented++;
+  }
+
+  // Insert shadow checks after each volatile load
+  for (LoadInst *LI : VolLoads) {
+    Instruction *InsertPt = LI->getNextNonDebugInstruction();
+    if (!InsertPt) continue;
+
+    IRBuilder<> Builder(InsertPt);
+    Value *Ptr = LI->getPointerOperand();
+    Value *LoadedVal = LI;
+
+    // Cast pointer to void*
+    Value *PtrCast = Builder.CreateBitCast(Ptr, Builder.getPtrTy());
+    // Cast loaded value to i64
+    Value *Loaded_i64;
+    if (LoadedVal->getType()->isPointerTy()) {
+      Loaded_i64 = Builder.CreatePtrToInt(LoadedVal, Builder.getInt64Ty());
+    } else {
+      Loaded_i64 = Builder.CreateSExtOrTrunc(LoadedVal, Builder.getInt64Ty());
+    }
+
+    Function *ReturnAddrFn = Intrinsic::getOrInsertDeclaration(&M, Intrinsic::returnaddress);
+    Value *PC = Builder.CreateCall(ReturnAddrFn, {Builder.getInt32(0)});
+
+    LocationInfo Loc = extractLocation(Builder, LI);
+
+    Builder.CreateCall(ShadowCheckFunc, {PC, Loc.File, Loc.Line, Loc.Function,
+                                          PtrCast, Loaded_i64});
+    Modified = true;
+  }
+
+  return Modified;
+}
+
+FunctionCallee Trace2PassInstrumentorPass::getOpaqueReadFunc(Module &M) {
+  LLVMContext &Ctx = M.getContext();
+  Type *I64Ty = Type::getInt64Ty(Ctx);
+  Type *PtrTy = PointerType::getUnqual(Ctx);
+  Type *I32Ty = Type::getInt32Ty(Ctx);
+
+  // int64_t trace2pass_opaque_read(void* addr, int32_t size_bytes)
+  FunctionType *FT = FunctionType::get(I64Ty, {PtrTy, I32Ty}, false);
+  FunctionCallee FC = M.getOrInsertFunction("trace2pass_opaque_read", FT);
+
+  // Mark as readonly so GVN can still fold the load this call guards.
+  // GVN sees: "this call only reads memory" → load value is NOT clobbered
+  // → GVN proceeds with its (potentially buggy) folding.
+  // But GVN CANNOT predict the return value (external, opaque body)
+  // → the icmp comparison survives → mismatch detected at runtime.
+  //
+  // DO NOT add readnone — that would let GVN eliminate the call entirely.
+  if (Function *F = dyn_cast<Function>(FC.getCallee())) {
+    F->addFnAttr(Attribute::ReadOnly);
+    F->addFnAttr(Attribute::NoUnwind);
+    F->addFnAttr(Attribute::WillReturn);
+    F->addFnAttr(Attribute::NoSync);
+    F->addFnAttr(Attribute::NoFree);
+  }
+
+  return FC;
+}
+
+FunctionCallee Trace2PassInstrumentorPass::getValuePropagationReportFunc(Module &M) {
+  LLVMContext &Ctx = M.getContext();
+  Type *VoidTy = Type::getVoidTy(Ctx);
+  Type *PtrTy = PointerType::getUnqual(Ctx);
+  Type *I32Ty = Type::getInt32Ty(Ctx);
+  Type *I64Ty = Type::getInt64Ty(Ctx);
+
+  // void trace2pass_report_value_propagation(void* pc, const char* file, int line,
+  //     const char* function, void* addr, int64_t optimized_value, int64_t actual_value)
+  FunctionType *FT = FunctionType::get(
+      VoidTy,
+      {PtrTy, PtrTy, I32Ty, PtrTy, PtrTy, I64Ty, I64Ty},
+      false);
+
+  return M.getOrInsertFunction("trace2pass_report_value_propagation", FT);
+}
+
+FunctionCallee Trace2PassInstrumentorPass::getCrossBBCheckFunc(Module &M) {
+  LLVMContext &Ctx = M.getContext();
+  Type *VoidTy = Type::getVoidTy(Ctx);
+  Type *PtrTy = PointerType::getUnqual(Ctx);
+  Type *I32Ty = Type::getInt32Ty(Ctx);
+  Type *I64Ty = Type::getInt64Ty(Ctx);
+
+  // void trace2pass_check_cross_bb(void* addr, int32_t size_bytes,
+  //     int64_t optimized_value, const char* file, int32_t line, const char* function)
+  FunctionType *FT = FunctionType::get(
+      VoidTy,
+      {PtrTy, I32Ty, I64Ty, PtrTy, I32Ty, PtrTy},
+      false);
+  FunctionCallee FC = M.getOrInsertFunction("trace2pass_check_cross_bb", FT);
+
+  // Mark with inaccessiblememonly so GVN does NOT see this call as aliasing
+  // any program-visible memory. Without this, GVN conservatively keeps the
+  // guarded load (preventing the bug instead of detecting it).
+  //
+  // Technically the function reads from addr at runtime, but the attribute
+  // lie is intentional: we WANT GVN to fold the load (exercising its bug),
+  // then the runtime compares the folded value against actual memory.
+  if (Function *F = dyn_cast<Function>(FC.getCallee())) {
+    F->setMemoryEffects(MemoryEffects::inaccessibleMemOnly());
+    F->addFnAttr(Attribute::NoUnwind);
+    F->addFnAttr(Attribute::WillReturn);
+    F->addFnAttr(Attribute::NoSync);
+    F->addFnAttr(Attribute::NoFree);
+  }
+
+  return FC;
+}
+
+// Helper: trace a value through bitcasts/GEPs to find the root AllocaInst
+AllocaInst *Trace2PassInstrumentorPass::findRootAlloca(Value *V) {
+  Value *Current = V;
+  for (unsigned i = 0; i < 10; ++i) { // Limit depth to avoid infinite loops
+    if (auto *AI = dyn_cast<AllocaInst>(Current))
+      return AI;
+    if (auto *BC = dyn_cast<BitCastInst>(Current)) {
+      Current = BC->getOperand(0);
+      continue;
+    }
+    if (auto *GEP = dyn_cast<GetElementPtrInst>(Current)) {
+      Current = GEP->getPointerOperand();
+      continue;
+    }
+    break;
+  }
+  return nullptr;
+}
+
+// Helper: check if an alloca's address escapes (passed to calls or stored to memory)
+bool Trace2PassInstrumentorPass::isAddressTaken(AllocaInst *AI) {
+  SmallVector<Value *, 8> Worklist;
+  Worklist.push_back(AI);
+
+  SmallPtrSet<Value *, 16> Visited;
+
+  while (!Worklist.empty()) {
+    Value *V = Worklist.pop_back_val();
+    if (!Visited.insert(V).second)
+      continue;
+
+    for (User *U : V->users()) {
+      if (auto *SI = dyn_cast<StoreInst>(U)) {
+        // If the alloca is stored AS A VALUE (not as the pointer operand),
+        // its address is escaping
+        if (SI->getValueOperand() == V)
+          return true;
+      } else if (auto *CB = dyn_cast<CallBase>(U)) {
+        // Skip our own instrumentation functions
+        Function *Callee = CB->getCalledFunction();
+        if (Callee && Callee->getName().starts_with("trace2pass_"))
+          continue;
+        // Address passed to a function call — it escapes
+        return true;
+      } else if (isa<BitCastInst>(U) || isa<GetElementPtrInst>(U)) {
+        // Follow through casts/GEPs
+        Worklist.push_back(U);
+      } else if (isa<LoadInst>(U)) {
+        // Loading from the alloca is fine
+        continue;
+      } else if (auto *SI2 = dyn_cast<StoreInst>(U)) {
+        // Storing TO the alloca is fine (already handled above for value operand)
+        continue;
+      } else if (isa<PHINode>(U) || isa<SelectInst>(U)) {
+        Worklist.push_back(U);
+      }
+    }
+  }
+  return false;
+}
+
+// Helper: check if function contains setjmp/sigsetjmp/returns_twice calls
+bool Trace2PassInstrumentorPass::hasSetjmp(Function &F) {
+  for (BasicBlock &BB : F) {
+    for (Instruction &I : BB) {
+      if (auto *CB = dyn_cast<CallBase>(&I)) {
+        // Check for returns_twice attribute (covers setjmp and friends)
+        if (CB->hasFnAttr(Attribute::ReturnsTwice))
+          return true;
+        // Also check by name for cases where attribute might be missing
+        Function *Callee = CB->getCalledFunction();
+        if (Callee) {
+          StringRef Name = Callee->getName();
+          if (Name == "setjmp" || Name == "_setjmp" ||
+              Name == "sigsetjmp" || Name == "__sigsetjmp")
+            return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+// Cross-BB value propagation consistency check via opaque memory read
+// Targets GVN bugs (#127511, #116668) that incorrectly fold loads
+bool Trace2PassInstrumentorPass::instrumentCrossBBConsistency(Function &F) {
+  Module &M = *F.getParent();
+  LLVMContext &Ctx = M.getContext();
+  const DataLayout &DL = M.getDataLayout();
+  bool Modified = false;
+
+  bool funcHasSetjmp = hasSetjmp(F);
+
+  // Collect loads to instrument (avoid iterator invalidation)
+  SmallVector<LoadInst *, 16> ToInstrument;
+
+  for (BasicBlock &BB : F) {
+    for (Instruction &I : BB) {
+      auto *LI = dyn_cast<LoadInst>(&I);
+      if (!LI) continue;
+
+      // Skip volatile loads (already handled by volatile tracking)
+      if (LI->isVolatile()) continue;
+
+      Type *LoadedTy = LI->getType();
+      // Only handle integer and pointer types (can be compared as i64)
+      if (!LoadedTy->isIntegerTy() && !LoadedTy->isPointerTy()) continue;
+
+      // For integer types, only handle sizes we can read (1, 2, 4, 8 bytes)
+      if (LoadedTy->isIntegerTy()) {
+        unsigned BitWidth = LoadedTy->getIntegerBitWidth();
+        if (BitWidth != 8 && BitWidth != 16 && BitWidth != 32 && BitWidth != 64)
+          continue;
+      }
+
+      // Find root alloca
+      AllocaInst *AI = findRootAlloca(LI->getPointerOperand());
+      if (!AI) continue;
+
+      // Check if this load qualifies for instrumentation:
+      // 1. Function has setjmp (high-value target for GVN bugs)
+      // 2. Address is taken (escapes to external functions)
+      // 3. Cross-BB: alloca has stores in different BBs than this load
+      bool shouldInstrument = false;
+
+      if (funcHasSetjmp) {
+        shouldInstrument = true;
+      } else if (isAddressTaken(AI)) {
+        shouldInstrument = true;
+      } else {
+        // Check for cross-BB stores
+        BasicBlock *LoadBB = LI->getParent();
+        for (User *U : AI->users()) {
+          if (auto *SI = dyn_cast<StoreInst>(U)) {
+            if (SI->getPointerOperand() == AI && SI->getParent() != LoadBB) {
+              shouldInstrument = true;
+              break;
+            }
+          }
+          // Also check through GEPs/bitcasts
+          if (isa<GetElementPtrInst>(U) || isa<BitCastInst>(U)) {
+            for (User *UU : U->users()) {
+              if (auto *SI = dyn_cast<StoreInst>(UU)) {
+                if (SI->getParent() != LoadBB) {
+                  shouldInstrument = true;
+                  break;
+                }
+              }
+            }
+          }
+          if (shouldInstrument) break;
+        }
+      }
+
+      if (shouldInstrument)
+        ToInstrument.push_back(LI);
+    }
+  }
+
+  if (ToInstrument.empty())
+    return false;
+
+  FunctionCallee CheckFunc = getCrossBBCheckFunc(M);
+
+  for (LoadInst *LI : ToInstrument) {
+    Type *LoadedTy = LI->getType();
+    Value *Ptr = LI->getPointerOperand();
+
+    // Insert instrumentation AFTER the load
+    Instruction *InsertPt = LI->getNextNonDebugInstruction();
+    if (!InsertPt) continue;
+
+    IRBuilder<> Builder(InsertPt);
+
+    // Determine size in bytes
+    int32_t SizeBytes;
+    if (LoadedTy->isPointerTy()) {
+      SizeBytes = DL.getPointerSize();
+    } else {
+      SizeBytes = LoadedTy->getIntegerBitWidth() / 8;
+    }
+
+    // Convert loaded value to i64
+    Value *Loaded_i64;
+    if (LoadedTy->isPointerTy()) {
+      Loaded_i64 = Builder.CreatePtrToInt(LI, Builder.getInt64Ty());
+    } else {
+      Loaded_i64 = Builder.CreateZExtOrTrunc(LI, Builder.getInt64Ty());
+    }
+
+    // Extract source location
+    LocationInfo Loc = extractLocation(Builder, LI);
+
+    // Single consolidated call: read + compare + report all in runtime.
+    // This produces NO branches in the IR, minimizing CFG disruption
+    // so GVN can still fold the load (exercising potential bugs).
+    Value *PtrCast = Builder.CreateBitCast(Ptr, Builder.getPtrTy());
+    Builder.CreateCall(CheckFunc, {PtrCast, Builder.getInt32(SizeBytes),
+                                    Loaded_i64, Loc.File, Loc.Line, Loc.Function});
+
+    Modified = true;
+    NumCrossBBInstrumented++;
+  }
+
+  return Modified;
+}
+
+FunctionCallee Trace2PassInstrumentorPass::getShadowStoreFunc(Module &M) {
+  LLVMContext &Ctx = M.getContext();
+  Type *VoidTy = Type::getVoidTy(Ctx);
+  Type *PtrTy = PointerType::getUnqual(Ctx);
+  Type *I64Ty = Type::getInt64Ty(Ctx);
+
+  FunctionType *FT = FunctionType::get(
+      VoidTy, {PtrTy, I64Ty}, false);
+
+  return M.getOrInsertFunction("trace2pass_shadow_store", FT);
+}
+
+FunctionCallee Trace2PassInstrumentorPass::getShadowCheckFunc(Module &M) {
+  LLVMContext &Ctx = M.getContext();
+  Type *VoidTy = Type::getVoidTy(Ctx);
+  Type *PtrTy = PointerType::getUnqual(Ctx);
+  Type *I32Ty = Type::getInt32Ty(Ctx);
+  Type *I64Ty = Type::getInt64Ty(Ctx);
+
+  // Signature: void(void* pc, char* file, int line, char* function, void* addr, int64_t loaded_value)
+  FunctionType *FT = FunctionType::get(
+      VoidTy, {PtrTy, PtrTy, I32Ty, PtrTy, PtrTy, I64Ty}, false);
+
+  return M.getOrInsertFunction("trace2pass_shadow_check", FT);
 }
 
 } // anonymous namespace
