@@ -36,12 +36,18 @@ from pass_bisector_enhanced import EnhancedPassBisector, PassHeuristicScorer
 from instrumentation import test_with_instrumentation, create_instrumented_test_function
 
 
-def analyze_report_cmd(report_file: str) -> Dict[str, Any]:
+def analyze_report_cmd(report_file: str, full_diagnosis: bool = False,
+                       use_docker: bool = True,
+                       use_clang_bisect: bool = False) -> Dict[str, Any]:
     """
     Analyze an anomaly report from the Collector.
 
     Args:
         report_file: Path to JSON report file
+        full_diagnosis: If True, chain into version/pass bisection using
+                       the source file from the report's location field
+        use_docker: Use Docker for version bisection (default: True)
+        use_clang_bisect: Use clang -opt-bisect-limit for pass bisection
 
     Returns:
         Analysis result dictionary
@@ -57,25 +63,98 @@ def analyze_report_cmd(report_file: str) -> Dict[str, Any]:
     # Run UB detection on the report
     ub_result = analyze_report(report)
 
+    msan_display = "N/A (unavailable)" if ub_result.msan_clean is None else ub_result.msan_clean
+
     print("=== UB Detection Result ===")
     print(f"Verdict: {ub_result.verdict}")
     print(f"Confidence: {ub_result.confidence:.2%}")
     print(f"UBSan clean: {ub_result.ubsan_clean}")
+    print(f"MSan clean: {msan_display}")
     print(f"Optimization sensitive: {ub_result.optimization_sensitive}")
     print(f"Multi-compiler differs: {ub_result.multi_compiler_differs}")
     print()
 
-    return {
+    result = {
         "report_id": report.get('report_id', 'unknown'),
         "check_type": report.get('check_type', 'unknown'),
         "ub_detection": {
             "verdict": ub_result.verdict,
             "confidence": ub_result.confidence,
             "ubsan_clean": ub_result.ubsan_clean,
+            "msan_clean": ub_result.msan_clean,
             "optimization_sensitive": ub_result.optimization_sensitive,
             "multi_compiler_differs": ub_result.multi_compiler_differs
         }
     }
+
+    if not full_diagnosis:
+        return result
+
+    # Full diagnosis: chain into version bisection + pass bisection
+    # using the original source file from the report
+    if ub_result.verdict == 'user_ub':
+        print("UB detected in user code. Skipping bisection.")
+        result["recommendation"] = "Fix undefined behavior in user code"
+        return result
+
+    source_file = report.get('location', {}).get('file')
+    if not source_file or not Path(source_file).exists():
+        print(f"Cannot run full diagnosis: source file not found: {source_file}")
+        result["error"] = f"Source file not found: {source_file}"
+        return result
+
+    print(f"Source file: {source_file}")
+    print()
+
+    # Use {binary} as test command — the test program returns 0 on
+    # correct behavior and non-zero on bug manifestation
+    test_command = "{binary}"
+
+    # Version bisection
+    print("Stage 2: Version Bisection...")
+    version_result = version_bisect_cmd(source_file, test_command,
+                                         use_docker=use_docker)
+    result["version_bisection"] = version_result
+
+    # Determine pass bisection parameters
+    verdict = version_result.get('verdict', '')
+    if verdict == "all_pass":
+        print("Bug does not manifest in any tested version. Skipping pass bisection.")
+        result["recommendation"] = "Bug appears fixed in all tested versions"
+        return result
+
+    if verdict == "all_fail":
+        first_bad_version = None
+        actually_used_docker = False
+    else:
+        first_bad_version = version_result.get('first_bad_version')
+        actually_used_docker = version_result.get('used_docker', False)
+
+    # Pass bisection
+    print("Stage 3: Pass Bisection...")
+    pass_result = pass_bisect_cmd(
+        source_file, test_command,
+        compiler_version=first_bad_version,
+        use_docker=actually_used_docker,
+        use_clang_bisect=use_clang_bisect
+    )
+    result["pass_bisection"] = pass_result
+
+    # Final verdict
+    if pass_result.get('verdict') == 'bisected':
+        result["verdict"] = "compiler_bug"
+        result["recommendation"] = (
+            f"Compiler bug in {pass_result.get('culprit_pass', 'unknown pass')} "
+            f"(version: {first_bad_version or 'all tested'})"
+        )
+        print(f"\n=== Full Diagnosis Complete ===")
+        print(f"Verdict: compiler_bug")
+        print(f"Culprit pass: {pass_result.get('culprit_pass')}")
+        print(f"First bad version: {first_bad_version or 'all tested'}")
+    else:
+        result["verdict"] = pass_result.get('verdict', 'incomplete')
+
+    return result
 
 
 def ub_detect_cmd(source_file: str, test_input: Optional[str] = None,
@@ -94,6 +173,7 @@ def ub_detect_cmd(source_file: str, test_input: Optional[str] = None,
             "verdict": str,  # "compiler_bug", "user_ub", "inconclusive", or "error"
             "confidence": float,
             "ubsan_clean": bool,
+            "msan_clean": bool or None,
             "optimization_sensitive": bool,
             "multi_compiler_differs": bool
         }
@@ -101,10 +181,13 @@ def ub_detect_cmd(source_file: str, test_input: Optional[str] = None,
     detector = UBDetector()
     result = detector.detect(source_file, test_input, expected_output)
 
+    msan_display = "N/A (unavailable)" if result.msan_clean is None else result.msan_clean
+
     print("=== UB Detection Result ===")
     print(f"Verdict: {result.verdict}")
     print(f"Confidence: {result.confidence:.2%}")
     print(f"UBSan clean: {result.ubsan_clean}")
+    print(f"MSan clean: {msan_display}")
     print(f"Optimization sensitive: {result.optimization_sensitive}")
     print(f"Multi-compiler differs: {result.multi_compiler_differs}")
     print()
@@ -115,6 +198,7 @@ def ub_detect_cmd(source_file: str, test_input: Optional[str] = None,
         "verdict": result.verdict,
         "confidence": result.confidence,
         "ubsan_clean": result.ubsan_clean,
+        "msan_clean": result.msan_clean,
         "optimization_sensitive": result.optimization_sensitive,
         "multi_compiler_differs": result.multi_compiler_differs,
         "details": result.details  # Include full details in return value
@@ -220,6 +304,7 @@ def pass_bisect_cmd(source_file: str, test_command: str,
                     use_docker: bool = False,
                     use_instrumentation: bool = False,
                     use_enhanced: bool = False,
+                    use_clang_bisect: bool = False,
                     bug_type: Optional[str] = None) -> Dict[str, Any]:
     """
     Run pass bisection to identify the specific optimization pass responsible.
@@ -246,6 +331,10 @@ def pass_bisect_cmd(source_file: str, test_command: str,
                            When True, compiles with instrumentation and checks for overflow reports
         use_enhanced: Use enhanced pass bisection strategies (default: False)
                      When True, uses heuristic scoring and pass filtering to improve accuracy
+        use_clang_bisect: Use clang -mllvm -opt-bisect-limit=N for bisection (default: False)
+                         When True, bisects within clang's integrated pipeline instead of
+                         using standalone opt. Required for bugs that only manifest in clang's
+                         pipeline (e.g., LLVM #76789).
         bug_type: Optional bug type classification (e.g., 'arithmetic_overflow', 'control_flow')
                  Used by enhanced bisector to filter and prioritize passes
 
@@ -315,8 +404,47 @@ def pass_bisect_cmd(source_file: str, test_command: str,
     # we MUST use that specific version for pass bisection. Otherwise, we'd be
     # analyzing the wrong compiler's pass pipeline.
 
+    # When using clang bisect mode, we only need clang (not opt/llc)
+    # We still set opt/llc to matching tools so PassBisector version check passes
+    if use_clang_bisect:
+        if use_docker and compiler_version:
+            major_version = compiler_version.split('.')[0]
+            clang_path = "clang"
+            opt_path = "opt"
+            llc_path = "llc"
+            print(f"Using clang -opt-bisect-limit mode (Docker, LLVM {major_version})")
+        elif compiler_version:
+            major_version = compiler_version.split('.')[0]
+            import shutil
+            clang_versioned = f"clang-{major_version}"
+            if shutil.which(clang_versioned):
+                clang_path = clang_versioned
+            else:
+                clang_path = "clang"
+                print(f"Warning: {clang_versioned} not found, using system clang")
+            # Try to find matching opt/llc for version check; fall back to using Docker
+            opt_versioned = f"opt-{major_version}"
+            llc_versioned = f"llc-{major_version}"
+            if shutil.which(opt_versioned) and shutil.which(llc_versioned):
+                opt_path = opt_versioned
+                llc_path = llc_versioned
+            else:
+                # Force Docker mode to skip local tool verification
+                # The clang bisect mode doesn't actually use opt/llc
+                use_docker = True
+                opt_path = "opt"
+                llc_path = "llc"
+                print(f"  Note: opt/llc-{major_version} not found locally, using Docker mode")
+            print(f"Using clang -opt-bisect-limit mode (clang={clang_path})")
+        else:
+            major_version = None
+            clang_path = "clang"
+            opt_path = "opt"
+            llc_path = "llc"
+            print("Using clang -opt-bisect-limit mode (system default)")
+
     # When using Docker, skip local tool detection
-    if use_docker and compiler_version:
+    elif use_docker and compiler_version:
         # Docker mode: tools are in container
         major_version = compiler_version.split('.')[0]
         clang_path = "clang"
@@ -443,8 +571,33 @@ def pass_bisect_cmd(source_file: str, test_command: str,
             use_instrumentation=use_instrumentation
         )
 
+        # Use clang -opt-bisect-limit mode if requested
+        if use_clang_bisect:
+            print("Using clang -mllvm -opt-bisect-limit=N for pass bisection")
+            bisector.verbose = True  # Always verbose for clang bisect
+            result = bisector.bisect_clang(source_file, test_func)
+
+            print("=== Pass Bisection Result (clang -opt-bisect-limit) ===")
+            print(f"Verdict: {result.verdict}")
+            print(f"Culprit pass: {result.culprit_pass or 'Not found'}")
+            print(f"Culprit index: {result.culprit_index}")
+            print(f"Total pass executions: {len(result.pass_pipeline)}")
+            print(f"Total tests: {result.total_tests}")
+            print()
+
+            bisector.cleanup()
+
+            return {
+                "verdict": result.verdict,
+                "culprit_pass": result.culprit_pass,
+                "culprit_index": result.culprit_index,
+                "total_passes": len(result.pass_pipeline),
+                "total_tests": result.total_tests,
+                "mode": "clang_opt_bisect_limit"
+            }
+
         # Use enhanced bisection if requested
-        if use_enhanced:
+        elif use_enhanced:
             print("Using enhanced pass bisection strategies (heuristic scoring + filtering)")
             enhanced_bisector = EnhancedPassBisector(
                 base_bisector=bisector,
@@ -547,7 +700,8 @@ def full_pipeline_cmd(source_file: str, test_command: str,
                       optimization_level: str = "-O2",
                       use_docker: bool = True,
                       use_instrumentation: bool = False,
-                      use_enhanced: bool = False) -> Dict[str, Any]:
+                      use_enhanced: bool = False,
+                      use_clang_bisect: bool = False) -> Dict[str, Any]:
     """
     Run the full diagnosis pipeline: UB detection → Version bisection → Pass bisection.
 
@@ -561,6 +715,7 @@ def full_pipeline_cmd(source_file: str, test_command: str,
         optimization_level: Optimization level (default: -O2)
         use_instrumentation: Use Trace2Pass instrumentation for bug detection (default: False)
         use_enhanced: Use enhanced pass bisection strategies (default: False)
+        use_clang_bisect: Use clang -mllvm -opt-bisect-limit=N for pass bisection (default: False)
 
     Returns:
         Complete diagnosis result dictionary
@@ -646,13 +801,9 @@ def full_pipeline_cmd(source_file: str, test_command: str,
             }
         elif verdict == "all_fail":
             # Bug manifests in ALL versions - this is a long-standing bug
-            # We should still run pass bisection on the latest version to identify culprit
+            # Proceed to pass bisection using local system compiler
             print(f"⚠ Version bisection shows bug manifests in ALL tested versions (verdict: {verdict}).")
             print("  This indicates a long-standing bug. Proceeding to pass bisection on system compiler...")
-            # Use None to trigger unversioned pass bisection (system clang)
-            first_bad_version = None  # Will use system clang
-            actually_used_docker = version_result.get('used_docker', False)
-            # Continue to pass bisection stage below
         else:
             # Unknown verdict - return incomplete
             print(f"⚠ Version bisection returned unexpected verdict: {verdict}. Cannot proceed.")
@@ -668,14 +819,13 @@ def full_pipeline_cmd(source_file: str, test_command: str,
     print("Stage 3/3: Pass Bisection...")
 
     # Extract version bisection results for pass bisection
-    # Note: For "all_fail" case above, we already set first_bad_version="19"
-    # For normal "bisected" case, we get it from version_result
-    if not version_result.get('first_bad_version'):
-        # This should only happen for "all_fail" case where we manually set it above
-        # first_bad_version and actually_used_docker are already set
-        pass
+    verdict = version_result.get('verdict', '')
+    if verdict == "all_fail":
+        # Bug manifests in ALL versions — use local system compiler (no version suffix)
+        first_bad_version = None
+        actually_used_docker = False
     else:
-        # Normal "bisected" case - get from version_result
+        # Normal "bisected" case — use the specific bad version
         first_bad_version = version_result.get('first_bad_version')
         actually_used_docker = version_result.get('used_docker', False)
 
@@ -690,7 +840,8 @@ def full_pipeline_cmd(source_file: str, test_command: str,
             compiler_version=first_bad_version,
             use_docker=actually_used_docker,
             use_instrumentation=use_instrumentation,
-            use_enhanced=use_enhanced
+            use_enhanced=use_enhanced,
+            use_clang_bisect=use_clang_bisect
         )
     except Exception as e:
         # Unexpected exception from pass_bisect_cmd - return structured error
@@ -796,6 +947,12 @@ def main():
         help='Analyze an anomaly report from the Collector'
     )
     report_parser.add_argument('report_file', help='Path to JSON report file')
+    report_parser.add_argument('--full-diagnosis', action='store_true', default=False,
+                                help='Chain into version/pass bisection using source file from report')
+    report_parser.add_argument('--no-docker', dest='use_docker', action='store_false', default=True,
+                                help='Disable Docker for version bisection')
+    report_parser.add_argument('--use-clang-bisect', action='store_true', default=False,
+                                help='Use clang -opt-bisect-limit for pass bisection')
 
     # ub-detect command
     ub_parser = subparsers.add_parser('ub-detect', help='Run UB detection')
@@ -831,6 +988,11 @@ def main():
                                  'If not specified, uses system default clang.')
     pass_parser.add_argument('--use-enhanced', action='store_true', default=False,
                             help='Use enhanced pass bisection with heuristic scoring (improves accuracy)')
+    pass_parser.add_argument('--use-clang-bisect', action='store_true', default=False,
+                            help='Use clang -mllvm -opt-bisect-limit=N instead of standalone opt. '
+                                 'Required for bugs that only manifest in clang integrated pipeline.')
+    pass_parser.add_argument('--use-docker', action='store_true', default=False,
+                            help='Use Docker containers for compilation (requires silkeh/clang images)')
 
     # full-pipeline command
     pipeline_parser = subparsers.add_parser(
@@ -850,6 +1012,9 @@ def main():
                                  help='Use Trace2Pass instrumentation to detect bugs (for instrumentation-only issues)')
     pipeline_parser.add_argument('--use-enhanced', action='store_true', default=False,
                                  help='Use enhanced pass bisection with heuristic scoring (improves accuracy)')
+    pipeline_parser.add_argument('--use-clang-bisect', action='store_true', default=False,
+                                 help='Use clang -mllvm -opt-bisect-limit=N for pass bisection '
+                                      '(required for bugs that only manifest in clang integrated pipeline)')
 
     args = parser.parse_args()
 
@@ -859,7 +1024,10 @@ def main():
 
     try:
         if args.command == 'analyze-report':
-            result = analyze_report_cmd(args.report_file)
+            result = analyze_report_cmd(args.report_file,
+                                         full_diagnosis=args.full_diagnosis,
+                                         use_docker=args.use_docker,
+                                         use_clang_bisect=args.use_clang_bisect)
         elif args.command == 'ub-detect':
             result = ub_detect_cmd(args.source_file, args.test_input, args.expected_output)
         elif args.command == 'version-bisect':
@@ -870,14 +1038,17 @@ def main():
             result = pass_bisect_cmd(args.source_file, args.test_command,
                                     args.optimization_level,
                                     compiler_version=getattr(args, 'compiler_version', None),
-                                    use_enhanced=args.use_enhanced)
+                                    use_docker=getattr(args, 'use_docker', False),
+                                    use_enhanced=args.use_enhanced,
+                                    use_clang_bisect=getattr(args, 'use_clang_bisect', False))
         elif args.command == 'full-pipeline':
             result = full_pipeline_cmd(args.source_file, args.test_command,
                                       args.test_input, args.expected_output,
                                       args.optimization_level,
                                       use_docker=args.use_docker,
                                       use_instrumentation=args.use_instrumentation,
-                                      use_enhanced=args.use_enhanced)
+                                      use_enhanced=args.use_enhanced,
+                                      use_clang_bisect=args.use_clang_bisect)
         else:
             parser.print_help()
             sys.exit(1)

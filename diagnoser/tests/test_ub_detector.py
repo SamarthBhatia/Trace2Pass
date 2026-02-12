@@ -233,9 +233,10 @@ class TestConfidenceScoring:
         """Test that UBSan clean increases confidence."""
         detector = UBDetector()
 
-        # UBSan clean only
+        # UBSan clean only, MSan unavailable
         conf = detector._compute_confidence(
             ubsan_clean=True,
+            msan_clean=None,
             optimization_sensitive=False,
             multi_compiler_differs=False
         )
@@ -247,9 +248,10 @@ class TestConfidenceScoring:
         """Test that UBSan error decreases confidence."""
         detector = UBDetector()
 
-        # UBSan triggered
+        # UBSan triggered, MSan unavailable
         conf = detector._compute_confidence(
             ubsan_clean=False,
+            msan_clean=None,
             optimization_sensitive=False,
             multi_compiler_differs=False
         )
@@ -261,13 +263,44 @@ class TestConfidenceScoring:
         """Test all positive signals."""
         detector = UBDetector()
 
-        # All signals indicate compiler bug
+        # All signals indicate compiler bug (MSan clean)
         conf = detector._compute_confidence(
             ubsan_clean=True,
+            msan_clean=True,
             optimization_sensitive=True,
             multi_compiler_differs=True
         )
-        assert conf == 1.0  # 0.5 + 0.3 + 0.2 + 0.15 = 1.15 → clamped to 1.0
+        assert conf == 1.0  # 0.5 + 0.3 + 0.1 + 0.2 + 0.15 = 1.25 → clamped to 1.0
+
+        detector.cleanup()
+
+    def test_msan_triggered_decreases_confidence(self):
+        """Test that MSan triggering strongly decreases confidence."""
+        detector = UBDetector()
+
+        # UBSan clean but MSan triggered (uninit read)
+        conf = detector._compute_confidence(
+            ubsan_clean=True,
+            msan_clean=False,
+            optimization_sensitive=False,
+            multi_compiler_differs=False
+        )
+        assert abs(conf - 0.3) < 0.01  # 0.5 + 0.3 - 0.5 = 0.3
+
+        detector.cleanup()
+
+    def test_msan_unavailable_no_effect(self):
+        """Test that MSan unavailable (None) has no effect on confidence."""
+        detector = UBDetector()
+
+        # MSan unavailable should match MSan-absent behavior
+        conf_none = detector._compute_confidence(
+            ubsan_clean=True,
+            msan_clean=None,
+            optimization_sensitive=False,
+            multi_compiler_differs=False
+        )
+        assert conf_none == 0.8  # 0.5 + 0.3, no MSan effect
 
         detector.cleanup()
 
@@ -278,6 +311,7 @@ class TestConfidenceScoring:
         # Should clamp to 0.0
         conf1 = detector._compute_confidence(
             ubsan_clean=False,  # -0.4
+            msan_clean=False,   # -0.5
             optimization_sensitive=False,
             multi_compiler_differs=False
         )
@@ -285,9 +319,10 @@ class TestConfidenceScoring:
 
         # Should clamp to 1.0
         conf2 = detector._compute_confidence(
-            ubsan_clean=True,  # +0.3
+            ubsan_clean=True,   # +0.3
+            msan_clean=True,    # +0.1
             optimization_sensitive=True,  # +0.2
-            multi_compiler_differs=True  # +0.15
+            multi_compiler_differs=True   # +0.15
         )
         assert conf2 <= 1.0
 

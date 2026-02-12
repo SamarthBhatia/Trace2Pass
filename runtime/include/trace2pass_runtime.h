@@ -40,6 +40,35 @@ void trace2pass_report_unreachable(void* pc, const char* file, int line, const c
 void trace2pass_report_bounds_violation(void* pc, const char* file, int line, const char* function,
                                          void* ptr, size_t offset, size_t size);
 
+// Select Consistency Checks
+
+void trace2pass_report_select_inconsistency(void* pc, const char* file, int line, const char* function,
+                                             int64_t condition, int64_t true_val, int64_t false_val,
+                                             int64_t actual_result);
+
+// Range Verification Checks
+
+void trace2pass_report_range_violation(void* pc, const char* file, int line, const char* function,
+                                       int64_t actual_value, int64_t range_lo, int64_t range_hi);
+
+// Store-Load Consistency Checks
+
+void trace2pass_report_store_load_inconsistency(void* pc, const char* file, int line, const char* function,
+                                                 int64_t stored_value, int64_t loaded_value);
+
+// Volatile Tracking (Cross-BB Store-Load Consistency for GVN bug detection)
+
+void trace2pass_shadow_store(void* addr, int64_t value);
+void trace2pass_shadow_check(void* pc, const char* file, int line, const char* function,
+                              void* addr, int64_t loaded_value);
+
+// Cross-BB Value Propagation Checks (Opaque Memory Read)
+// Detects GVN bugs that incorrectly fold loads across basic blocks
+
+int64_t trace2pass_opaque_read(void* addr, int32_t size_bytes);
+void trace2pass_report_value_propagation(void* pc, const char* file, int line,
+    const char* function, void* addr, int64_t optimized_value, int64_t actual_value);
+
 // Sampling Control
 
 int trace2pass_should_sample(void);
