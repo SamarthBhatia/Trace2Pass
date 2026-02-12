@@ -7,7 +7,7 @@ Tests for the Collector Flask API and database operations.
 import pytest
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 import sys
 import os
 
@@ -37,7 +37,7 @@ def sample_report():
     """Create sample report for testing."""
     return {
         "report_id": str(uuid.uuid4()),
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "check_type": "arithmetic_overflow",
         "location": {
             "file": "src/main.c",
@@ -164,7 +164,7 @@ class TestDeduplication:
         # Submit duplicate (same location, compiler, flags)
         duplicate_report = sample_report.copy()
         duplicate_report['report_id'] = str(uuid.uuid4())  # Different UUID
-        duplicate_report['timestamp'] = datetime.utcnow().isoformat() + "Z"  # Different timestamp
+        duplicate_report['timestamp'] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")  # Different timestamp
 
         response2 = client.post(
             '/api/v1/report',
@@ -260,3 +260,250 @@ class TestStats:
         assert data['unique_bugs'] == 1
         assert data['new_reports'] == 1
         assert len(data['top_check_types']) >= 1
+
+
+def _make_report(**overrides):
+    """Helper to create a report dict with overrides."""
+    report = {
+        "report_id": str(uuid.uuid4()),
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "check_type": "arithmetic_overflow",
+        "location": {"file": "src/main.c", "line": 42, "function": "process_data"},
+        "pc": "0x401234",
+        "compiler": {"name": "clang", "version": "17.0.3", "target": "x86_64-linux-gnu"},
+        "build_info": {"optimization_level": "-O2", "flags": ["-O2"]},
+    }
+    report.update(overrides)
+    return report
+
+
+def _post(client, report):
+    """Helper to POST a report."""
+    return client.post('/api/v1/report', data=json.dumps(report), content_type='application/json')
+
+
+class TestUpdateReport:
+    """Test PATCH /api/v1/reports/<report_id> endpoint."""
+
+    def test_update_status_to_triaged(self, client, sample_report):
+        _post(client, sample_report)
+        rid = sample_report['report_id']
+        resp = client.patch(f'/api/v1/reports/{rid}',
+                            data=json.dumps({"status": "triaged"}),
+                            content_type='application/json')
+        assert resp.status_code == 200
+        # Verify via GET
+        got = json.loads(client.get(f'/api/v1/reports/{rid}').data)
+        assert got['status'] == 'triaged'
+
+    def test_update_with_diagnosis(self, client, sample_report):
+        _post(client, sample_report)
+        rid = sample_report['report_id']
+        diag = {"suspected_pass": "instcombine", "confidence": 0.85}
+        resp = client.patch(f'/api/v1/reports/{rid}',
+                            data=json.dumps({"status": "diagnosed", "diagnosis": diag}),
+                            content_type='application/json')
+        assert resp.status_code == 200
+        got = json.loads(client.get(f'/api/v1/reports/{rid}').data)
+        assert got['status'] == 'diagnosed'
+        assert got['diagnosis']['suspected_pass'] == 'instcombine'
+        assert got['diagnosis']['confidence'] == 0.85
+
+    def test_update_nonexistent_report(self, client):
+        resp = client.patch('/api/v1/reports/nonexistent-id',
+                            data=json.dumps({"status": "triaged"}),
+                            content_type='application/json')
+        assert resp.status_code == 404
+
+    def test_update_invalid_status(self, client, sample_report):
+        _post(client, sample_report)
+        resp = client.patch(f'/api/v1/reports/{sample_report["report_id"]}',
+                            data=json.dumps({"status": "invalid_status"}),
+                            content_type='application/json')
+        assert resp.status_code == 400
+
+    def test_update_missing_status(self, client, sample_report):
+        _post(client, sample_report)
+        resp = client.patch(f'/api/v1/reports/{sample_report["report_id"]}',
+                            data=json.dumps({"diagnosis": {}}),
+                            content_type='application/json')
+        assert resp.status_code == 400
+
+    def test_update_non_json(self, client, sample_report):
+        _post(client, sample_report)
+        resp = client.patch(f'/api/v1/reports/{sample_report["report_id"]}',
+                            data='not json', content_type='text/plain')
+        assert resp.status_code == 400
+
+    def test_update_malformed_json(self, client, sample_report):
+        _post(client, sample_report)
+        resp = client.patch(f'/api/v1/reports/{sample_report["report_id"]}',
+                            data='{bad json', content_type='application/json')
+        assert resp.status_code == 400
+
+
+class TestGetReport:
+    """Test GET /api/v1/reports/<report_id> endpoint."""
+
+    def test_get_existing_report(self, client, sample_report):
+        _post(client, sample_report)
+        resp = client.get(f'/api/v1/reports/{sample_report["report_id"]}')
+        assert resp.status_code == 200
+        data = json.loads(resp.data)
+        assert data['report_id'] == sample_report['report_id']
+        assert data['check_type'] == 'arithmetic_overflow'
+
+    def test_get_nonexistent_report(self, client):
+        resp = client.get('/api/v1/reports/does-not-exist')
+        assert resp.status_code == 404
+
+    def test_get_report_nested_structure(self, client, sample_report):
+        _post(client, sample_report)
+        data = json.loads(client.get(f'/api/v1/reports/{sample_report["report_id"]}').data)
+        # Verify nested structure
+        assert isinstance(data['location'], dict)
+        assert data['location']['file'] == 'src/main.c'
+        assert data['location']['line'] == 42
+        assert data['location']['function'] == 'process_data'
+        assert isinstance(data['compiler'], dict)
+        assert data['compiler']['name'] == 'clang'
+        assert data['compiler']['version'] == '17.0.3'
+        assert isinstance(data['build_info'], dict)
+        assert data['build_info']['optimization_level'] == '-O2'
+
+
+class TestListReports:
+    """Test GET /api/v1/reports endpoint."""
+
+    def test_list_all(self, client):
+        for i in range(3):
+            r = _make_report(location={"file": f"f{i}.c", "line": i, "function": "fn"})
+            _post(client, r)
+        data = json.loads(client.get('/api/v1/reports').data)
+        assert data['count'] == 3
+
+    def test_filter_by_status(self, client):
+        r1 = _make_report()
+        r2 = _make_report(location={"file": "other.c", "line": 1, "function": "fn"})
+        _post(client, r1)
+        _post(client, r2)
+        # Update r1 to diagnosed
+        client.patch(f'/api/v1/reports/{r1["report_id"]}',
+                     data=json.dumps({"status": "diagnosed"}),
+                     content_type='application/json')
+        # Filter new
+        new_data = json.loads(client.get('/api/v1/reports?status=new').data)
+        assert new_data['count'] == 1
+        # Filter diagnosed
+        diag_data = json.loads(client.get('/api/v1/reports?status=diagnosed').data)
+        assert diag_data['count'] == 1
+
+    def test_pagination(self, client):
+        for i in range(5):
+            _post(client, _make_report(location={"file": f"f{i}.c", "line": i, "function": "fn"}))
+        page1 = json.loads(client.get('/api/v1/reports?limit=2&offset=0').data)
+        assert page1['count'] == 2
+        page3 = json.loads(client.get('/api/v1/reports?limit=2&offset=4').data)
+        assert page3['count'] == 1
+
+
+class TestAllCheckTypes:
+    """Test all 7 check_types are accepted."""
+
+    @pytest.mark.parametrize("check_type", [
+        'arithmetic_overflow',
+        'unreachable_code_executed',
+        'division_by_zero',
+        'pure_function_inconsistency',
+        'sign_conversion',
+        'bounds_violation',
+        'loop_bound_exceeded',
+    ])
+    def test_check_type_accepted(self, client, check_type):
+        r = _make_report(check_type=check_type)
+        resp = _post(client, r)
+        assert resp.status_code == 201
+
+
+class TestEdgeCases:
+    """Test edge cases and data integrity."""
+
+    def test_timestamp_z_suffix(self, client):
+        r = _make_report(timestamp="2025-06-15T10:23:45Z")
+        assert _post(client, r).status_code == 201
+
+    def test_timestamp_without_tz(self, client):
+        r = _make_report(timestamp="2025-06-15T10:23:45")
+        assert _post(client, r).status_code == 201
+
+    def test_long_file_path(self, client):
+        long_path = "a/" * 250 + "file.c"  # ~500 chars
+        r = _make_report(location={"file": long_path, "line": 1, "function": "fn"})
+        _post(client, r)
+        data = json.loads(client.get(f'/api/v1/reports/{r["report_id"]}').data)
+        assert data['location']['file'] == long_path
+
+    def test_empty_flags(self, client):
+        r = _make_report()
+        r['build_info']['flags'] = []
+        _post(client, r)
+        data = json.loads(client.get(f'/api/v1/reports/{r["report_id"]}').data)
+        assert data['build_info']['flags'] == []
+
+    def test_missing_optional_fields(self, client):
+        r = {
+            "report_id": str(uuid.uuid4()),
+            "timestamp": "2025-06-15T10:23:45Z",
+            "check_type": "arithmetic_overflow",
+            "location": {"file": "test.c", "line": 1, "function": "main"},
+            "compiler": {"name": "clang", "version": "17.0.3"},
+            "build_info": {"optimization_level": "-O2"},
+        }
+        assert _post(client, r).status_code == 201
+
+    def test_compiler_target_roundtrip(self, client):
+        r = _make_report()
+        r['compiler']['target'] = 'aarch64-apple-darwin'
+        _post(client, r)
+        data = json.loads(client.get(f'/api/v1/reports/{r["report_id"]}').data)
+        assert data['compiler']['target'] == 'aarch64-apple-darwin'
+
+    def test_stats_total_occurrences(self, client):
+        r = _make_report()
+        _post(client, r)
+        # Submit duplicate (same dedupe hash)
+        dup = _make_report(report_id=str(uuid.uuid4()))
+        _post(client, dup)
+        stats = json.loads(client.get('/api/v1/stats').data)
+        assert stats['total_reports'] == 1  # 1 unique row
+        assert stats['total_occurrences'] == 2  # frequency sum
+        assert stats['unique_bugs'] == 1
+
+    def test_special_chars_in_location(self, client):
+        r = _make_report(location={
+            "file": "src/foo|bar:baz.c",
+            "line": 99,
+            "function": "std::vector<int>::push_back"
+        })
+        _post(client, r)
+        data = json.loads(client.get(f'/api/v1/reports/{r["report_id"]}').data)
+        assert data['location']['file'] == "src/foo|bar:baz.c"
+        assert data['location']['function'] == "std::vector<int>::push_back"
+
+    def test_non_json_content_type_rejected(self, client):
+        resp = client.post('/api/v1/report', data='hello', content_type='text/plain')
+        assert resp.status_code == 400
+
+    def test_queue_severity_weights(self, client):
+        # arithmetic_overflow (weight 1.0) vs loop_bound_exceeded (0.6)
+        r1 = _make_report(check_type='loop_bound_exceeded',
+                          location={"file": "a.c", "line": 1, "function": "fn"})
+        r2 = _make_report(check_type='arithmetic_overflow',
+                          location={"file": "b.c", "line": 1, "function": "fn"})
+        _post(client, r1)
+        _post(client, r2)
+        queue = json.loads(client.get('/api/v1/queue').data)['queue']
+        assert len(queue) == 2
+        # arithmetic_overflow should rank higher
+        assert queue[0]['check_type'] == 'arithmetic_overflow'
+        assert queue[1]['check_type'] == 'loop_bound_exceeded'

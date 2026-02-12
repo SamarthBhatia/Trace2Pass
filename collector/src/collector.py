@@ -96,7 +96,9 @@ def submit_report():
 
     try:
         # Validate incoming JSON against schema
-        data = request.get_json()
+        data = request.get_json(silent=True)
+        if data is None:
+            return jsonify({'error': 'Invalid or malformed JSON'}), 400
         validated_data = report_schema.load(data)
 
         # Insert into database

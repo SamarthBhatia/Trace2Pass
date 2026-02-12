@@ -1,0 +1,94 @@
+# Dockerfile for testing Trace2Pass against specific LLVM patch versions
+# ==========================================================================
+# Unlike Dockerfile.trace2pass-eval (which uses silkeh/clang with latest patch),
+# this downloads pre-built LLVM binaries from GitHub Releases for exact versions.
+#
+# This lets us test against buggy versions where bugs haven't been patched yet.
+# Example: Bug #72831 is present in 17.0.2 but fixed in 17.0.4.
+#
+# Usage:
+#   docker build --build-arg LLVM_VERSION=17.0.2 \
+#     -f Dockerfile.trace2pass-patch -t trace2pass-patch:17.0.2 ../../
+#
+# The build context should be the project root (../../ from this file).
+
+ARG LLVM_VERSION=17.0.2
+FROM ubuntu:22.04
+
+ARG LLVM_VERSION
+
+# Install build tools and dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    cmake make wget xz-utils ca-certificates \
+    binutils gcc libc6-dev libstdc++-12-dev libz-dev \
+    libtinfo5 libxml2 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Download pre-built LLVM from GitHub Releases
+# Available at: https://github.com/llvm/llvm-project/releases/tag/llvmorg-VERSION
+# Download pre-built LLVM binaries - handles multiple naming conventions:
+#   17.x: clang+llvm-VERSION-x86_64-linux-gnu-ubuntu-22.04.tar.xz
+#   18.x: clang+llvm-VERSION-x86_64-linux-gnu-ubuntu-18.04.tar.xz
+#   19.x+: LLVM-VERSION-Linux-X64.tar.xz
+RUN set -eux; \
+    BASE="https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}"; \
+    DOWNLOADED=false; \
+    for TARBALL in \
+        "clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-22.04.tar.xz" \
+        "clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-ubuntu-18.04.tar.xz" \
+        "LLVM-${LLVM_VERSION}-Linux-X64.tar.xz" \
+        "clang+llvm-${LLVM_VERSION}-x86_64-linux-gnu-rhel-8.8.tar.xz"; \
+    do \
+        URL="${BASE}/${TARBALL}"; \
+        echo "Trying ${TARBALL}..."; \
+        if wget -q "${URL}" -O /tmp/llvm.tar.xz; then \
+            echo "Downloaded ${TARBALL}"; \
+            DOWNLOADED=true; \
+            break; \
+        fi; \
+    done; \
+    if [ "$DOWNLOADED" = false ]; then \
+        echo "ERROR: No x86_64 Linux binary found for LLVM ${LLVM_VERSION}"; \
+        exit 1; \
+    fi; \
+    mkdir -p /opt/llvm; \
+    tar xf /tmp/llvm.tar.xz -C /opt --strip-components=1 \
+        --one-top-level=llvm; \
+    rm /tmp/llvm.tar.xz; \
+    echo "LLVM ${LLVM_VERSION} installed to /opt/llvm"; \
+    /opt/llvm/bin/clang --version
+
+ENV PATH=/opt/llvm/bin:$PATH
+ENV LD_LIBRARY_PATH=/opt/llvm/lib
+
+# Copy instrumentor and runtime source
+COPY instrumentor/ /trace2pass/instrumentor/
+COPY runtime/ /trace2pass/runtime/
+
+# Build instrumentor against this specific LLVM version
+# Pre-built LLVM binaries have static libs only (no libLLVM.so).
+# For a pass plugin, LLVM symbols are resolved by the host clang at load time,
+# so we patch CMakeLists.txt to skip linking against LLVM.
+RUN rm -rf /trace2pass/instrumentor/build && \
+    if [ ! -f /opt/llvm/lib/libLLVM.so ]; then \
+        sed -i 's/target_link_libraries(Trace2PassInstrumentor LLVM)/# LLVM link skipped (static libs only)/' \
+            /trace2pass/instrumentor/CMakeLists.txt; \
+    fi && \
+    mkdir -p /trace2pass/instrumentor/build && \
+    cd /trace2pass/instrumentor/build && \
+    cmake -DLLVM_DIR=/opt/llvm/lib/cmake/llvm .. && \
+    make -j$(nproc)
+
+# Build runtime
+RUN rm -rf /trace2pass/runtime/build && \
+    mkdir -p /trace2pass/runtime/build && \
+    cd /trace2pass/runtime/build && \
+    cmake .. && \
+    make -j$(nproc)
+
+# Set environment for convenience
+ENV TRACE2PASS_PLUGIN=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so
+ENV TRACE2PASS_RUNTIME=/trace2pass/runtime/build/libTrace2PassRuntime.a
+ENV LLVM_VERSION=${LLVM_VERSION}
+
+WORKDIR /workspace

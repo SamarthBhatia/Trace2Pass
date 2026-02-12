@@ -118,11 +118,17 @@ static int bloom_check_and_insert(uint64_t* bloom, uint64_t hash) {
     return (old_value & bit) != 0;  // Returns 1 if already present
 }
 
-// Helper: Format timestamp
+// Helper: Format timestamp (thread-safe using gmtime_r)
 static void get_timestamp(char* buf, size_t len) {
     time_t now = time(NULL);
-    struct tm* tm_info = gmtime(&now);
-    strftime(buf, len, "%Y-%m-%dT%H:%M:%SZ", tm_info);
+    struct tm tm_storage;
+    struct tm* tm_info = gmtime_r(&now, &tm_storage);
+    if (tm_info) {
+        strftime(buf, len, "%Y-%m-%dT%H:%M:%SZ", tm_info);
+    } else {
+        strncpy(buf, "1970-01-01T00:00:00Z", len);
+        buf[len - 1] = '\0';
+    }
 }
 
 // Helper: Serialize compiler flags as JSON array
@@ -1236,8 +1242,9 @@ void trace2pass_check_pure_consistency(void* pc, const char* file, int line, con
                                         int64_t result) {
     uint64_t func_hash = hash_string(func_name);
 
-    // Compute cache index
-    uint64_t combined_hash = func_hash ^ ((uint64_t)arg0) ^ ((uint64_t)arg1 << 16);
+    // Compute cache index using multiplicative hash to reduce collisions
+    // (XOR alone causes f(1,2) and f(2,1) to collide when func_hash cancels)
+    uint64_t combined_hash = func_hash * 2654435761ULL + (uint64_t)arg0 * 40503ULL + (uint64_t)arg1 * 12345ULL;
     size_t idx = combined_hash % PURE_CACHE_SIZE;
 
     pure_cache_entry_t* entry = &pure_cache[idx];
@@ -1416,6 +1423,426 @@ void trace2pass_report_loop_bound_exceeded(void* pc, const char* file, int line,
         fprintf(out, "      - Incorrect loop bound analysis by optimizer\n");
         fprintf(out, "      - Infinite loop that should have terminated\n");
         fprintf(out, "      - Off-by-one error introduced by optimization\n");
+        fprintf(out, "========================\n\n");
+    }
+
+    fflush(out);
+    pthread_mutex_unlock(&output_mutex);
+}
+
+void trace2pass_report_select_inconsistency(void* pc, const char* file, int line, const char* function,
+                                             int64_t condition, int64_t true_val, int64_t false_val,
+                                             int64_t actual_result) {
+    uint64_t hash = hash_report(pc, "select_inconsistency", file, line, function);
+    if (bloom_check_and_insert(seen_reports, hash)) return;
+
+    char timestamp[32];
+    get_timestamp(timestamp, sizeof(timestamp));
+
+    char callsite_id[32];
+    generate_callsite_id(pc, "select", callsite_id, sizeof(callsite_id));
+
+    char report_id[64];
+    generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+    char file_escaped[512];
+    json_escape_string(file ? file : "unknown", file_escaped, sizeof(file_escaped));
+
+    char function_escaped[256];
+    json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
+
+    char flags_json[2048];
+    if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
+        strcpy(flags_json, "[\"<truncated>\"]");
+    }
+
+    char json[4096];
+    snprintf(json, sizeof(json),
+        "{"
+        "\"report_id\":\"%s\","
+        "\"timestamp\":\"%s\","
+        "\"check_type\":\"select_inconsistency\","
+        "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
+        "\"pc\":\"0x%llx\","
+        "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":%s},"
+        "\"check_details\":{\"condition\":%lld,\"true_val\":%lld,\"false_val\":%lld,\"result\":%lld}"
+        "}",
+        report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
+        build_opt_level ? build_opt_level : "unknown",
+        flags_json,
+        (long long)condition, (long long)true_val, (long long)false_val, (long long)actual_result);
+
+    if (collector_url) {
+        http_post_json(collector_url, json);
+    }
+
+    pthread_mutex_lock(&output_mutex);
+    FILE* out = get_output_file();
+
+    if (json_output) {
+        fprintf(out, "%s\n", json);
+    } else {
+        fprintf(out, "\n=== Trace2Pass Report ===\n");
+        fprintf(out, "Timestamp: %s\n", timestamp);
+        fprintf(out, "Type: select_inconsistency\n");
+        fprintf(out, "Location: %s:%d in %s\n", file ? file : "unknown", line, function ? function : "unknown");
+        fprintf(out, "PC: %p\n", pc);
+        fprintf(out, "Condition: %lld\n", (long long)condition);
+        fprintf(out, "Expected: %lld, Got: %lld\n",
+                (long long)(condition ? true_val : false_val), (long long)actual_result);
+        fprintf(out, "========================\n\n");
+    }
+
+    fflush(out);
+    pthread_mutex_unlock(&output_mutex);
+}
+
+void trace2pass_report_range_violation(void* pc, const char* file, int line, const char* function,
+                                       int64_t actual_value, int64_t range_lo, int64_t range_hi) {
+    uint64_t hash = hash_report(pc, "range_violation", file, line, function);
+    if (bloom_check_and_insert(seen_reports, hash)) return;
+
+    char timestamp[32];
+    get_timestamp(timestamp, sizeof(timestamp));
+
+    char callsite_id[32];
+    generate_callsite_id(pc, "range", callsite_id, sizeof(callsite_id));
+
+    char report_id[64];
+    generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+    char file_escaped[512];
+    json_escape_string(file ? file : "unknown", file_escaped, sizeof(file_escaped));
+
+    char function_escaped[256];
+    json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
+
+    char flags_json[2048];
+    if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
+        strcpy(flags_json, "[\"<truncated>\"]");
+    }
+
+    char json[4096];
+    snprintf(json, sizeof(json),
+        "{"
+        "\"report_id\":\"%s\","
+        "\"timestamp\":\"%s\","
+        "\"check_type\":\"range_violation\","
+        "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
+        "\"pc\":\"0x%llx\","
+        "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":%s},"
+        "\"check_details\":{\"actual_value\":%lld,\"range_lo\":%lld,\"range_hi\":%lld}"
+        "}",
+        report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
+        build_opt_level ? build_opt_level : "unknown",
+        flags_json,
+        (long long)actual_value, (long long)range_lo, (long long)range_hi);
+
+    if (collector_url) {
+        http_post_json(collector_url, json);
+    }
+
+    pthread_mutex_lock(&output_mutex);
+    FILE* out = get_output_file();
+
+    if (json_output) {
+        fprintf(out, "%s\n", json);
+    } else {
+        fprintf(out, "\n=== Trace2Pass Report ===\n");
+        fprintf(out, "Timestamp: %s\n", timestamp);
+        fprintf(out, "Type: range_violation\n");
+        fprintf(out, "Location: %s:%d in %s\n", file ? file : "unknown", line, function ? function : "unknown");
+        fprintf(out, "PC: %p\n", pc);
+        fprintf(out, "Value: %lld, Expected Range: [%lld, %lld)\n",
+                (long long)actual_value, (long long)range_lo, (long long)range_hi);
+        fprintf(out, "========================\n\n");
+    }
+
+    fflush(out);
+    pthread_mutex_unlock(&output_mutex);
+}
+
+// Shadow memory for volatile tracking (cross-BB store-load consistency)
+// Uses a small hash map: addr → expected_value
+// Thread-safe via atomic operations on the value slots
+#define SHADOW_MAP_SIZE 4096
+#define SHADOW_MAP_MASK (SHADOW_MAP_SIZE - 1)
+
+typedef struct {
+    uintptr_t addr;   // Address being tracked (0 = empty)
+    int64_t   value;  // Last stored value
+} shadow_entry_t;
+
+static shadow_entry_t shadow_map[SHADOW_MAP_SIZE];
+
+void trace2pass_shadow_store(void* addr, int64_t value) {
+    uintptr_t key = (uintptr_t)addr;
+    // Multiplicative hash (same as pure function cache)
+    size_t idx = (size_t)((key * 0x9E3779B97F4A7C15ULL) >> 48) & SHADOW_MAP_MASK;
+
+    // Linear probe (max 4 slots)
+    for (int i = 0; i < 4; i++) {
+        size_t slot = (idx + i) & SHADOW_MAP_MASK;
+        uintptr_t existing = __atomic_load_n(&shadow_map[slot].addr, __ATOMIC_RELAXED);
+        if (existing == key || existing == 0) {
+            __atomic_store_n(&shadow_map[slot].addr, key, __ATOMIC_RELAXED);
+            __atomic_store_n(&shadow_map[slot].value, value, __ATOMIC_RELEASE);
+            return;
+        }
+    }
+    // All 4 slots full — evict first slot
+    size_t slot = idx & SHADOW_MAP_MASK;
+    __atomic_store_n(&shadow_map[slot].addr, key, __ATOMIC_RELAXED);
+    __atomic_store_n(&shadow_map[slot].value, value, __ATOMIC_RELEASE);
+}
+
+void trace2pass_shadow_check(void* pc, const char* file, int line, const char* function,
+                              void* addr, int64_t loaded_value) {
+    uintptr_t key = (uintptr_t)addr;
+    size_t idx = (size_t)((key * 0x9E3779B97F4A7C15ULL) >> 48) & SHADOW_MAP_MASK;
+
+    // Linear probe (max 4 slots)
+    for (int i = 0; i < 4; i++) {
+        size_t slot = (idx + i) & SHADOW_MAP_MASK;
+        uintptr_t existing = __atomic_load_n(&shadow_map[slot].addr, __ATOMIC_RELAXED);
+        if (existing == key) {
+            int64_t expected = __atomic_load_n(&shadow_map[slot].value, __ATOMIC_ACQUIRE);
+            if (expected != loaded_value) {
+                // Mismatch! Report volatile tracking inconsistency
+                uint64_t hash = hash_report(pc, "volatile_tracking", file, line, function);
+                if (bloom_check_and_insert(seen_reports, hash)) return;
+
+                char timestamp[32];
+                get_timestamp(timestamp, sizeof(timestamp));
+
+                char callsite_id[32];
+                generate_callsite_id(pc, "volatile", callsite_id, sizeof(callsite_id));
+
+                char report_id[64];
+                generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+                char file_escaped[512];
+                json_escape_string(file ? file : "unknown", file_escaped, sizeof(file_escaped));
+
+                char function_escaped[256];
+                json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
+
+                char flags_json[2048];
+                if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
+                    strcpy(flags_json, "[\"<truncated>\"]");
+                }
+
+                char json[4096];
+                snprintf(json, sizeof(json),
+                    "{"
+                    "\"report_id\":\"%s\","
+                    "\"timestamp\":\"%s\","
+                    "\"check_type\":\"volatile_tracking\","
+                    "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
+                    "\"pc\":\"0x%llx\","
+                    "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
+                    "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":%s},"
+                    "\"check_details\":{\"address\":\"0x%llx\",\"expected_value\":%lld,\"loaded_value\":%lld}"
+                    "}",
+                    report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
+                    build_opt_level ? build_opt_level : "unknown",
+                    flags_json,
+                    (unsigned long long)(uintptr_t)addr, (long long)expected, (long long)loaded_value);
+
+                if (collector_url) {
+                    http_post_json(collector_url, json);
+                }
+
+                pthread_mutex_lock(&output_mutex);
+                FILE* out = get_output_file();
+
+                if (json_output) {
+                    fprintf(out, "%s\n", json);
+                } else {
+                    fprintf(out, "\n=== Trace2Pass Report ===\n");
+                    fprintf(out, "Timestamp: %s\n", timestamp);
+                    fprintf(out, "Type: volatile_tracking\n");
+                    fprintf(out, "Location: %s:%d in %s\n", file ? file : "unknown", line, function ? function : "unknown");
+                    fprintf(out, "PC: %p\n", pc);
+                    fprintf(out, "Address: %p\n", addr);
+                    fprintf(out, "Expected: %lld, Loaded: %lld\n", (long long)expected, (long long)loaded_value);
+                    fprintf(out, "========================\n\n");
+                }
+
+                fflush(out);
+                pthread_mutex_unlock(&output_mutex);
+            }
+            return;
+        }
+        if (existing == 0) return;  // Not found
+    }
+    // Not found — no shadow store recorded for this address
+}
+
+// Cross-BB Value Propagation: Opaque memory read
+// This function reads actual memory contents. Its value is being opaque to
+// LLVM's GVN pass — if GVN incorrectly folds a load to a constant, the
+// opaque_read still returns the real value, creating a detectable mismatch.
+// This function is declared with readonly+nounwind+willreturn in LLVM IR.
+// readonly allows GVN to fold the guarded load (exercising potential bugs),
+// while the external linkage + opaque body prevents GVN from predicting
+// the return value. DO NOT add readnone — that would let GVN eliminate the call.
+int64_t trace2pass_opaque_read(void* addr, int32_t size_bytes) {
+    if (!addr) return 0;
+    switch (size_bytes) {
+        case 1: return (int64_t)(*(uint8_t*)addr);
+        case 2: return (int64_t)(*(uint16_t*)addr);
+        case 4: return (int64_t)(*(uint32_t*)addr);
+        case 8: return (int64_t)(*(uint64_t*)addr);
+        default: return 0;
+    }
+}
+
+void trace2pass_report_value_propagation(void* pc, const char* file, int line,
+    const char* function, void* addr, int64_t optimized_value, int64_t actual_value) {
+    uint64_t hash = hash_report(pc, "value_propagation", file, line, function);
+    if (bloom_check_and_insert(seen_reports, hash)) return;
+
+    char timestamp[32];
+    get_timestamp(timestamp, sizeof(timestamp));
+
+    char callsite_id[32];
+    generate_callsite_id(pc, "valprop", callsite_id, sizeof(callsite_id));
+
+    char report_id[64];
+    generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+    char file_escaped[512];
+    json_escape_string(file ? file : "unknown", file_escaped, sizeof(file_escaped));
+
+    char function_escaped[256];
+    json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
+
+    char flags_json[2048];
+    if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
+        strcpy(flags_json, "[\"<truncated>\"]");
+    }
+
+    char json[4096];
+    snprintf(json, sizeof(json),
+        "{"
+        "\"report_id\":\"%s\","
+        "\"timestamp\":\"%s\","
+        "\"check_type\":\"value_propagation\","
+        "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
+        "\"pc\":\"0x%llx\","
+        "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":%s},"
+        "\"check_details\":{\"address\":\"0x%llx\",\"optimized_value\":%lld,\"actual_value\":%lld}"
+        "}",
+        report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
+        build_opt_level ? build_opt_level : "unknown",
+        flags_json,
+        (unsigned long long)(uintptr_t)addr, (long long)optimized_value, (long long)actual_value);
+
+    if (collector_url) {
+        http_post_json(collector_url, json);
+    }
+
+    pthread_mutex_lock(&output_mutex);
+    FILE* out = get_output_file();
+
+    if (json_output) {
+        fprintf(out, "%s\n", json);
+    } else {
+        fprintf(out, "\n=== Trace2Pass Report ===\n");
+        fprintf(out, "Timestamp: %s\n", timestamp);
+        fprintf(out, "Type: value_propagation\n");
+        fprintf(out, "Location: %s:%d in %s\n", file ? file : "unknown", line, function ? function : "unknown");
+        fprintf(out, "PC: %p\n", pc);
+        fprintf(out, "Address: %p\n", addr);
+        fprintf(out, "Optimized Value: %lld\n", (long long)optimized_value);
+        fprintf(out, "Actual Value: %lld\n", (long long)actual_value);
+        fprintf(out, "Note: GVN may have incorrectly folded a load to a constant\n");
+        fprintf(out, "========================\n\n");
+    }
+
+    fflush(out);
+    pthread_mutex_unlock(&output_mutex);
+}
+
+// Consolidated cross-BB check: reads memory, compares with optimizer's value,
+// and reports if there's a mismatch. Declared with memory(inaccessiblemem: readwrite)
+// in LLVM IR — this tells GVN the call doesn't access program-visible memory,
+// so GVN can still fold the guarded load (exercising potential bugs).
+// The "lie" is intentional: we want GVN to optimize freely, then detect mismatches.
+void trace2pass_check_cross_bb(void* addr, int32_t size_bytes,
+                                int64_t optimized_value, const char* file,
+                                int32_t line, const char* function) {
+    int64_t actual_value = trace2pass_opaque_read(addr, size_bytes);
+    if (actual_value == optimized_value) return;
+
+    // Mismatch detected — GVN likely folded a load incorrectly
+    void* pc = __builtin_return_address(0);
+    trace2pass_report_value_propagation(pc, file, line, function,
+                                         addr, optimized_value, actual_value);
+}
+
+void trace2pass_report_store_load_inconsistency(void* pc, const char* file, int line, const char* function,
+                                                 int64_t stored_value, int64_t loaded_value) {
+    uint64_t hash = hash_report(pc, "store_load_inconsistency", file, line, function);
+    if (bloom_check_and_insert(seen_reports, hash)) return;
+
+    char timestamp[32];
+    get_timestamp(timestamp, sizeof(timestamp));
+
+    char callsite_id[32];
+    generate_callsite_id(pc, "storeload", callsite_id, sizeof(callsite_id));
+
+    char report_id[64];
+    generate_report_id(callsite_id, timestamp, report_id, sizeof(report_id));
+
+    char file_escaped[512];
+    json_escape_string(file ? file : "unknown", file_escaped, sizeof(file_escaped));
+
+    char function_escaped[256];
+    json_escape_string(function ? function : "unknown", function_escaped, sizeof(function_escaped));
+
+    char flags_json[2048];
+    if (serialize_flags_json(build_compile_flags ? build_compile_flags : "", flags_json, sizeof(flags_json)) < 0) {
+        strcpy(flags_json, "[\"<truncated>\"]");
+    }
+
+    char json[4096];
+    snprintf(json, sizeof(json),
+        "{"
+        "\"report_id\":\"%s\","
+        "\"timestamp\":\"%s\","
+        "\"check_type\":\"store_load_inconsistency\","
+        "\"location\":{\"file\":\"%s\",\"line\":%d,\"function\":\"%s\"},"
+        "\"pc\":\"0x%llx\","
+        "\"compiler\":{\"name\":\"" TRACE2PASS_COMPILER_NAME "\",\"version\":\"" TRACE2PASS_COMPILER_VERSION "\",\"target\":\"" TRACE2PASS_TARGET_ARCH "\"},"
+        "\"build_info\":{\"optimization_level\":\"%s\",\"flags\":%s},"
+        "\"check_details\":{\"stored_value\":%lld,\"loaded_value\":%lld}"
+        "}",
+        report_id, timestamp, file_escaped, line, function_escaped, (unsigned long long)pc,
+        build_opt_level ? build_opt_level : "unknown",
+        flags_json,
+        (long long)stored_value, (long long)loaded_value);
+
+    if (collector_url) {
+        http_post_json(collector_url, json);
+    }
+
+    pthread_mutex_lock(&output_mutex);
+    FILE* out = get_output_file();
+
+    if (json_output) {
+        fprintf(out, "%s\n", json);
+    } else {
+        fprintf(out, "\n=== Trace2Pass Report ===\n");
+        fprintf(out, "Timestamp: %s\n", timestamp);
+        fprintf(out, "Type: store_load_inconsistency\n");
+        fprintf(out, "Location: %s:%d in %s\n", file ? file : "unknown", line, function ? function : "unknown");
+        fprintf(out, "PC: %p\n", pc);
+        fprintf(out, "Stored: %lld, Loaded: %lld\n", (long long)stored_value, (long long)loaded_value);
         fprintf(out, "========================\n\n");
     }
 
