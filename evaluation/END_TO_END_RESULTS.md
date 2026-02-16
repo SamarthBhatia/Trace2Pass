@@ -7,10 +7,10 @@
 
 | Metric | Value |
 |--------|-------|
-| Bugs tested end-to-end | 4 |
-| Fully diagnosed (compiler_bug + culprit pass) | 3 |
+| Bugs tested end-to-end | 5 |
+| Fully diagnosed (compiler_bug + culprit pass) | 4 |
 | Partially diagnosed (user_ub or incomplete) | 1 (phantom) |
-| Pass bisection accuracy | 3/3 (100%) |
+| Pass bisection accuracy | 4/4 (100%) |
 | Version bisection accuracy | 2/2 bisected correctly |
 | False positives | 0 |
 
@@ -70,6 +70,24 @@
 
 **Key insight**: SROA (Scalar Replacement of Aggregates) promotes the volatile `kPtr` alloca to SSA form, stripping volatile semantics. This enables GVN to propagate the initial NULL assignment past the setjmp/longjmp boundary. SROAPass is correctly identified as the enabling pass.
 
+### Bug #72831 — DSE/BasicAA GEP Wrap Miscompile
+
+| Stage | Result |
+|-------|--------|
+| **Bug ID** | [LLVM #72831](https://github.com/llvm/llvm-project/issues/72831) |
+| **Status** | Fixed (PR #72993) |
+| **Optimization** | -O2 |
+| **UB Detection** | compiler_bug (80% confidence) |
+| **UBSan** | Clean |
+| **Optimization Sensitive** | Yes (-O0 prints "2", -O2 prints "0" on buggy commit) |
+| **Multi-compiler** | GCC correct (clang-only bug) |
+| **Version Bisection** | N/A (trunk-only; reproduced via custom Docker image at commit 42cd9aee) |
+| **Pass Bisection** | **DSEPass** at index 222/476 |
+| **Mode** | `clang -mllvm -opt-bisect-limit=N` (via trace2pass-buggy:72831 Docker image) |
+| **Total Tests** | 11 (pass bisection) |
+
+**Key insight**: BasicAA incorrectly assumed the minimum absolute variable index must be >= 1 when wrapping occurs during GEP scaling. This caused DSE to conclude that a store and a subsequent load don't alias, eliminating a needed store. The pass bisector correctly identifies DSEPass as the culprit — DSE is where the incorrect alias analysis leads to the wrong elimination. This bug was trunk-only (introduced and fixed between releases), so it required building LLVM from the exact pre-fix commit (42cd9aeec286) to reproduce.
+
 ### Phantom Overflow — Synthetic Benchmark
 
 | Stage | Result |
@@ -96,7 +114,7 @@ Testing all bugs from the dataset on Docker clang-14 through clang-19:
 | #127511 | OK | OK | OK | OK | OK | OK | **BUG** |
 | #31000 | OK | OK | OK | - | - | - | OK |
 | #59836 | OK | OK | OK | - | - | - | OK |
-| #72831 | OK | OK | OK | - | - | - | OK |
+| #72831 | OK | OK | OK | - | - | - | OK (buggy commit: **BUG**) |
 | #85536 | OK | OK | OK | - | - | - | OK |
 | #114578 | OK | OK | OK | - | - | - | OK |
 | #115149 | OK | OK | OK | - | - | OK | OK |
@@ -121,6 +139,7 @@ Key findings from version matrix:
 | #76789 | compiler_bug | compiler_bug (80%) | Yes |
 | #116668 | compiler_bug* | compiler_bug (100%) | Yes* |
 | #127511 | compiler_bug* | compiler_bug (100%) | Yes* |
+| #72831 | compiler_bug | compiler_bug (80%) | Yes |
 | Phantom | user_ub | user_ub | Yes |
 
 *Note: #116668 and #127511 involve setjmp/volatile semantics where both clang and GCC produce the same (incorrect) result. The UB detector reports `multi_compiler_differs: false`, meaning it cannot distinguish compiler bug from user UB by differential testing alone. The 100% confidence comes from UBSan clean + optimization-sensitive, but the true classification is debatable (may be user UB per C standard volatile semantics).
@@ -132,6 +151,7 @@ Key findings from version matrix:
 | #76789 | BasicAA/LICM | **LICMPass** | Yes | clang opt-bisect-limit |
 | #116668 | GVN (via DSE) | **DSEPass** | Yes | clang opt-bisect-limit |
 | #127511 | GVN (via SROA) | **SROAPass** | Yes | clang opt-bisect-limit |
+| #72831 | DSE/BasicAA | **DSEPass** | Yes | clang opt-bisect-limit (custom Docker image) |
 | Phantom | InstCombine | **instcombine** | Yes | opt-based |
 
 All pass bisections correctly identify the enabling/culprit pass. Note that for GVN bugs, the bisector identifies the *enabling* pass (DSE or SROA) rather than GVN itself, because the enabling pass creates the conditions for GVN to misoptimize. This is the correct behavior — disabling the enabling pass prevents the bug.
@@ -151,5 +171,5 @@ This script runs all four bugs through the full pipeline and saves structured JS
 1. **Version bisection limited locally**: Only LLVM 21 installed on development machine. Docker provides clang 14-19 for version bisection.
 2. **Path spaces**: Docker mount paths with spaces (e.g., `/Volumes/Crucial X6/...`) require wrapper scripts in `/tmp`.
 3. **GCC comparison**: The UB detector's multi-compiler test is limited when both compilers have the same bug (GVN/setjmp bugs).
-4. **Trunk-only bugs**: 9 of 13 bugs in the dataset are trunk-only and cannot be reproduced on any release version, limiting end-to-end testing.
+4. **Trunk-only bugs**: 9 of 13 bugs in the dataset are trunk-only and cannot be reproduced on any release version. Custom Docker images built from pre-fix commits address this for bugs with known fix commits (e.g., #72831).
 5. **Exit code tests**: Some test programs (e.g., #76789) don't return meaningful exit codes and require wrapper scripts to check output.

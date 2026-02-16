@@ -302,6 +302,7 @@ def pass_bisect_cmd(source_file: str, test_command: str,
                     optimization_level: str = "-O2",
                     compiler_version: Optional[str] = None,
                     use_docker: bool = False,
+                    docker_image: Optional[str] = None,
                     use_instrumentation: bool = False,
                     use_enhanced: bool = False,
                     use_clang_bisect: bool = False,
@@ -327,6 +328,8 @@ def pass_bisect_cmd(source_file: str, test_command: str,
                          to analyze the correct compiler's pass pipeline
         use_docker: Use Docker containers for LLVM tools (default: False)
                    When True, runs pass bisection inside Docker containers
+        docker_image: Custom Docker image name (e.g., "trace2pass-buggy:115458").
+                     Overrides the default silkeh/clang image. Implies use_docker=True.
         use_instrumentation: Use Trace2Pass instrumentation for testing (default: False)
                            When True, compiles with instrumentation and checks for overflow reports
         use_enhanced: Use enhanced pass bisection strategies (default: False)
@@ -404,9 +407,18 @@ def pass_bisect_cmd(source_file: str, test_command: str,
     # we MUST use that specific version for pass bisection. Otherwise, we'd be
     # analyzing the wrong compiler's pass pipeline.
 
+    # Custom Docker image: tools are inside the image, skip local detection
+    if docker_image:
+        clang_path = "clang"
+        opt_path = "opt"
+        llc_path = "llc"
+        use_docker = True
+        major_version = None  # Not needed — docker_image overrides
+        print(f"Using custom Docker image: {docker_image}")
+
     # When using clang bisect mode, we only need clang (not opt/llc)
     # We still set opt/llc to matching tools so PassBisector version check passes
-    if use_clang_bisect:
+    elif use_clang_bisect:
         if use_docker and compiler_version:
             major_version = compiler_version.split('.')[0]
             clang_path = "clang"
@@ -566,8 +578,9 @@ def pass_bisect_cmd(source_file: str, test_command: str,
             opt_path=opt_path,
             llc_path=llc_path,
             opt_level=optimization_level,
-            use_docker=use_docker,
+            use_docker=use_docker or (docker_image is not None),
             docker_version=major_version if use_docker else None,
+            docker_image=docker_image,
             use_instrumentation=use_instrumentation
         )
 
@@ -699,6 +712,7 @@ def full_pipeline_cmd(source_file: str, test_command: str,
                       expected_output: Optional[str] = None,
                       optimization_level: str = "-O2",
                       use_docker: bool = True,
+                      docker_image: Optional[str] = None,
                       use_instrumentation: bool = False,
                       use_enhanced: bool = False,
                       use_clang_bisect: bool = False) -> Dict[str, Any]:
@@ -839,6 +853,7 @@ def full_pipeline_cmd(source_file: str, test_command: str,
             source_file, test_command, optimization_level,
             compiler_version=first_bad_version,
             use_docker=actually_used_docker,
+            docker_image=docker_image,
             use_instrumentation=use_instrumentation,
             use_enhanced=use_enhanced,
             use_clang_bisect=use_clang_bisect
@@ -993,6 +1008,9 @@ def main():
                                  'Required for bugs that only manifest in clang integrated pipeline.')
     pass_parser.add_argument('--use-docker', action='store_true', default=False,
                             help='Use Docker containers for compilation (requires silkeh/clang images)')
+    pass_parser.add_argument('--docker-image',
+                            help='Custom Docker image name (e.g., "trace2pass-buggy:115458"). '
+                                 'Overrides default silkeh/clang image. Implies --use-docker.')
 
     # full-pipeline command
     pipeline_parser = subparsers.add_parser(
@@ -1015,6 +1033,9 @@ def main():
     pipeline_parser.add_argument('--use-clang-bisect', action='store_true', default=False,
                                  help='Use clang -mllvm -opt-bisect-limit=N for pass bisection '
                                       '(required for bugs that only manifest in clang integrated pipeline)')
+    pipeline_parser.add_argument('--docker-image',
+                                 help='Custom Docker image for pass bisection (e.g., "trace2pass-buggy:115458"). '
+                                      'Overrides default silkeh/clang image.')
 
     args = parser.parse_args()
 
@@ -1039,6 +1060,7 @@ def main():
                                     args.optimization_level,
                                     compiler_version=getattr(args, 'compiler_version', None),
                                     use_docker=getattr(args, 'use_docker', False),
+                                    docker_image=getattr(args, 'docker_image', None),
                                     use_enhanced=args.use_enhanced,
                                     use_clang_bisect=getattr(args, 'use_clang_bisect', False))
         elif args.command == 'full-pipeline':
@@ -1046,6 +1068,7 @@ def main():
                                       args.test_input, args.expected_output,
                                       args.optimization_level,
                                       use_docker=args.use_docker,
+                                      docker_image=getattr(args, 'docker_image', None),
                                       use_instrumentation=args.use_instrumentation,
                                       use_enhanced=args.use_enhanced,
                                       use_clang_bisect=args.use_clang_bisect)
