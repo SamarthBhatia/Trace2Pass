@@ -1,0 +1,12 @@
+{
+    "bug_id": "179070",
+    "clang_version": "18",
+    "opt_flags": "-O2",
+    "expected_output": "3",
+    "baseline_output": "3",
+    "optimized_output": "3",
+    "reproduces": "no",
+    "anomaly_count": 0,
+    "bug_prevented": "no",
+    "description": "shift/loop miscompilation"
+}

@@ -1,0 +1,112 @@
+# Parameterized Dockerfile for building LLVM at a specific buggy commit
+#
+# Usage:
+#   docker build -t trace2pass-buggy:115458 \
+#     --build-arg LLVM_COMMIT=d6d73ec8 \
+#     --build-arg BUG_ID=115458 \
+#     -f Dockerfile.llvm-buggy .
+#
+# The image contains a clang binary built from the specified commit,
+# which should reproduce the bug. Use shallow clone + fetch to minimize
+# download time.
+
+ARG LLVM_COMMIT
+ARG BUG_ID=unknown
+
+FROM ubuntu:22.04 AS builder
+
+ARG LLVM_COMMIT
+ARG BUG_ID
+
+# Prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    cmake \
+    ninja-build \
+    build-essential \
+    python3 \
+    python3-pip \
+    libz-dev \
+    libzstd-dev \
+    libxml2-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Clone LLVM and checkout the buggy commit
+# Strategy: blobless clone (--filter=blob:none) downloads commit graph fast
+# then checkout fetches only the blobs needed for that specific commit.
+# This is much faster than full clone (~2-5 min vs ~30 min) while supporting
+# arbitrary commit hashes (unlike shallow clone which can't fetch by hash).
+RUN git clone --filter=blob:none --no-checkout \
+        https://github.com/llvm/llvm-project.git /llvm-project && \
+    cd /llvm-project && \
+    git checkout ${LLVM_COMMIT} && \
+    git log -1 --oneline && \
+    echo "LLVM commit for bug #${BUG_ID}: ${LLVM_COMMIT}"
+
+# Create build directory
+WORKDIR /llvm-project/build
+
+# Configure LLVM build (clang only, minimal config for speed)
+RUN cmake -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DLLVM_ENABLE_PROJECTS="clang" \
+    -DLLVM_TARGETS_TO_BUILD="X86;AArch64" \
+    -DLLVM_INCLUDE_TESTS=OFF \
+    -DLLVM_INCLUDE_EXAMPLES=OFF \
+    -DLLVM_INCLUDE_BENCHMARKS=OFF \
+    -DLLVM_ENABLE_ASSERTIONS=OFF \
+    -DLLVM_ENABLE_ZSTD=OFF \
+    -DLLVM_ENABLE_ZLIB=ON \
+    -DCMAKE_INSTALL_PREFIX=/usr/local \
+    ../llvm
+
+# Build clang
+# IMPORTANT: LLVM linking requires 2-4GB per linker process.
+# -j2 works with 8GB+ Docker RAM; -j1 is safe for 4GB Docker RAM.
+# Set NINJA_JOBS build arg to control parallelism (default: 2).
+# To speed up: increase Docker Desktop memory to 8GB+ in Settings > Resources.
+ARG NINJA_JOBS=2
+RUN ninja -j${NINJA_JOBS} clang
+
+# Install binaries
+RUN ninja install-clang install-clang-headers install-clang-resource-headers 2>/dev/null || \
+    ninja install-clang install-clang-headers 2>/dev/null || \
+    ninja install-clang
+
+# Runtime stage (copy only what we need)
+FROM ubuntu:22.04
+
+ARG BUG_ID
+
+# Install runtime dependencies + build essentials for test compilation
+# gcc provides crtbeginS.o and libgcc needed by clang's linker driver
+RUN apt-get update && apt-get install -y \
+    libstdc++6 \
+    libzstd1 \
+    libxml2 \
+    libc6-dev \
+    binutils \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy clang binaries and libraries from builder
+COPY --from=builder /usr/local/bin/clang* /usr/local/bin/
+COPY --from=builder /usr/local/lib/clang /usr/local/lib/clang
+
+# Set up environment
+ENV PATH="/usr/local/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/lib"
+
+# Label with bug info
+LABEL trace2pass.bug_id="${BUG_ID}"
+
+# Verify installation
+RUN clang --version
+
+# Set working directory
+WORKDIR /src
+
+CMD ["/bin/bash"]

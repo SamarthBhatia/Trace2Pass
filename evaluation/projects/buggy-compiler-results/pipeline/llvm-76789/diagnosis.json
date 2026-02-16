@@ -1,0 +1,30 @@
+{
+  "verdict": "compiler_bug",
+  "confidence": 0.80,
+  "ub_detection": {
+    "verdict": "compiler_bug",
+    "confidence": 0.80,
+    "ubsan_clean": true,
+    "optimization_sensitive": false,
+    "multi_compiler_differs": false
+  },
+  "version_bisection": {
+    "verdict": "bisected",
+    "first_bad_version": "14",
+    "last_good_version": "21",
+    "total_tests": 4
+  },
+  "pass_bisection": {
+    "verdict": "full_passes",
+    "culprit_pass": null,
+    "note": "Bug manifests in clang integrated pipeline but not in opt pass pipeline. Bug is in BasicAA/LICM interaction during integrated compilation."
+  },
+  "instrumentor": {
+    "anomaly_detected": false,
+    "bug_prevented": true,
+    "uninstrumented_output": "0",
+    "instrumented_output": "1",
+    "expected_output": "1",
+    "mechanism": "sadd.with.overflow intrinsic neutralizes nsw assumption exploited by BasicAA/LICM"
+  }
+}

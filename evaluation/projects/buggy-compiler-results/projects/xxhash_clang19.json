@@ -1,0 +1,8 @@
+{
+    "project": "xxhash",
+    "clang_version": "19",
+    "anomaly_count": 0,
+    "overhead_percent": 0.93,
+    "tests_pass": true,
+    "false_positive_rate": "0%"
+}

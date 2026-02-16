@@ -1,0 +1,9 @@
+{
+    "project": "zlib",
+    "clang_version": "19",
+    "anomaly_count": 124,
+    "overhead_percent": 11.58,
+    "tests_pass": true,
+    "false_positive_rate": "investigate",
+    "notes": "124 bounds_violation from negative pointer offsets in inflate (sliding window). All FP from intentional pointer arithmetic."
+}

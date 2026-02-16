@@ -1,0 +1,10 @@
+=== cJSON False Positive Check (clang:16, -O2) ===
+
+--- Building cJSON baseline ---
+Baseline: 100% tests passed, 0 tests failed out of 19
+
+--- Building cJSON instrumented ---
+Instrumented: 100% tests passed, 0 tests failed out of 19
+
+--- Anomaly report ---
+Anomalies: 0
