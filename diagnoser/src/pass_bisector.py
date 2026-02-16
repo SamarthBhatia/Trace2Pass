@@ -52,6 +52,7 @@ class PassBisector:
         verbose: bool = False,
         use_docker: bool = False,
         docker_version: Optional[str] = None,
+        docker_image: Optional[str] = None,
         use_instrumentation: bool = False,
         extra_compile_flags: Optional[List[str]] = None
     ):
@@ -67,6 +68,8 @@ class PassBisector:
             verbose: Print debugging information
             use_docker: Use Docker containers for LLVM tools (default: False)
             docker_version: LLVM version for Docker image (e.g., "15" for silkeh/clang:15)
+            docker_image: Custom Docker image name (e.g., "trace2pass-buggy:115458").
+                         Overrides docker_version for image selection. Implies use_docker=True.
             use_instrumentation: Compile with Trace2Pass instrumentation (default: False)
             extra_compile_flags: Additional compilation flags (e.g., ["-std=c++20", "-fms-extensions"])
         """
@@ -77,7 +80,8 @@ class PassBisector:
         self.extra_compile_flags = extra_compile_flags or []
         self.timeout_sec = timeout_sec
         self.verbose = verbose
-        self.use_docker = use_docker
+        self.docker_image = docker_image
+        self.use_docker = use_docker or (docker_image is not None)
         self.docker_version = docker_version
         self.use_instrumentation = use_instrumentation
 
@@ -93,6 +97,12 @@ class PassBisector:
         # Skip verification when using Docker (tools are in container)
         if not self.use_docker:
             self._verify_tool_versions()
+
+    def _get_docker_image(self) -> str:
+        """Get the Docker image name to use for container execution."""
+        if self.docker_image:
+            return self.docker_image
+        return f"silkeh/clang:{self.docker_version}"
 
     def _log(self, msg: str):
         """Print log message if verbose mode enabled."""
@@ -112,7 +122,7 @@ class PassBisector:
         Returns:
             subprocess.CompletedProcess result
         """
-        if self.use_docker and self.docker_version:
+        if self.use_docker and (self.docker_version or self.docker_image):
             # Wrap command in Docker execution
             # Mount work_dir and extra_mounts to same paths in container
             # This ensures file paths remain consistent between host and container
@@ -132,7 +142,7 @@ class PassBisector:
 
             docker_cmd.extend([
                 "-w", mount_dir,
-                f"silkeh/clang:{self.docker_version}"
+                self._get_docker_image()
             ])
             docker_cmd.extend(cmd)
 
@@ -162,7 +172,7 @@ class PassBisector:
             "docker", "run", "--rm",
             "-v", f"{binary_dir}:{binary_dir}",
             "-w", binary_dir,
-            f"silkeh/clang:{self.docker_version}",
+            self._get_docker_image(),
             binary_path
         ]
 
@@ -478,7 +488,7 @@ class PassBisector:
         # Run test function
         # When using Docker, the binary is a Linux ELF — run it inside Docker
         try:
-            if self.use_docker and self.docker_version:
+            if self.use_docker and (self.docker_version or self.docker_image):
                 test_passed = self._run_test_in_docker(binary_file, test_func)
             else:
                 test_passed = test_func(binary_file)
@@ -972,7 +982,7 @@ class PassBisector:
                 baseline_binary, baseline_stderr = self._compile_with_bisect_limit(
                     source_file, 0, tmpdir
                 )
-                if self.use_docker and self.docker_version:
+                if self.use_docker and (self.docker_version or self.docker_image):
                     baseline_passes = self._run_test_in_docker(baseline_binary, test_func)
                 else:
                     baseline_passes = test_func(baseline_binary)
@@ -1002,7 +1012,7 @@ class PassBisector:
                 full_binary, full_stderr = self._compile_with_bisect_limit(
                     source_file, max_index, tmpdir
                 )
-                if self.use_docker and self.docker_version:
+                if self.use_docker and (self.docker_version or self.docker_image):
                     full_passes = self._run_test_in_docker(full_binary, test_func)
                 else:
                     full_passes = test_func(full_binary)
@@ -1042,7 +1052,7 @@ class PassBisector:
                     mid_binary, mid_stderr = self._compile_with_bisect_limit(
                         source_file, mid, tmpdir
                     )
-                    if self.use_docker and self.docker_version:
+                    if self.use_docker and (self.docker_version or self.docker_image):
                         mid_passes = self._run_test_in_docker(mid_binary, test_func)
                     else:
                         mid_passes = test_func(mid_binary)
