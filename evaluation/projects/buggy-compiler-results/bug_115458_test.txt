@@ -1,0 +1,21 @@
+--- Uninstrumented (-O2) ---
+sext_multi_uses(-128, 0, 0) = -128
+CORRECT: Result is -128 as expected
+sext_multi_uses(42, 1, 5) = 36
+sext_multi_uses(0, 0, 0) = 0
+--- Uninstrumented (-O0, reference) ---
+sext_multi_uses(-128, 0, 0) = -128
+CORRECT: Result is -128 as expected
+sext_multi_uses(42, 1, 5) = 36
+sext_multi_uses(0, 0, 0) = 0
+--- Instrumented (-O2) ---
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: sext_multi_uses
+Trace2Pass: Instrumented 5 arithmetic operations in sext_multi_uses
+Trace2Pass: Instrumenting function: main
+sext_multi_uses(-128, 0, 0) = -128
+CORRECT: Result is -128 as expected
+sext_multi_uses(42, 1, 5) = 36
+sext_multi_uses(0, 0, 0) = 0
+--- Anomalies ---
+Count: 0

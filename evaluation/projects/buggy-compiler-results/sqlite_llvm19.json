@@ -1,0 +1,11 @@
+    "project": "sqlite",
+    "version": "3.45.1",
+    "docker_image": "trace2pass-eval:19",
+    "timestamp": "2026-02-17T16:06:57+00:00",
+    "baseline_ms": 150.57,
+    "instrumented_ms": 151.00,
+    "overhead_pct": 0.29,
+    "raw_overhead_pct": .2886,
+    "methodology": "median of 10 runs, 10K row workload, 5 warmup runs",
+    "anomalies_detected": 0
+}

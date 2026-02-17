@@ -1,0 +1,12 @@
+{
+    "project": "zstd",
+    "docker_image": "trace2pass-eval:18",
+    "baseline_ms": 6.03,
+    "instrumented_ms": 8.01,
+    "overhead_percent": 32.77,
+    "anomalies": 0,
+    "warmup_runs": 5,
+    "measurement_runs": 10,
+    "method": "median",
+    "timestamp": "2026-02-17T16:00:03Z"
+}

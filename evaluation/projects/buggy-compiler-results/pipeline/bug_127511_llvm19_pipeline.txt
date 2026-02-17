@@ -1,0 +1,107 @@
+=== Running Full Diagnosis Pipeline ===
+
+Stage 1/3: UB Detection...
+Warning: clang not found in PATH
+⚠️  WARNING: Optimization sensitivity check failed: clang not available
+   Install clang to enable optimization-level comparison (-O0 vs -O2)
+=== UB Detection Result ===
+Verdict: inconclusive
+Confidence: 50.00%
+UBSan clean: True
+MSan clean: N/A (unavailable)
+Optimization sensitive: False
+Multi-compiler differs: False
+
+Stage 2/3: Version Bisection...
+Searching for endpoints in 8 versions...
+  14: FAIL
+  21: FAIL
+Marching inward to find missing endpoint...
+All tested compilers FAIL (tested 8 versions)
+=== Version Bisection Result ===
+Verdict: all_fail
+First bad version: 14
+Last good version: Not found
+Total tests: 8
+
+Stage 3/3: Pass Bisection...
+Using custom Docker image: trace2pass-eval:19
+Using clang -mllvm -opt-bisect-limit=N for pass bisection
+[PassBisector] Discovering total passes via -opt-bisect-limit=-1
+[PassBisector] Discovered 375 pass executions, max index = 375
+[PassBisector] Max pass index: 375, total executions: 375
+[PassBisector] Testing baseline (limit=0)
+[PassBisector]   Baseline PASS (no bug at limit=0)
+[PassBisector] Testing full pipeline (limit=375)
+[PassBisector]   Full pipeline FAIL (bug at full limit)
+[PassBisector] Binary searching between limit 0 and 375
+[PassBisector]   Testing limit=187
+[PassBisector]     -> FAIL (first bad: 187)
+[PassBisector]   Testing limit=93
+[PassBisector]     -> FAIL (first bad: 93)
+[PassBisector]   Testing limit=46
+[PassBisector]     -> PASS (last good: 46)
+[PassBisector]   Testing limit=69
+[PassBisector]     -> PASS (last good: 69)
+[PassBisector]   Testing limit=81
+[PassBisector]     -> FAIL (first bad: 81)
+[PassBisector]   Testing limit=75
+[PassBisector]     -> PASS (last good: 75)
+[PassBisector]   Testing limit=78
+[PassBisector]     -> FAIL (first bad: 78)
+[PassBisector]   Testing limit=76
+[PassBisector]     -> FAIL (first bad: 76)
+[PassBisector] Found culprit: SROAPass at index 76
+[PassBisector] Total compilations: 10
+=== Pass Bisection Result (clang -opt-bisect-limit) ===
+Verdict: bisected
+Culprit pass: SROAPass
+Culprit index: 76
+Total pass executions: 375
+Total tests: 10
+
+=== Diagnosis Complete ===
+Verdict: Compiler bug (confidence: 50.00%)
+First bad version: 14
+Culprit pass: SROAPass
+
+=== JSON Result ===
+{
+  "verdict": "compiler_bug",
+  "ub_detection": {
+    "verdict": "inconclusive",
+    "confidence": 0.5,
+    "ubsan_clean": true,
+    "msan_clean": null,
+    "optimization_sensitive": false,
+    "multi_compiler_differs": false,
+    "details": {
+      "ubsan": {
+        "error": "clang not available"
+      },
+      "msan": {
+        "error": "clang not available"
+      },
+      "optimization": {
+        "error": "clang not available"
+      },
+      "missing_optimization_data": "clang not available"
+    }
+  },
+  "version_bisection": {
+    "verdict": "all_fail",
+    "first_bad_version": "14",
+    "last_good_version": null,
+    "total_tests": 8,
+    "used_docker": true
+  },
+  "pass_bisection": {
+    "verdict": "bisected",
+    "culprit_pass": "SROAPass",
+    "culprit_index": 76,
+    "total_passes": 375,
+    "total_tests": 10,
+    "mode": "clang_opt_bisect_limit"
+  },
+  "recommendation": "Compiler bug in SROAPass introduced in 14"
+}

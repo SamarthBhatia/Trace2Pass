@@ -1,0 +1,38 @@
+--- Uninstrumented (-O2) ---
+/evaluation/real-bugs/llvm-179070/test_bug.c:29:46: warning: relational comparison result unused [-Wunused-comparison]
+   29 |   (*j = a(43, g - 141283429, g - 141283456)) < i(&g);
+      |   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~
+/evaluation/real-bugs/llvm-179070/test_bug.c:30:1: warning: non-void function does not return a value [-Wreturn-type]
+   30 | }
+      | ^
+2 warnings generated.
+3
+--- Uninstrumented (-O0, reference) ---
+/evaluation/real-bugs/llvm-179070/test_bug.c:29:46: warning: relational comparison result unused [-Wunused-comparison]
+   29 |   (*j = a(43, g - 141283429, g - 141283456)) < i(&g);
+      |   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~
+/evaluation/real-bugs/llvm-179070/test_bug.c:30:1: warning: non-void function does not return a value [-Wreturn-type]
+   30 | }
+      | ^
+2 warnings generated.
+3
+--- Instrumented (-O2) ---
+/evaluation/real-bugs/llvm-179070/test_bug.c:29:46: warning: relational comparison result unused [-Wunused-comparison]
+   29 |   (*j = a(43, g - 141283429, g - 141283456)) < i(&g);
+      |   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~
+/evaluation/real-bugs/llvm-179070/test_bug.c:30:1: warning: non-void function does not return a value [-Wreturn-type]
+   30 | }
+      | ^
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: a
+Trace2Pass: Instrumented 2 arithmetic operations in a
+Trace2Pass: Instrumenting function: i
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumenting function: k
+Trace2Pass: Instrumented 2 arithmetic operations in k
+2 warnings generated.
+Trace2Pass: Runtime initialized (sample_rate=1.000, opt_level=unknown)
+Trace2Pass: Runtime shutting down
+3
+--- Anomalies ---
+Count: 0

@@ -18,12 +18,10 @@ FROM ubuntu:22.04
 ARG LLVM_VERSION
 
 # Install build tools and dependencies
-# Includes git, bzip2, python3, curl etc. needed by benchmark scripts
 RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake make wget xz-utils ca-certificates \
-    binutils gcc g++ libc6-dev libstdc++-12-dev libz-dev \
-    libtinfo5 libxml2 \
-    git bzip2 python3 curl autoconf automake libtool pkg-config \
+    binutils gcc libc6-dev libstdc++-12-dev libz-dev \
+    libtinfo5 libxml2 git bc \
     && rm -rf /var/lib/apt/lists/*
 
 # Download pre-built LLVM from GitHub Releases

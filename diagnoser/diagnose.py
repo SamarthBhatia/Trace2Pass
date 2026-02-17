@@ -22,6 +22,7 @@ Usage:
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Dict, Any, Optional
@@ -734,6 +735,9 @@ def full_pipeline_cmd(source_file: str, test_command: str,
     Returns:
         Complete diagnosis result dictionary
     """
+    # Ensure source_file is absolute path (needed for Docker mounts)
+    source_file = os.path.abspath(source_file)
+
     if use_instrumentation:
         print("=== Running Full Diagnosis Pipeline (INSTRUMENTATION MODE) ===\n")
     else:
@@ -837,7 +841,8 @@ def full_pipeline_cmd(source_file: str, test_command: str,
     if verdict == "all_fail":
         # Bug manifests in ALL versions — use local system compiler (no version suffix)
         first_bad_version = None
-        actually_used_docker = False
+        # If an explicit docker_image was provided, still use Docker for pass bisection
+        actually_used_docker = docker_image is not None
     else:
         # Normal "bisected" case — use the specific bad version
         first_bad_version = version_result.get('first_bad_version')

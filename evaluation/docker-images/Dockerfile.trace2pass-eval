@@ -11,7 +11,8 @@ ARG LLVM_VERSION=16
 
 # Install build tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    cmake make git ca-certificates \
+    cmake make git ca-certificates bc curl unzip \
+    libpcre3-dev zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy instrumentor and runtime source
