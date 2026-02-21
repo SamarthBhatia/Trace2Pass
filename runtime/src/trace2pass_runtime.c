@@ -48,7 +48,7 @@
 #endif
 
 // Configuration
-static double sample_rate = 0.01;  // Default: 1%
+static double sample_rate = 0.10;  // Default: 10%
 static FILE* output_file = NULL;
 static char* collector_url = NULL;  // Collector API endpoint (optional)
 static int json_output = 0;  // If 1, output JSON to stderr instead of plain text
@@ -638,7 +638,7 @@ static int validate_url(const char* url) {
 // In production, this should be replaced with libcurl or raw sockets.
 // Performance NOTE: Spawning curl adds ~50-100ms per report, but most reports
 // are filtered by bloom filter deduplication (1 report per unique PC address).
-// With 1% sampling rate, overhead remains <5%.
+// With 10% sampling rate, overhead remains <20%.
 // Returns 0 on success, -1 on failure
 static int http_post_json(const char* url, const char* json_data) {
     if (!url || !json_data) return -1;
