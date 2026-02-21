@@ -1,0 +1,62 @@
+WARNING: The requested image's platform (linux/amd64) does not match the detected host platform (linux/arm64/v8) and no specific platform was requested
+=== Uninstrumented ===
+{
+  "seeded_pattern_results": {
+    "dse_72831": "PASS",
+    "licm_76789": "FAIL",
+    "instcombine_59836": "PASS",
+    "gvn_116668": "FAIL",
+    "gvn_null_127511": "FAIL"
+  },
+  "total_failures": 3,
+  "total_patterns": 5
+}
+UNINST_EXIT=3
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: seeded_check_dse
+Trace2Pass: Instrumented 7 arithmetic operations in seeded_check_dse
+Trace2Pass: Instrumenting function: sp_dse_o
+Trace2Pass: Instrumenting function: sp_dse_l
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in sp_dse_l
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: sp76789_h
+Trace2Pass: Instrumented 2 arithmetic operations in sp76789_h
+Trace2Pass: Instrumenting function: sp76789_l
+Trace2Pass: Instrumenting function: sp76789_n
+Trace2Pass: Instrumenting function: sp76789_m
+Trace2Pass: Instrumented 2 arithmetic operations in sp76789_m
+Trace2Pass: Instrumenting function: seeded_check_licm
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: seeded_check_instcombine
+Trace2Pass: Instrumenting function: sp_ic_check_mul_fits_32
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: seeded_check_gvn
+Trace2Pass: Instrumenting function: sp_gvn_do_longjmp
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in sp_gvn_do_longjmp
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: seeded_check_gvn_null
+Trace2Pass: Instrumenting function: sp_gvn_null_bar
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in sp_gvn_null_bar
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 1 arithmetic operations in main
+Trace2Pass: Instrumenting function: run_all_seeded_checks
+Trace2Pass: Instrumented 5 arithmetic operations in run_all_seeded_checks
+=== Instrumented ===
+{
+  "seeded_pattern_results": {
+    "dse_72831": "PASS",
+    "licm_76789": "PASS",
+    "instcombine_59836": "PASS",
+    "gvn_116668": "FAIL",
+    "gvn_null_127511": "FAIL"
+  },
+  "total_failures": 2,
+  "total_patterns": 5
+}
+INST_EXIT=2
+=== Anomaly Reports ===
+Trace2Pass: Runtime initialized (sample_rate=0.010, opt_level=unknown)
+Trace2Pass: Runtime shutting down
+ANOMALY_COUNT=0
+0

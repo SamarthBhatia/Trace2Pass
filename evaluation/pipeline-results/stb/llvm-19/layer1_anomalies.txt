@@ -1,0 +1,24 @@
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: stbsp_set_separators
+Trace2Pass: Instrumenting function: stbsp_vsprintfcb
+Trace2Pass: Instrumented 112 arithmetic operations, 1 unreachable blocks, 12 division checks in stbsp_vsprintfcb
+Trace2Pass: Instrumenting function: stbsp__strlen_limited
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in stbsp__strlen_limited
+Trace2Pass: Instrumenting function: stbsp__real_to_parts
+Trace2Pass: Instrumented 4 arithmetic operations in stbsp__real_to_parts
+Trace2Pass: Instrumenting function: stbsp__lead_sign
+Trace2Pass: Instrumenting function: stbsp__real_to_str
+Trace2Pass: Instrumented 17 arithmetic operations, 1 unreachable blocks, 12 division checks in stbsp__real_to_str
+Trace2Pass: Instrumenting function: stbsp_sprintf
+Trace2Pass: Instrumenting function: stbsp_vsnprintf
+Trace2Pass: Instrumented 1 arithmetic operations in stbsp_vsnprintf
+Trace2Pass: Instrumenting function: stbsp__count_clamp_callback
+Trace2Pass: Instrumented 1 arithmetic operations in stbsp__count_clamp_callback
+Trace2Pass: Instrumenting function: stbsp__clamp_callback
+Trace2Pass: Instrumented 2 arithmetic operations in stbsp__clamp_callback
+Trace2Pass: Instrumenting function: stbsp_snprintf
+Trace2Pass: Instrumenting function: stbsp_vsprintf
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumenting function: stbsp__raise_to_power10
+Trace2Pass: Instrumented 33 arithmetic operations in stbsp__raise_to_power10
+--- Test ---

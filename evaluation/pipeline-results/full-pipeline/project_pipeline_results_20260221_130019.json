@@ -1,0 +1,37 @@
+[
+  {
+    "project": "cjson",
+    "timestamp": "20260221_130019",
+    "pattern": "gvn_116668",
+    "instrumentor": true,
+    "collector": false,
+    "diagnoser": true,
+    "reporter": true,
+    "verdict": "compiler_bug",
+    "culprit_pass": "DSEPass"
+  }
+,
+  {
+    "project": "lz4",
+    "timestamp": "20260221_130019",
+    "pattern": "gvn_116668",
+    "instrumentor": true,
+    "collector": false,
+    "diagnoser": true,
+    "reporter": true,
+    "verdict": "compiler_bug",
+    "culprit_pass": "DSEPass"
+  }
+,
+  {
+    "project": "sqlite",
+    "timestamp": "20260221_130019",
+    "pattern": "gvn_116668",
+    "instrumentor": true,
+    "collector": false,
+    "diagnoser": true,
+    "reporter": true,
+    "verdict": "compiler_bug",
+    "culprit_pass": "DSEPass"
+  }
+]

@@ -1,0 +1,1379 @@
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliDefaultAllocFunc
+Trace2Pass: Instrumenting function: BrotliDefaultFreeFunc
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliSharedDictionaryDestroyInstance
+Trace2Pass: Instrumenting function: BrotliSharedDictionaryAttach
+Trace2Pass: Instrumenting function: BrotliSharedDictionaryCreateInstance
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliGetTransforms
+Trace2Pass: Instrumenting function: BrotliTransformDictionaryWord
+Trace2Pass: Instrumented 31 arithmetic operations in BrotliTransformDictionaryWord
+Trace2Pass: Instrumenting function: ToUpperCase
+Trace2Pass: Instrumenting function: Shift
+Trace2Pass: Instrumented 12 arithmetic operations in Shift
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliGetDictionary
+Trace2Pass: Instrumenting function: BrotliSetDictionaryData
+[ 17%] Linking C shared library libbrotlicommon.so
+[ 17%] Built target brotlicommon
+[ 20%] Building C object CMakeFiles/brotlienc.dir/c/enc/backward_references_hq.c.o
+[ 25%] Building C object CMakeFiles/brotlienc.dir/c/enc/brotli_bit_stream.c.o
+[ 25%] Building C object CMakeFiles/brotlidec.dir/c/dec/huffman.c.o
+--
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliInitBitReader
+Trace2Pass: Instrumenting function: BrotliWarmupBitReader
+Trace2Pass: Instrumenting function: BrotliGetAvailableBits
+Trace2Pass: Instrumenting function: BrotliPullByte
+Trace2Pass: Instrumenting function: BrotliSafeReadBits32Slow
+Trace2Pass: Instrumented 1 arithmetic operations in BrotliSafeReadBits32Slow
+Trace2Pass: Instrumenting function: BrotliBitReaderSaveState
+Trace2Pass: Instrumenting function: BrotliSafeReadBits
+Trace2Pass: Instrumenting function: BrotliBitReaderRestoreState
+Trace2Pass: Instrumenting function: BrotliBitReaderLoadBits
+Trace2Pass: Instrumented 1 arithmetic operations in BrotliBitReaderLoadBits
+Trace2Pass: Instrumenting function: BrotliBitReaderGetAvailIn
+Trace2Pass: Instrumenting function: BrotliTakeBits
+Trace2Pass: Instrumenting function: BrotliGetBitsUnmasked
+Trace2Pass: Instrumenting function: BitMask
+Trace2Pass: Instrumented 1 arithmetic operations in BitMask
+Trace2Pass: Instrumenting function: BrotliDropBits
+Trace2Pass: Instrumented 1 arithmetic operations in BrotliDropBits
+Trace2Pass: Instrumenting function: BrotliBitReaderSetInput
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliBitsEntropy
+Trace2Pass: Instrumenting function: FastLog2
+Trace2Pass: Instrumenting function: BrotliPopulationCostLiteral
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in BrotliPopulationCostLiteral
+Trace2Pass: Instrumenting function: HistogramDataSizeLiteral
+Trace2Pass: Instrumenting function: brotli_max_uint32_t
+Trace2Pass: Instrumenting function: BrotliPopulationCostCommand
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in BrotliPopulationCostCommand
+Trace2Pass: Instrumenting function: HistogramDataSizeCommand
+Trace2Pass: Instrumenting function: BrotliPopulationCostDistance
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in BrotliPopulationCostDistance
+Trace2Pass: Instrumenting function: HistogramDataSizeDistance
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliInitBlockSplit
+Trace2Pass: Instrumenting function: BrotliDestroyBlockSplit
+Trace2Pass: Instrumenting function: BrotliSplitBlock
+Trace2Pass: Instrumenting function: CountLiterals
+Trace2Pass: Instrumenting function: CopyLiteralsToByteArray
+Trace2Pass: Instrumenting function: SplitByteVectorLiteral
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks, 1 division checks in SplitByteVectorLiteral
+Trace2Pass: Instrumenting function: SplitByteVectorCommand
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks, 1 division checks in SplitByteVectorCommand
+Trace2Pass: Instrumenting function: CommandCopyLen
+Trace2Pass: Instrumenting function: SplitByteVectorDistance
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks, 1 division checks in SplitByteVectorDistance
+Trace2Pass: Instrumenting function: HistogramDataSizeLiteral
+Trace2Pass: Instrumenting function: InitialEntropyCodesLiteral
+Trace2Pass: Instrumented 0 arithmetic operations, 3 division checks in InitialEntropyCodesLiteral
+Trace2Pass: Instrumenting function: RefineEntropyCodesLiteral
+Trace2Pass: Instrumented 0 arithmetic operations, 3 division checks in RefineEntropyCodesLiteral
+Trace2Pass: Instrumenting function: FindBlocksLiteral
+Trace2Pass: Instrumented 5 arithmetic operations in FindBlocksLiteral
+Trace2Pass: Instrumenting function: RemapBlockIdsLiteral
+Trace2Pass: Instrumenting function: BuildBlockHistogramsLiteral
+Trace2Pass: Instrumenting function: ClusterBlocksLiteral
+Trace2Pass: Instrumented 0 arithmetic operations, 2 division checks in ClusterBlocksLiteral
+Trace2Pass: Instrumenting function: ClearHistogramsLiteral
+Trace2Pass: Instrumenting function: MyRand
+Trace2Pass: Instrumenting function: HistogramAddVectorLiteral
+Trace2Pass: Instrumenting function: HistogramClearLiteral
+Trace2Pass: Instrumenting function: RandomSampleLiteral
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in RandomSampleLiteral
+Trace2Pass: Instrumenting function: HistogramAddHistogramLiteral
+Trace2Pass: Instrumenting function: FastLog2
+Trace2Pass: Instrumenting function: BitCost
+Trace2Pass: Instrumenting function: HistogramAddLiteral
+Trace2Pass: Instrumenting function: brotli_min_size_t
+Trace2Pass: Instrumenting function: brotli_max_uint8_t
+Trace2Pass: Instrumenting function: HistogramDataSizeCommand
+Trace2Pass: Instrumenting function: InitialEntropyCodesCommand
+Trace2Pass: Instrumented 0 arithmetic operations, 3 division checks in InitialEntropyCodesCommand
+Trace2Pass: Instrumenting function: RefineEntropyCodesCommand
+Trace2Pass: Instrumented 0 arithmetic operations, 3 division checks in RefineEntropyCodesCommand
+Trace2Pass: Instrumenting function: FindBlocksCommand
+Trace2Pass: Instrumented 5 arithmetic operations in FindBlocksCommand
+Trace2Pass: Instrumenting function: RemapBlockIdsCommand
+Trace2Pass: Instrumenting function: BuildBlockHistogramsCommand
+Trace2Pass: Instrumenting function: ClusterBlocksCommand
+Trace2Pass: Instrumented 0 arithmetic operations, 2 division checks in ClusterBlocksCommand
+Trace2Pass: Instrumenting function: ClearHistogramsCommand
+Trace2Pass: Instrumenting function: HistogramAddVectorCommand
+Trace2Pass: Instrumenting function: HistogramClearCommand
+Trace2Pass: Instrumenting function: RandomSampleCommand
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in RandomSampleCommand
+Trace2Pass: Instrumenting function: HistogramAddHistogramCommand
+Trace2Pass: Instrumenting function: HistogramAddCommand
+Trace2Pass: Instrumenting function: HistogramDataSizeDistance
+Trace2Pass: Instrumenting function: InitialEntropyCodesDistance
+Trace2Pass: Instrumented 0 arithmetic operations, 3 division checks in InitialEntropyCodesDistance
+Trace2Pass: Instrumenting function: RefineEntropyCodesDistance
+Trace2Pass: Instrumented 0 arithmetic operations, 3 division checks in RefineEntropyCodesDistance
+Trace2Pass: Instrumenting function: FindBlocksDistance
+Trace2Pass: Instrumented 5 arithmetic operations in FindBlocksDistance
+Trace2Pass: Instrumenting function: RemapBlockIdsDistance
+Trace2Pass: Instrumenting function: BuildBlockHistogramsDistance
+Trace2Pass: Instrumenting function: ClusterBlocksDistance
+Trace2Pass: Instrumented 0 arithmetic operations, 2 division checks in ClusterBlocksDistance
+Trace2Pass: Instrumenting function: ClearHistogramsDistance
+Trace2Pass: Instrumenting function: HistogramAddVectorDistance
+Trace2Pass: Instrumenting function: HistogramClearDistance
+Trace2Pass: Instrumenting function: RandomSampleDistance
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in RandomSampleDistance
+Trace2Pass: Instrumenting function: HistogramAddHistogramDistance
+Trace2Pass: Instrumenting function: HistogramAddDistance
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliDecoderSetParameter
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliBuildCodeLengthsHuffmanTable
+Trace2Pass: Instrumented 2 arithmetic operations in BrotliDecoderSetParameter
+Trace2Pass: Instrumenting function: BrotliDecoderCreateInstance
+Trace2Pass: Instrumenting function: BrotliDecoderDestroyInstance
+Trace2Pass: Instrumenting function: BrotliDecoderAttachDictionary
+Trace2Pass: Instrumenting function: AttachCompoundDictionary
+Trace2Pass: Instrumented 2 arithmetic operations in AttachCompoundDictionary
+Trace2Pass: Instrumenting function: BrotliDecoderDecompress
+Trace2Pass: Instrumenting function: BrotliDecoderDecompressStream
+Trace2Pass: Instrumented 27 arithmetic operations, 1 unreachable blocks in BrotliDecoderDecompressStream
+Trace2Pass: Instrumenting function: SaveErrorCode
+Trace2Pass: Instrumenting function: BrotliBitReaderSetInput
+Trace2Pass: Instrumenting function: WriteRingBuffer
+Trace2Pass: Instrumented 6 arithmetic operations in WriteRingBuffer
+Trace2Pass: Instrumenting function: BrotliBitReaderGetAvailIn
+Trace2Pass: Instrumenting function: BrotliBitReaderUnload
+Trace2Pass: Instrumented 2 arithmetic operations in BrotliBitReaderUnload
+Trace2Pass: Instrumenting function: DecodeWindowBits
+Trace2Pass: Instrumented 3 arithmetic operations in DecodeWindowBits
+Trace2Pass: Instrumenting function: BrotliSafeReadBits
+Trace2Pass: Instrumenting function: DecodeMetaBlockLength
+Trace2Pass: Instrumented 19 arithmetic operations in DecodeMetaBlockLength
+Trace2Pass: Instrumenting function: BrotliJumpToByteBoundary
+Trace2Pass: Instrumenting function: BrotliCalculateRingBufferSize
+Trace2Pass: Instrumented 7 arithmetic operations, 1 unreachable blocks in BrotliCalculateRingBufferSize
+Trace2Pass: Instrumenting function: DecodeVarLenUint8
+Trace2Pass: Instrumented 1 arithmetic operations in DecodeVarLenUint8
+Trace2Pass: Instrumenting function: ReadHuffmanCode
+Trace2Pass: Instrumented 1 arithmetic operations in ReadHuffmanCode
+Trace2Pass: Instrumenting function: SafeReadBlockLength
+Trace2Pass: Instrumenting function: CopyUncompressedBlockToOutput
+Trace2Pass: Instrumented 8 arithmetic operations, 1 unreachable blocks in CopyUncompressedBlockToOutput
+Trace2Pass: Instrumenting function: SkipMetadataBlock
+Trace2Pass: Instrumented 3 arithmetic operations in SkipMetadataBlock
+Trace2Pass: Instrumenting function: BitMask
+Trace2Pass: Instrumented 1 arithmetic operations in BitMask
+Trace2Pass: Instrumenting function: ReadContextModes
+Trace2Pass: Instrumented 1 arithmetic operations in ReadContextModes
+Trace2Pass: Instrumenting function: DecodeContextMap
+Trace2Pass: Instrumented 2 arithmetic operations in DecodeContextMap
+Trace2Pass: Instrumenting function: DetectTrivialLiteralBlockTypes
+Trace2Pass: Instrumented 3 arithmetic operations in DetectTrivialLiteralBlockTypes
+Trace2Pass: Instrumenting function: BrotliCalculateDistanceCodeLimit
+Trace2Pass: Instrumented 11 arithmetic operations, 1 division checks in BrotliCalculateDistanceCodeLimit
+Trace2Pass: Instrumenting function: HuffmanTreeGroupDecode
+Trace2Pass: Instrumented 1 arithmetic operations in HuffmanTreeGroupDecode
+Trace2Pass: Instrumenting function: PrepareLiteralDecoding
+Trace2Pass: Instrumented 4 arithmetic operations in PrepareLiteralDecoding
+Trace2Pass: Instrumenting function: BrotliEnsureRingBuffer
+Trace2Pass: Instrumented 3 arithmetic operations in BrotliEnsureRingBuffer
+Trace2Pass: Instrumenting function: CalculateDistanceLut
+Trace2Pass: Instrumented 3 arithmetic operations in CalculateDistanceLut
+Trace2Pass: Instrumenting function: ProcessCommands
+Trace2Pass: Instrumenting function: SafeProcessCommands
+Trace2Pass: Instrumenting function: WrapRingBuffer
+Trace2Pass: Instrumented 1 arithmetic operations in WrapRingBuffer
+Trace2Pass: Instrumenting function: CopyFromCompoundDictionary
+Trace2Pass: Instrumented 10 arithmetic operations, 1 unreachable blocks in CopyFromCompoundDictionary
+Trace2Pass: Instrumenting function: BrotliDecoderHasMoreOutput
+Trace2Pass: Instrumenting function: UnwrittenBytes
+Trace2Pass: Instrumenting function: BrotliDecoderTakeOutput
+Trace2Pass: Instrumenting function: BrotliDecoderIsUsed
+Trace2Pass: Instrumenting function: BrotliGetAvailableBits
+Trace2Pass: Instrumenting function: BrotliDecoderIsFinished
+Trace2Pass: Instrumenting function: BrotliDecoderGetErrorCode
+Trace2Pass: Instrumenting function: BrotliDecoderErrorString
+Trace2Pass: Instrumenting function: BrotliDecoderVersion
+Trace2Pass: Instrumenting function: BrotliDecoderSetMetadataCallbacks
+Trace2Pass: Instrumenting function: BrotliBitReaderNormalize
+Trace2Pass: Instrumented 1 arithmetic operations in BrotliBitReaderNormalize
+Trace2Pass: Instrumenting function: BrotliTakeBits
+Trace2Pass: Instrumenting function: BrotliGetBitsUnmasked
+Trace2Pass: Instrumenting function: BrotliDropBits
+Trace2Pass: Instrumented 1 arithmetic operations in BrotliDropBits
+Trace2Pass: Instrumenting function: BrotliPullByte
+Trace2Pass: Instrumenting function: BrotliBitReaderLoadBits
+Trace2Pass: Instrumented 1 arithmetic operations in BrotliBitReaderLoadBits
+Trace2Pass: Instrumenting function: ReadSimpleHuffmanSymbols
+Trace2Pass: Instrumenting function: ReadCodeLengthCodeLengths
+Trace2Pass: Instrumented 1 arithmetic operations in ReadCodeLengthCodeLengths
+Trace2Pass: Instrumenting function: ReadSymbolCodeLengths
+Trace2Pass: Instrumenting function: SafeReadSymbolCodeLengths
+Trace2Pass: Instrumented 1 arithmetic operations in SafeReadSymbolCodeLengths
+Trace2Pass: Instrumenting function: Log2Floor
+Trace2Pass: Instrumented 1 arithmetic operations in Log2Floor
+Trace2Pass: Instrumenting function: BrotliSafeGetBits
+Trace2Pass: Instrumenting function: BrotliCheckInputAmount
+Trace2Pass: Instrumenting function: BrotliFillBitWindow16
+Trace2Pass: Instrumenting function: ProcessSingleCodeLength
+Trace2Pass: Instrumented 1 arithmetic operations in ProcessSingleCodeLength
+Trace2Pass: Instrumenting function: ProcessRepeatedCodeLength
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in ProcessRepeatedCodeLength
+Trace2Pass: Instrumenting function: BrotliFillBitWindow
+Trace2Pass: Instrumenting function: BrotliUnalignedRead64
+Trace2Pass: Instrumenting function: BrotliUnalignedRead32
+Trace2Pass: Instrumenting function: SafeReadSymbol
+Trace2Pass: Instrumenting function: DecodeSymbol
+Trace2Pass: Instrumented 1 arithmetic operations in DecodeSymbol
+Trace2Pass: Instrumenting function: SafeDecodeSymbol
+Trace2Pass: Instrumented 1 arithmetic operations in SafeDecodeSymbol
+Trace2Pass: Instrumenting function: BrotliGetRemainingBytes
+Trace2Pass: Instrumented 1 arithmetic operations in BrotliGetRemainingBytes
+Trace2Pass: Instrumenting function: BrotliCopyBytes
+Trace2Pass: Instrumenting function: BrotliDropBytes
+Trace2Pass: Instrumenting function: InverseMoveToFrontTransform
+Trace2Pass: Instrumented 3 arithmetic operations in InverseMoveToFrontTransform
+Trace2Pass: Instrumenting function: ProcessCommandsInternal
+Trace2Pass: Instrumented 56 arithmetic operations, 1 unreachable blocks in ProcessCommandsInternal
+Trace2Pass: Instrumenting function: GetCompoundDictionarySize
+Trace2Pass: Instrumenting function: CheckInputAmount
+Trace2Pass: Instrumenting function: SafeDecodeCommandBlockSwitch
+Trace2Pass: Instrumenting function: DecodeCommandBlockSwitch
+Trace2Pass: Instrumenting function: SafeReadCommand
+Trace2Pass: Instrumenting function: ReadCommand
+Trace2Pass: Instrumenting function: PreloadSymbol
+Trace2Pass: Instrumenting function: BrotliCopyPreloadedSymbolsToU8
+Trace2Pass: Instrumented 7 arithmetic operations, 1 division checks in BrotliCopyPreloadedSymbolsToU8
+Trace2Pass: Instrumenting function: ReadSymbol
+Trace2Pass: Instrumenting function: SafeDecodeDistanceBlockSwitch
+Trace2Pass: Instrumenting function: DecodeDistanceBlockSwitch
+Trace2Pass: Instrumenting function: SafeReadDistance
+Trace2Pass: Instrumenting function: ReadDistance
+Trace2Pass: Instrumenting function: InitializeCompoundDictionaryCopy
+Trace2Pass: Instrumented 7 arithmetic operations in InitializeCompoundDictionaryCopy
+Trace2Pass: Instrumenting function: memmove16
+Trace2Pass: Instrumenting function: SafeDecodeLiteralBlockSwitch
+Trace2Pass: Instrumenting function: DecodeLiteralBlockSwitch
+Trace2Pass: Instrumenting function: DecodeCommandBlockSwitchInternal
+Trace2Pass: Instrumenting function: DecodeBlockTypeAndLength
+Trace2Pass: Instrumented 3 arithmetic operations in DecodeBlockTypeAndLength
+Trace2Pass: Instrumenting function: ReadBlockLength
+Trace2Pass: Instrumenting function: BrotliBitReaderSaveState
+Trace2Pass: Instrumenting function: BrotliBitReaderRestoreState
+Trace2Pass: Instrumenting function: BrotliReadBits24
+Trace2Pass: Instrumenting function: ReadCommandInternal
+Trace2Pass: Instrumented 2 arithmetic operations in ReadCommandInternal
+Trace2Pass: Instrumenting function: SafeReadBits
+Trace2Pass: Instrumenting function: BrotliGetBits
+Trace2Pass: Instrumenting function: ReadPreloadedSymbol
+Trace2Pass: Instrumented 1 arithmetic operations in ReadPreloadedSymbol
+Trace2Pass: Instrumenting function: BrotliGet16BitsUnmasked
+Trace2Pass: Instrumenting function: DecodeDistanceBlockSwitchInternal
+Trace2Pass: Instrumented 1 arithmetic operations in DecodeDistanceBlockSwitchInternal
+Trace2Pass: Instrumenting function: ReadDistanceInternal
+Trace2Pass: Instrumented 1 arithmetic operations in ReadDistanceInternal
+Trace2Pass: Instrumenting function: TakeDistanceFromRingBuffer
+Trace2Pass: Instrumented 11 arithmetic operations in TakeDistanceFromRingBuffer
+Trace2Pass: Instrumenting function: BrotliReadBits32
+Trace2Pass: Instrumenting function: SafeReadBits32
+Trace2Pass: Instrumenting function: BrotliSafeReadBits32
+Trace2Pass: Instrumenting function: EnsureCompoundDictionaryInitialized
+Trace2Pass: Instrumented 9 arithmetic operations, 1 unreachable blocks in EnsureCompoundDictionaryInitialized
+Trace2Pass: Instrumenting function: DecodeLiteralBlockSwitchInternal
+Trace2Pass: Instrumented 27 arithmetic operations, 1 unreachable blocks in BrotliBuildCodeLengthsHuffmanTable
+Trace2Pass: Instrumenting function: ConstructHuffmanCode
+Trace2Pass: Instrumenting function: ReplicateValue
+Trace2Pass: Instrumented 1 arithmetic operations in ReplicateValue
+Trace2Pass: Instrumenting function: BrotliReverseBits
+Trace2Pass: Instrumenting function: BrotliBuildHuffmanTable
+Trace2Pass: Instrumented 21 arithmetic operations, 1 division checks in BrotliBuildHuffmanTable
+Trace2Pass: Instrumenting function: NextTableBitSize
+Trace2Pass: Instrumented 6 arithmetic operations in NextTableBitSize
+Trace2Pass: Instrumenting function: BrotliBuildSimpleHuffmanTable
+Trace2Pass: Instrumented 5 arithmetic operations in BrotliBuildSimpleHuffmanTable
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliStoreHuffmanTree
+Trace2Pass: Instrumenting function: BrotliStoreHuffmanTreeOfHuffmanTreeToBitMask
+Trace2Pass: Instrumenting function: BrotliStoreHuffmanTreeToBitMask
+Trace2Pass: Instrumenting function: BrotliBuildAndStoreHuffmanTreeFast
+Trace2Pass: Instrumented 9 arithmetic operations, 1 unreachable blocks, 1 division checks in BrotliBuildAndStoreHuffmanTreeFast
+Trace2Pass: Instrumenting function: BrotliWriteBits
+Trace2Pass: Instrumented 2 arithmetic operations in BrotliWriteBits
+Trace2Pass: Instrumenting function: InitHuffmanTree
+Trace2Pass: Instrumenting function: SortHuffmanTreeItems
+Trace2Pass: Instrumented 1 arithmetic operations in SortHuffmanTreeItems
+Trace2Pass: Instrumenting function: SortHuffmanTree
+Trace2Pass: Instrumenting function: StoreStaticCodeLengthCode
+Trace2Pass: Instrumenting function: BrotliStoreMetaBlock
+Trace2Pass: Instrumented 3 arithmetic operations in BrotliStoreMetaBlock
+Trace2Pass: Instrumenting function: StoreCompressedMetaBlockHeader
+Trace2Pass: Instrumenting function: InitBlockEncoder
+Trace2Pass: Instrumenting function: BuildAndStoreBlockSwitchEntropyCodes
+Trace2Pass: Instrumenting function: StoreTrivialContextMap
+Trace2Pass: Instrumented 1 arithmetic operations in StoreTrivialContextMap
+Trace2Pass: Instrumenting function: EncodeContextMap
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in EncodeContextMap
+Trace2Pass: Instrumenting function: BuildAndStoreEntropyCodesLiteral
+Trace2Pass: Instrumenting function: BuildAndStoreEntropyCodesCommand
+Trace2Pass: Instrumenting function: BuildAndStoreEntropyCodesDistance
+Trace2Pass: Instrumenting function: StoreSymbol
+Trace2Pass: Instrumenting function: StoreCommandExtra
+Trace2Pass: Instrumented 1 arithmetic operations in StoreCommandExtra
+Trace2Pass: Instrumenting function: StoreSymbolWithContext
+Trace2Pass: Instrumented 1 arithmetic operations in StoreSymbolWithContext
+Trace2Pass: Instrumenting function: CommandCopyLen
+Trace2Pass: Instrumenting function: CommandDistanceContext
+Trace2Pass: Instrumented 1 arithmetic operations in CommandDistanceContext
+Trace2Pass: Instrumenting function: CleanupBlockEncoder
+Trace2Pass: Instrumenting function: JumpToByteBoundary
+Trace2Pass: Instrumented 1 arithmetic operations in JumpToByteBoundary
+Trace2Pass: Instrumenting function: BrotliStoreMetaBlockTrivial
+Trace2Pass: Instrumenting function: HistogramClearLiteral
+Trace2Pass: Instrumenting function: HistogramClearCommand
+Trace2Pass: Instrumenting function: HistogramClearDistance
+Trace2Pass: Instrumenting function: BuildHistograms
+Trace2Pass: Instrumenting function: BuildAndStoreHuffmanTree
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in BuildAndStoreHuffmanTree
+Trace2Pass: Instrumenting function: StoreDataWithHuffmanCodes
+Trace2Pass: Instrumented 1 arithmetic operations in StoreDataWithHuffmanCodes
+Trace2Pass: Instrumenting function: BrotliStoreMetaBlockFast
+Trace2Pass: Instrumenting function: Log2FloorNonZero
+Trace2Pass: Instrumenting function: StoreStaticCommandHuffmanTree
+Trace2Pass: Instrumenting function: StoreStaticDistanceHuffmanTree
+Trace2Pass: Instrumenting function: BrotliStoreUncompressedMetaBlock
+Trace2Pass: Instrumented 4 arithmetic operations in BrotliStoreUncompressedMetaBlock
+Trace2Pass: Instrumenting function: BrotliStoreUncompressedMetaBlockHeader
+Trace2Pass: Instrumenting function: BrotliWriteBitsPrepareStorage
+Trace2Pass: Instrumented 1 arithmetic operations in BrotliWriteBitsPrepareStorage
+Trace2Pass: Instrumenting function: BrotliUnalignedWrite64
+Trace2Pass: Instrumenting function: BrotliEncodeMlen
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in BrotliEncodeMlen
+Trace2Pass: Instrumenting function: InitBlockTypeCodeCalculator
+Trace2Pass: Instrumenting function: BuildAndStoreBlockSplitCode
+Trace2Pass: Instrumenting function: NextBlockTypeCode
+Trace2Pass: Instrumenting function: BlockLengthPrefixCode
+Trace2Pass: Instrumenting function: StoreVarLenUint8
+Trace2Pass: Instrumented 1 arithmetic operations in StoreVarLenUint8
+Trace2Pass: Instrumenting function: StoreBlockSwitch
+Trace2Pass: Instrumenting function: GetBlockLengthPrefixCode
+Trace2Pass: Instrumenting function: MoveToFrontTransform
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in MoveToFrontTransform
+Trace2Pass: Instrumenting function: RunLengthCodeZeros
+Trace2Pass: Instrumented 6 arithmetic operations in RunLengthCodeZeros
+Trace2Pass: Instrumenting function: IndexOf
+Trace2Pass: Instrumenting function: MoveToFront
+Trace2Pass: Instrumenting function: brotli_max_uint32_t
+Trace2Pass: Instrumenting function: brotli_min_uint32_t
+Trace2Pass: Instrumenting function: CommandCopyLenCode
+Trace2Pass: Instrumented 3 arithmetic operations in CommandCopyLenCode
+Trace2Pass: Instrumenting function: GetInsertLengthCode
+Trace2Pass: Instrumented 2 arithmetic operations in GetInsertLengthCode
+Trace2Pass: Instrumenting function: GetCopyLengthCode
+Trace2Pass: Instrumented 2 arithmetic operations in GetCopyLengthCode
+Trace2Pass: Instrumenting function: GetInsertExtra
+Trace2Pass: Instrumenting function: GetInsertBase
+Trace2Pass: Instrumenting function: GetCopyBase
+Trace2Pass: Instrumenting function: GetCopyExtra
+Trace2Pass: Instrumenting function: HistogramAddCommand
+Trace2Pass: Instrumenting function: HistogramAddLiteral
+Trace2Pass: Instrumenting function: HistogramAddDistance
+Trace2Pass: Instrumenting function: StoreSimpleHuffmanTree
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliInitZopfliNodes
+Trace2Pass: Instrumenting function: BrotliZopfliCreateCommands
+Trace2Pass: Instrumented 2 arithmetic operations in BrotliZopfliCreateCommands
+Trace2Pass: Instrumenting function: ZopfliNodeCopyLength
+Trace2Pass: Instrumenting function: ZopfliNodeCopyDistance
+Trace2Pass: Instrumenting function: ZopfliNodeLengthCode
+Trace2Pass: Instrumented 1 arithmetic operations in ZopfliNodeLengthCode
+Trace2Pass: Instrumenting function: brotli_min_size_t
+Trace2Pass: Instrumenting function: ZopfliNodeDistanceCode
+Trace2Pass: Instrumented 1 arithmetic operations in ZopfliNodeDistanceCode
+Trace2Pass: Instrumenting function: InitCommand
+Trace2Pass: Instrumented 2 arithmetic operations in InitCommand
+Trace2Pass: Instrumenting function: BrotliZopfliComputeShortestPath
+Trace2Pass: Instrumented 1 arithmetic operations in BrotliZopfliComputeShortestPath
+Trace2Pass: Instrumenting function: MaxZopfliLen
+Trace2Pass: Instrumenting function: StoreLookaheadH10
+Trace2Pass: Instrumenting function: InitZopfliCostModel
+Trace2Pass: Instrumenting function: ZopfliCostModelSetFromLiteralCosts
+Trace2Pass: Instrumenting function: InitStartPosQueue
+Trace2Pass: Instrumenting function: HashTypeLengthH10
+Trace2Pass: Instrumenting function: FindAllMatchesH10
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks, 1 division checks in FindAllMatchesH10
+Trace2Pass: Instrumenting function: LookupAllCompoundDictionaryMatches
+Trace2Pass: Instrumenting function: MergeMatches
+Trace2Pass: Instrumenting function: BackwardMatchLength
+Trace2Pass: Instrumented 1 arithmetic operations in BackwardMatchLength
+Trace2Pass: Instrumenting function: UpdateNodes
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in UpdateNodes
+Trace2Pass: Instrumenting function: brotli_max_size_t
+Trace2Pass: Instrumenting function: StoreRangeH10
+Trace2Pass: Instrumenting function: EvaluateNode
+Trace2Pass: Instrumenting function: CleanupZopfliCostModel
+Trace2Pass: Instrumenting function: ComputeShortestPathFromNodes
+Trace2Pass: Instrumenting function: BrotliCreateZopfliBackwardReferences
+Trace2Pass: Instrumenting function: BrotliCreateHqZopfliBackwardReferences
+Trace2Pass: Instrumented 1 arithmetic operations in BrotliCreateHqZopfliBackwardReferences
+Trace2Pass: Instrumenting function: ZopfliCostModelSetFromCommands
+Trace2Pass: Instrumenting function: ZopfliIterate
+Trace2Pass: Instrumented 1 arithmetic operations in ZopfliIterate
+Trace2Pass: Instrumenting function: PrefixEncodeCopyDistance
+Trace2Pass: Instrumented 7 arithmetic operations in PrefixEncodeCopyDistance
+Trace2Pass: Instrumenting function: GetLengthCode
+Trace2Pass: Instrumenting function: Log2FloorNonZero
+Trace2Pass: Instrumenting function: GetInsertLengthCode
+Trace2Pass: Instrumented 2 arithmetic operations in GetInsertLengthCode
+Trace2Pass: Instrumenting function: GetCopyLengthCode
+Trace2Pass: Instrumented 2 arithmetic operations in GetCopyLengthCode
+Trace2Pass: Instrumenting function: CombineLengthCodes
+Trace2Pass: Instrumented 5 arithmetic operations in CombineLengthCodes
+Trace2Pass: Instrumenting function: FastLog2
+Trace2Pass: Instrumenting function: FindMatchLengthWithLimit
+Trace2Pass: Instrumented 1 arithmetic operations in FindMatchLengthWithLimit
+Trace2Pass: Instrumenting function: InitBackwardMatch
+Trace2Pass: Instrumented 1 arithmetic operations in InitBackwardMatch
+Trace2Pass: Instrumenting function: StoreAndFindMatchesH10
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in StoreAndFindMatchesH10
+Trace2Pass: Instrumenting function: InitDictionaryBackwardMatch
+Trace2Pass: Instrumented 1 arithmetic operations in InitDictionaryBackwardMatch
+Trace2Pass: Instrumenting function: BrotliUnalignedRead64
+Trace2Pass: Instrumenting function: HashBytesH10
+Trace2Pass: Instrumented 1 arithmetic operations in HashBytesH10
+Trace2Pass: Instrumenting function: LeftChildIndexH10
+Trace2Pass: Instrumenting function: RightChildIndexH10
+Trace2Pass: Instrumenting function: BrotliUnalignedRead32
+Trace2Pass: Instrumenting function: FindAllCompoundDictionaryMatches
+Trace2Pass: Instrumented 5 arithmetic operations, 1 unreachable blocks in FindAllCompoundDictionaryMatches
+Trace2Pass: Instrumenting function: BROTLI_UNALIGNED_LOAD_PTR
+Trace2Pass: Instrumenting function: MaxZopfliCandidates
+Trace2Pass: Instrumenting function: StartPosQueueAt
+Trace2Pass: Instrumenting function: ZopfliCostModelGetMinCostCmd
+Trace2Pass: Instrumenting function: ZopfliCostModelGetLiteralCosts
+Trace2Pass: Instrumenting function: ComputeMinimumCopyLength
+Trace2Pass: Instrumenting function: StartPosQueueSize
+Trace2Pass: Instrumenting function: GetInsertExtra
+Trace2Pass: Instrumenting function: ZopfliCostModelGetDistanceCost
+Trace2Pass: Instrumenting function: GetCopyExtra
+Trace2Pass: Instrumenting function: ZopfliCostModelGetCommandCost
+Trace2Pass: Instrumenting function: UpdateZopfliNode
+Trace2Pass: Instrumented 2 arithmetic operations in UpdateZopfliNode
+Trace2Pass: Instrumenting function: BackwardMatchLengthCode
+Trace2Pass: Instrumenting function: StoreH10
+Trace2Pass: Instrumenting function: ComputeDistanceShortcut
+Trace2Pass: Instrumenting function: ComputeDistanceCache
+Trace2Pass: Instrumented 2 arithmetic operations in ComputeDistanceCache
+Trace2Pass: Instrumenting function: StartPosQueuePush
+Trace2Pass: Instrumenting function: ZopfliNodeCommandLength
+Trace2Pass: Instrumenting function: CommandCopyLen
+Trace2Pass: Instrumenting function: SetCost
+Trace2Pass: Instrumenting function: brotli_min_float
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliCreateBackwardReferences
+Trace2Pass: Instrumenting function: CreateBackwardReferencesDH3
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 1 division checks in CreateBackwardReferencesDH3
+Trace2Pass: Instrumenting function: CreateBackwardReferencesDH4
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 1 division checks in CreateBackwardReferencesDH4
+Trace2Pass: Instrumenting function: CreateBackwardReferencesDH5
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 1 division checks in CreateBackwardReferencesDH5
+Trace2Pass: Instrumenting function: CreateBackwardReferencesDH6
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 1 division checks in CreateBackwardReferencesDH6
+Trace2Pass: Instrumenting function: CreateBackwardReferencesDH58
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 1 division checks in CreateBackwardReferencesDH58
+Trace2Pass: Instrumenting function: CreateBackwardReferencesDH68
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 1 division checks in CreateBackwardReferencesDH68
+Trace2Pass: Instrumenting function: CreateBackwardReferencesDH40
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 1 division checks in CreateBackwardReferencesDH40
+Trace2Pass: Instrumenting function: CreateBackwardReferencesDH41
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 1 division checks in CreateBackwardReferencesDH41
+Trace2Pass: Instrumenting function: CreateBackwardReferencesDH42
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 1 division checks in CreateBackwardReferencesDH42
+Trace2Pass: Instrumenting function: CreateBackwardReferencesDH55
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 1 division checks in CreateBackwardReferencesDH55
+Trace2Pass: Instrumenting function: CreateBackwardReferencesDH65
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 1 division checks in CreateBackwardReferencesDH65
+Trace2Pass: Instrumenting function: CreateBackwardReferencesNH2
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 1 division checks in CreateBackwardReferencesNH2
+Trace2Pass: Instrumenting function: CreateBackwardReferencesNH3
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 1 division checks in CreateBackwardReferencesNH3
+Trace2Pass: Instrumenting function: CreateBackwardReferencesNH4
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 1 division checks in CreateBackwardReferencesNH4
+Trace2Pass: Instrumenting function: CreateBackwardReferencesNH5
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 1 division checks in CreateBackwardReferencesNH5
+Trace2Pass: Instrumenting function: CreateBackwardReferencesNH6
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 1 division checks in CreateBackwardReferencesNH6
+Trace2Pass: Instrumenting function: CreateBackwardReferencesNH40
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 1 division checks in CreateBackwardReferencesNH40
+Trace2Pass: Instrumenting function: CreateBackwardReferencesNH41
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 1 division checks in CreateBackwardReferencesNH41
+Trace2Pass: Instrumenting function: CreateBackwardReferencesNH42
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 1 division checks in CreateBackwardReferencesNH42
+Trace2Pass: Instrumenting function: CreateBackwardReferencesNH54
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 1 division checks in CreateBackwardReferencesNH54
+Trace2Pass: Instrumenting function: CreateBackwardReferencesNH58
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 1 division checks in CreateBackwardReferencesNH58
+Trace2Pass: Instrumenting function: CreateBackwardReferencesNH68
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 1 division checks in CreateBackwardReferencesNH68
+Trace2Pass: Instrumenting function: CreateBackwardReferencesNH35
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 1 division checks in CreateBackwardReferencesNH35
+Trace2Pass: Instrumenting function: CreateBackwardReferencesNH55
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 1 division checks in CreateBackwardReferencesNH55
+Trace2Pass: Instrumenting function: CreateBackwardReferencesNH65
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 1 division checks in CreateBackwardReferencesNH65
+Trace2Pass: Instrumenting function: StoreLookaheadH3
+Trace2Pass: Instrumenting function: LiteralSpreeLengthForSparseSearch
+Trace2Pass: Instrumenting function: PrepareDistanceCacheH3
+Trace2Pass: Instrumenting function: HashTypeLengthH3
+Trace2Pass: Instrumenting function: brotli_min_size_t
+Trace2Pass: Instrumenting function: FindLongestMatchH3
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in FindLongestMatchH3
+Trace2Pass: Instrumenting function: LookupCompoundDictionaryMatch
+Trace2Pass: Instrumenting function: ComputeDistanceCode
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in ComputeDistanceCode
+Trace2Pass: Instrumenting function: InitCommand
+Trace2Pass: Instrumented 2 arithmetic operations in InitCommand
+Trace2Pass: Instrumenting function: brotli_max_size_t
+Trace2Pass: Instrumenting function: StoreRangeH3
+Trace2Pass: Instrumenting function: StoreH3
+Trace2Pass: Instrumenting function: HashBytesH3
+Trace2Pass: Instrumented 2 arithmetic operations in HashBytesH3
+Trace2Pass: Instrumenting function: FindMatchLengthWithLimit
+Trace2Pass: Instrumented 1 arithmetic operations in FindMatchLengthWithLimit
+Trace2Pass: Instrumenting function: BackwardReferenceScoreUsingLastDistance
+Trace2Pass: Instrumenting function: BackwardReferenceScore
+Trace2Pass: Instrumenting function: BrotliUnalignedRead64
+Trace2Pass: Instrumenting function: Log2FloorNonZero
+Trace2Pass: Instrumenting function: FindCompoundDictionaryMatch
+Trace2Pass: Instrumented 5 arithmetic operations, 1 unreachable blocks in FindCompoundDictionaryMatch
+Trace2Pass: Instrumenting function: BROTLI_UNALIGNED_LOAD_PTR
+Trace2Pass: Instrumenting function: BackwardReferencePenaltyUsingLastDistance
+Trace2Pass: Instrumented 1 arithmetic operations in BackwardReferencePenaltyUsingLastDistance
+Trace2Pass: Instrumenting function: BrotliUnalignedRead32
+Trace2Pass: Instrumenting function: PrefixEncodeCopyDistance
+Trace2Pass: Instrumented 7 arithmetic operations in PrefixEncodeCopyDistance
+Trace2Pass: Instrumenting function: GetLengthCode
+Trace2Pass: Instrumenting function: GetInsertLengthCode
+Trace2Pass: Instrumented 2 arithmetic operations in GetInsertLengthCode
+Trace2Pass: Instrumenting function: GetCopyLengthCode
+Trace2Pass: Instrumented 2 arithmetic operations in GetCopyLengthCode
+Trace2Pass: Instrumenting function: CombineLengthCodes
+Trace2Pass: Instrumented 5 arithmetic operations in CombineLengthCodes
+Trace2Pass: Instrumenting function: StoreLookaheadH4
+Trace2Pass: Instrumenting function: PrepareDistanceCacheH4
+Trace2Pass: Instrumenting function: HashTypeLengthH4
+Trace2Pass: Instrumenting function: FindLongestMatchH4
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in FindLongestMatchH4
+Trace2Pass: Instrumenting function: StoreRangeH4
+Trace2Pass: Instrumenting function: StoreH4
+Trace2Pass: Instrumenting function: HashBytesH4
+Trace2Pass: Instrumented 2 arithmetic operations in HashBytesH4
+Trace2Pass: Instrumenting function: SearchInStaticDictionary
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in SearchInStaticDictionary
+Trace2Pass: Instrumenting function: Hash14
+Trace2Pass: Instrumented 1 arithmetic operations in Hash14
+Trace2Pass: Instrumenting function: TestStaticDictionaryItem
+Trace2Pass: Instrumented 4 arithmetic operations in TestStaticDictionaryItem
+Trace2Pass: Instrumenting function: StoreLookaheadH5
+Trace2Pass: Instrumenting function: PrepareDistanceCacheH5
+Trace2Pass: Instrumenting function: HashTypeLengthH5
+Trace2Pass: Instrumenting function: FindLongestMatchH5
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in FindLongestMatchH5
+Trace2Pass: Instrumenting function: StoreRangeH5
+Trace2Pass: Instrumenting function: StoreH5
+Trace2Pass: Instrumented 1 arithmetic operations in StoreH5
+Trace2Pass: Instrumenting function: PrepareDistanceCache
+Trace2Pass: Instrumented 12 arithmetic operations in PrepareDistanceCache
+Trace2Pass: Instrumenting function: HashBytesH5
+Trace2Pass: Instrumented 1 arithmetic operations in HashBytesH5
+Trace2Pass: Instrumenting function: StoreLookaheadH6
+Trace2Pass: Instrumenting function: PrepareDistanceCacheH6
+Trace2Pass: Instrumenting function: HashTypeLengthH6
+Trace2Pass: Instrumenting function: FindLongestMatchH6
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in FindLongestMatchH6
+Trace2Pass: Instrumenting function: StoreRangeH6
+Trace2Pass: Instrumenting function: StoreH6
+Trace2Pass: Instrumented 1 arithmetic operations in StoreH6
+Trace2Pass: Instrumenting function: HashBytesH6
+Trace2Pass: Instrumented 1 arithmetic operations in HashBytesH6
+Trace2Pass: Instrumenting function: StoreLookaheadH58
+Trace2Pass: Instrumenting function: PrepareDistanceCacheH58
+Trace2Pass: Instrumenting function: HashTypeLengthH58
+Trace2Pass: Instrumenting function: FindLongestMatchH58
+Trace2Pass: Instrumented 6 arithmetic operations, 1 unreachable blocks, 1 division checks in FindLongestMatchH58
+Trace2Pass: Instrumenting function: StoreRangeH58
+Trace2Pass: Instrumenting function: StoreH58
+Trace2Pass: Instrumented 2 arithmetic operations in StoreH58
+Trace2Pass: Instrumenting function: HashBytesH58
+Trace2Pass: Instrumented 1 arithmetic operations in HashBytesH58
+Trace2Pass: Instrumenting function: GetMatchingTagMask
+Trace2Pass: Instrumented 1 arithmetic operations in GetMatchingTagMask
+Trace2Pass: Instrumenting function: _mm_set1_epi8
+Trace2Pass: Instrumenting function: _mm_loadu_si128
+Trace2Pass: Instrumenting function: _mm_cmpeq_epi8
+Trace2Pass: Instrumenting function: _mm_movemask_epi8
+Trace2Pass: Instrumenting function: BrotliRotateRight16
+Trace2Pass: Instrumented 2 arithmetic operations in BrotliRotateRight16
+Trace2Pass: Instrumenting function: BrotliRotateRight32
+Trace2Pass: Instrumented 2 arithmetic operations in BrotliRotateRight32
+Trace2Pass: Instrumenting function: BrotliRotateRight64
+Trace2Pass: Instrumented 2 arithmetic operations in BrotliRotateRight64
+Trace2Pass: Instrumenting function: _mm_set_epi8
+Trace2Pass: Instrumenting function: StoreLookaheadH68
+Trace2Pass: Instrumenting function: PrepareDistanceCacheH68
+Trace2Pass: Instrumenting function: HashTypeLengthH68
+Trace2Pass: Instrumenting function: FindLongestMatchH68
+Trace2Pass: Instrumented 6 arithmetic operations, 1 unreachable blocks, 1 division checks in FindLongestMatchH68
+Trace2Pass: Instrumenting function: StoreRangeH68
+Trace2Pass: Instrumenting function: StoreH68
+Trace2Pass: Instrumented 2 arithmetic operations in StoreH68
+Trace2Pass: Instrumenting function: HashBytesH68
+Trace2Pass: Instrumented 1 arithmetic operations in HashBytesH68
+Trace2Pass: Instrumenting function: StoreLookaheadH40
+Trace2Pass: Instrumenting function: PrepareDistanceCacheH40
+Trace2Pass: Instrumenting function: HashTypeLengthH40
+Trace2Pass: Instrumenting function: FindLongestMatchH40
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in FindLongestMatchH40
+Trace2Pass: Instrumenting function: StoreRangeH40
+Trace2Pass: Instrumenting function: StoreH40
+Trace2Pass: Instrumenting function: AddrH40
+Trace2Pass: Instrumenting function: HeadH40
+Trace2Pass: Instrumenting function: TinyHashH40
+Trace2Pass: Instrumenting function: BanksH40
+Trace2Pass: Instrumenting function: HashBytesH40
+Trace2Pass: Instrumented 1 arithmetic operations in HashBytesH40
+Trace2Pass: Instrumenting function: StoreLookaheadH41
+Trace2Pass: Instrumenting function: PrepareDistanceCacheH41
+Trace2Pass: Instrumenting function: HashTypeLengthH41
+Trace2Pass: Instrumenting function: FindLongestMatchH41
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in FindLongestMatchH41
+Trace2Pass: Instrumenting function: StoreRangeH41
+Trace2Pass: Instrumenting function: StoreH41
+Trace2Pass: Instrumenting function: AddrH41
+Trace2Pass: Instrumenting function: HeadH41
+Trace2Pass: Instrumenting function: TinyHashH41
+Trace2Pass: Instrumenting function: BanksH41
+Trace2Pass: Instrumenting function: HashBytesH41
+Trace2Pass: Instrumented 1 arithmetic operations in HashBytesH41
+Trace2Pass: Instrumenting function: StoreLookaheadH42
+Trace2Pass: Instrumenting function: PrepareDistanceCacheH42
+Trace2Pass: Instrumenting function: HashTypeLengthH42
+Trace2Pass: Instrumenting function: FindLongestMatchH42
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in FindLongestMatchH42
+Trace2Pass: Instrumenting function: StoreRangeH42
+Trace2Pass: Instrumenting function: StoreH42
+Trace2Pass: Instrumenting function: AddrH42
+Trace2Pass: Instrumenting function: HeadH42
+Trace2Pass: Instrumenting function: TinyHashH42
+Trace2Pass: Instrumenting function: BanksH42
+Trace2Pass: Instrumenting function: HashBytesH42
+Trace2Pass: Instrumented 1 arithmetic operations in HashBytesH42
+Trace2Pass: Instrumenting function: StoreLookaheadH55
+Trace2Pass: Instrumenting function: PrepareDistanceCacheH55
+Trace2Pass: Instrumenting function: HashTypeLengthH55
+Trace2Pass: Instrumenting function: FindLongestMatchH55
+Trace2Pass: Instrumenting function: StoreRangeH55
+Trace2Pass: Instrumenting function: StoreH55
+Trace2Pass: Instrumenting function: StoreLookaheadH54
+Trace2Pass: Instrumenting function: StoreLookaheadHROLLING_FAST
+Trace2Pass: Instrumenting function: PrepareDistanceCacheH54
+Trace2Pass: Instrumenting function: PrepareDistanceCacheHROLLING_FAST
+Trace2Pass: Instrumenting function: HashTypeLengthH54
+Trace2Pass: Instrumenting function: HashTypeLengthHROLLING_FAST
+Trace2Pass: Instrumenting function: FindLongestMatchH54
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in FindLongestMatchH54
+Trace2Pass: Instrumenting function: FindLongestMatchHROLLING_FAST
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in FindLongestMatchHROLLING_FAST
+Trace2Pass: Instrumenting function: HashBytesH54
+Trace2Pass: Instrumented 2 arithmetic operations in HashBytesH54
+Trace2Pass: Instrumenting function: HashRollingFunctionHROLLING_FAST
+Trace2Pass: Instrumenting function: HashByteHROLLING_FAST
+Trace2Pass: Instrumenting function: StoreRangeH54
+Trace2Pass: Instrumenting function: StoreRangeHROLLING_FAST
+Trace2Pass: Instrumenting function: StoreH54
+Trace2Pass: Instrumenting function: StoreHROLLING_FAST
+Trace2Pass: Instrumenting function: StoreLookaheadH65
+Trace2Pass: Instrumenting function: PrepareDistanceCacheH65
+Trace2Pass: Instrumenting function: HashTypeLengthH65
+Trace2Pass: Instrumenting function: FindLongestMatchH65
+Trace2Pass: Instrumenting function: StoreRangeH65
+Trace2Pass: Instrumenting function: StoreH65
+Trace2Pass: Instrumenting function: StoreLookaheadHROLLING
+Trace2Pass: Instrumenting function: PrepareDistanceCacheHROLLING
+Trace2Pass: Instrumenting function: HashTypeLengthHROLLING
+Trace2Pass: Instrumenting function: FindLongestMatchHROLLING
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in FindLongestMatchHROLLING
+Trace2Pass: Instrumenting function: HashRollingFunctionHROLLING
+Trace2Pass: Instrumenting function: HashByteHROLLING
+Trace2Pass: Instrumenting function: StoreRangeHROLLING
+Trace2Pass: Instrumenting function: StoreHROLLING
+Trace2Pass: Instrumenting function: StoreLookaheadH2
+Trace2Pass: Instrumenting function: PrepareDistanceCacheH2
+Trace2Pass: Instrumenting function: HashTypeLengthH2
+Trace2Pass: Instrumenting function: FindLongestMatchH2
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in FindLongestMatchH2
+Trace2Pass: Instrumenting function: StoreRangeH2
+Trace2Pass: Instrumenting function: StoreH2
+Trace2Pass: Instrumenting function: HashBytesH2
+Trace2Pass: Instrumented 2 arithmetic operations in HashBytesH2
+Trace2Pass: Instrumenting function: StoreLookaheadH35
+Trace2Pass: Instrumenting function: PrepareDistanceCacheH35
+Trace2Pass: Instrumenting function: HashTypeLengthH35
+Trace2Pass: Instrumenting function: FindLongestMatchH35
+Trace2Pass: Instrumenting function: StoreRangeH35
+Trace2Pass: Instrumenting function: StoreH35
+[ 40%] Building C object CMakeFiles/brotlienc.dir/c/enc/cluster.c.o
+[ 42%] Building C object CMakeFiles/brotlidec.dir/c/dec/state.c.o
+[ 45%] Building C object CMakeFiles/brotlidec.dir/c/dec/prefix.c.o
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliCompareAndPushToQueueLiteral
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in BrotliCompareAndPushToQueueLiteral
+Trace2Pass: Instrumenting function: ClusterCostDiff
+Trace2Pass: Instrumenting function: brotli_max_double
+Trace2Pass: Instrumenting function: HistogramAddHistogramLiteral
+Trace2Pass: Instrumenting function: HistogramPairIsLess
+Trace2Pass: Instrumenting function: BrotliHistogramCombineLiteral
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in BrotliHistogramCombineLiteral
+Trace2Pass: Instrumenting function: BrotliHistogramBitCostDistanceLiteral
+Trace2Pass: Instrumenting function: BrotliHistogramRemapLiteral
+Trace2Pass: Instrumenting function: HistogramClearLiteral
+Trace2Pass: Instrumenting function: BrotliHistogramReindexLiteral
+Trace2Pass: Instrumenting function: BrotliClusterHistogramsLiteral
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in BrotliClusterHistogramsLiteral
+Trace2Pass: Instrumenting function: brotli_min_size_t
+Trace2Pass: Instrumenting function: BrotliCompareAndPushToQueueCommand
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in BrotliCompareAndPushToQueueCommand
+Trace2Pass: Instrumenting function: HistogramAddHistogramCommand
+Trace2Pass: Instrumenting function: BrotliHistogramCombineCommand
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in BrotliHistogramCombineCommand
+Trace2Pass: Instrumenting function: BrotliHistogramBitCostDistanceCommand
+Trace2Pass: Instrumenting function: BrotliHistogramRemapCommand
+Trace2Pass: Instrumenting function: HistogramClearCommand
+Trace2Pass: Instrumenting function: BrotliHistogramReindexCommand
+Trace2Pass: Instrumenting function: BrotliClusterHistogramsCommand
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in BrotliClusterHistogramsCommand
+Trace2Pass: Instrumenting function: BrotliCompareAndPushToQueueDistance
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in BrotliCompareAndPushToQueueDistance
+Trace2Pass: Instrumenting function: HistogramAddHistogramDistance
+Trace2Pass: Instrumenting function: BrotliHistogramCombineDistance
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in BrotliHistogramCombineDistance
+Trace2Pass: Instrumenting function: BrotliHistogramBitCostDistanceDistance
+Trace2Pass: Instrumenting function: BrotliHistogramRemapDistance
+Trace2Pass: Instrumenting function: HistogramClearDistance
+Trace2Pass: Instrumenting function: BrotliHistogramReindexDistance
+Trace2Pass: Instrumenting function: BrotliClusterHistogramsDistance
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in BrotliClusterHistogramsDistance
+Trace2Pass: Instrumenting function: FastLog2
+[ 47%] Building C object CMakeFiles/brotlienc.dir/c/enc/command.c.o
+[ 50%] Building C object CMakeFiles/brotlidec.dir/c/dec/static_init.c.o
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliDecoderStateInit
+Trace2Pass: Instrumenting function: BrotliDecoderStateMetablockBegin
+Trace2Pass: Instrumenting function: BrotliDecoderStateCleanupAfterMetablock
+Trace2Pass: Instrumenting function: BrotliDecoderStateCleanup
+Trace2Pass: Instrumenting function: BrotliDecoderHuffmanTreeGroupInit
+[ 52%] Building C object CMakeFiles/brotlienc.dir/c/enc/compound_dictionary.c.o
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: CreatePreparedDictionary
+Trace2Pass: Instrumented 2 arithmetic operations in CreatePreparedDictionary
+Trace2Pass: Instrumenting function: CreatePreparedDictionaryWithParams
+Trace2Pass: Instrumented 10 arithmetic operations, 1 unreachable blocks in CreatePreparedDictionaryWithParams
+Trace2Pass: Instrumenting function: DestroyPreparedDictionary
+Trace2Pass: Instrumenting function: AttachPreparedDictionary
+Trace2Pass: Instrumented 2 arithmetic operations in AttachPreparedDictionary
+Trace2Pass: Instrumenting function: BROTLI_UNALIGNED_LOAD_PTR
+Trace2Pass: Instrumenting function: BrotliUnalignedRead64
+Trace2Pass: Instrumenting function: BROTLI_UNALIGNED_STORE_PTR
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliDecoderEnsureStaticInit
+[ 55%] Building C object CMakeFiles/brotlienc.dir/c/enc/compress_fragment_two_pass.c.o
+[ 57%] Building C object CMakeFiles/brotlienc.dir/c/enc/encode.c.o
+[ 60%] Building C object CMakeFiles/brotlienc.dir/c/enc/dictionary_hash.c.o
+[ 62%] Building C object CMakeFiles/brotlienc.dir/c/enc/compress_fragment.c.o
+[ 65%] Linking C shared library libbrotlidec.so
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliCompressFragmentTwoPass
+[ 67%] Building C object CMakeFiles/brotlienc.dir/c/enc/encoder_dict.c.o
+Trace2Pass: Instrumented 1 arithmetic operations in BrotliCompressFragmentTwoPass
+Trace2Pass: Instrumenting function: Log2FloorNonZero
+Trace2Pass: Instrumenting function: BrotliCompressFragmentTwoPassImpl8
+Trace2Pass: Instrumenting function: BrotliCompressFragmentTwoPassImpl9
+Trace2Pass: Instrumenting function: BrotliCompressFragmentTwoPassImpl10
+Trace2Pass: Instrumenting function: BrotliCompressFragmentTwoPassImpl11
+Trace2Pass: Instrumenting function: BrotliCompressFragmentTwoPassImpl12
+Trace2Pass: Instrumenting function: BrotliCompressFragmentTwoPassImpl13
+Trace2Pass: Instrumenting function: BrotliCompressFragmentTwoPassImpl14
+Trace2Pass: Instrumenting function: BrotliCompressFragmentTwoPassImpl15
+Trace2Pass: Instrumenting function: BrotliCompressFragmentTwoPassImpl16
+Trace2Pass: Instrumenting function: BrotliCompressFragmentTwoPassImpl17
+Trace2Pass: Instrumenting function: RewindBitPosition
+Trace2Pass: Instrumented 2 arithmetic operations in RewindBitPosition
+Trace2Pass: Instrumenting function: EmitUncompressedMetaBlock
+Trace2Pass: Instrumented 3 arithmetic operations in EmitUncompressedMetaBlock
+Trace2Pass: Instrumenting function: BrotliWriteBits
+Trace2Pass: Instrumented 2 arithmetic operations in BrotliWriteBits
+Trace2Pass: Instrumenting function: BrotliCompressFragmentTwoPassImpl
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in BrotliCompressFragmentTwoPassImpl
+Trace2Pass: Instrumenting function: brotli_min_size_t
+Trace2Pass: Instrumenting function: CreateCommands
+Trace2Pass: Instrumented 17 arithmetic operations in CreateCommands
+Trace2Pass: Instrumenting function: ShouldCompress
+Trace2Pass: Instrumenting function: BrotliStoreMetaBlockHeader
+Trace2Pass: Instrumenting function: StoreCommands
+Trace2Pass: Instrumented 1 arithmetic operations in StoreCommands
+Trace2Pass: Instrumenting function: Hash
+Trace2Pass: Instrumented 2 arithmetic operations in Hash
+Trace2Pass: Instrumenting function: IsMatch
+Trace2Pass: Instrumenting function: FindMatchLengthWithLimit
+Trace2Pass: Instrumented 1 arithmetic operations in FindMatchLengthWithLimit
+Trace2Pass: Instrumenting function: EmitInsertLen
+Trace2Pass: Instrumented 9 arithmetic operations in EmitInsertLen
+Trace2Pass: Instrumenting function: EmitDistance
+Trace2Pass: Instrumented 3 arithmetic operations in EmitDistance
+Trace2Pass: Instrumenting function: EmitCopyLenLastDistance
+Trace2Pass: Instrumented 9 arithmetic operations in EmitCopyLenLastDistance
+Trace2Pass: Instrumenting function: BrotliUnalignedRead64
+Trace2Pass: Instrumenting function: HashBytesAtOffset
+Trace2Pass: Instrumented 3 arithmetic operations in HashBytesAtOffset
+Trace2Pass: Instrumenting function: EmitCopyLen
+Trace2Pass: Instrumented 7 arithmetic operations in EmitCopyLen
+Trace2Pass: Instrumenting function: BrotliUnalignedRead32
+Trace2Pass: Instrumenting function: BuildAndStoreCommandPrefixCode
+Trace2Pass: Instrumenting function: BrotliUnalignedWrite64
+[ 70%] Building C object CMakeFiles/brotlienc.dir/c/enc/entropy_encode.c.o
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliCompressFragmentFast
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in BrotliCompressFragmentFast
+Trace2Pass: Instrumenting function: Log2FloorNonZero
+Trace2Pass: Instrumenting function: BrotliWriteBits
+Trace2Pass: Instrumented 2 arithmetic operations in BrotliWriteBits
+Trace2Pass: Instrumenting function: BrotliCompressFragmentFastImpl9
+Trace2Pass: Instrumenting function: BrotliCompressFragmentFastImpl11
+Trace2Pass: Instrumenting function: BrotliCompressFragmentFastImpl13
+Trace2Pass: Instrumenting function: BrotliCompressFragmentFastImpl15
+Trace2Pass: Instrumenting function: EmitUncompressedMetaBlock
+Trace2Pass: Instrumented 3 arithmetic operations in EmitUncompressedMetaBlock
+Trace2Pass: Instrumenting function: BrotliUnalignedWrite64
+Trace2Pass: Instrumenting function: BrotliCompressFragmentFastImpl
+Trace2Pass: Instrumented 9 arithmetic operations, 1 unreachable blocks in BrotliCompressFragmentFastImpl
+Trace2Pass: Instrumenting function: brotli_min_size_t
+Trace2Pass: Instrumenting function: BrotliStoreMetaBlockHeader
+Trace2Pass: Instrumenting function: BuildAndStoreLiteralPrefixCode
+Trace2Pass: Instrumented 0 arithmetic operations, 2 division checks in BuildAndStoreLiteralPrefixCode
+Trace2Pass: Instrumenting function: Hash
+Trace2Pass: Instrumented 2 arithmetic operations in Hash
+Trace2Pass: Instrumenting function: IsMatch
+Trace2Pass: Instrumenting function: FindMatchLengthWithLimit
+Trace2Pass: Instrumented 1 arithmetic operations in FindMatchLengthWithLimit
+Trace2Pass: Instrumenting function: EmitInsertLen
+Trace2Pass: Instrumented 4 arithmetic operations in EmitInsertLen
+Trace2Pass: Instrumenting function: ShouldUseUncompressedMode
+Trace2Pass: Instrumenting function: EmitLongInsertLen
+Trace2Pass: Instrumenting function: EmitLiterals
+Trace2Pass: Instrumenting function: EmitDistance
+Trace2Pass: Instrumented 2 arithmetic operations in EmitDistance
+Trace2Pass: Instrumenting function: EmitCopyLenLastDistance
+Trace2Pass: Instrumented 5 arithmetic operations in EmitCopyLenLastDistance
+Trace2Pass: Instrumenting function: BrotliUnalignedRead64
+Trace2Pass: Instrumenting function: HashBytesAtOffset
+Trace2Pass: Instrumented 4 arithmetic operations in HashBytesAtOffset
+Trace2Pass: Instrumenting function: EmitCopyLen
+Trace2Pass: Instrumented 4 arithmetic operations in EmitCopyLen
+Trace2Pass: Instrumenting function: ShouldMergeBlock
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in ShouldMergeBlock
+Trace2Pass: Instrumenting function: UpdateBits
+Trace2Pass: Instrumented 6 arithmetic operations in UpdateBits
+Trace2Pass: Instrumenting function: BuildAndStoreCommandPrefixCode
+Trace2Pass: Instrumenting function: brotli_min_uint32_t
+Trace2Pass: Instrumenting function: BrotliUnalignedRead32
+Trace2Pass: Instrumenting function: FastLog2
+Trace2Pass: Instrumenting function: RewindBitPosition
+Trace2Pass: Instrumented 2 arithmetic operations in RewindBitPosition
+[ 72%] Building C object CMakeFiles/brotlienc.dir/c/enc/fast_log.c.o
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliEncoderSetParameter
+Trace2Pass: Instrumenting function: BrotliEncoderCreateInstance
+Trace2Pass: Instrumenting function: BrotliEncoderInitState
+Trace2Pass: Instrumenting function: BrotliEncoderDestroyInstance
+Trace2Pass: Instrumenting function: BrotliEncoderCleanupState
+Trace2Pass: Instrumenting function: BrotliEncoderMaxCompressedSize
+Trace2Pass: Instrumented 1 arithmetic operations in BrotliEncoderMaxCompressedSize
+Trace2Pass: Instrumenting function: BrotliEncoderCompress
+Trace2Pass: Instrumenting function: BrotliEncoderCompressStream
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in BrotliEncoderCompressStream
+Trace2Pass: Instrumenting function: BrotliEncoderIsFinished
+Trace2Pass: Instrumenting function: MakeUncompressedStream
+Trace2Pass: Instrumented 6 arithmetic operations in MakeUncompressedStream
+Trace2Pass: Instrumenting function: EnsureInitialized
+Trace2Pass: Instrumented 1 arithmetic operations in EnsureInitialized
+Trace2Pass: Instrumenting function: UpdateSizeHint
+Trace2Pass: Instrumenting function: ProcessMetadata
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in ProcessMetadata
+Trace2Pass: Instrumenting function: BrotliEncoderCompressStreamFast
+Trace2Pass: Instrumented 5 arithmetic operations in BrotliEncoderCompressStreamFast
+Trace2Pass: Instrumenting function: RemainingInputBlockSize
+Trace2Pass: Instrumenting function: brotli_min_size_t
+Trace2Pass: Instrumenting function: CopyInputToRingBuffer
+Trace2Pass: Instrumenting function: InjectFlushOrPushOutput
+Trace2Pass: Instrumenting function: CheckFlushComplete
+Trace2Pass: Instrumenting function: EncodeData
+Trace2Pass: Instrumented 10 arithmetic operations, 4 division checks in EncodeData
+Trace2Pass: Instrumenting function: BrotliEncoderHasMoreOutput
+Trace2Pass: Instrumenting function: BrotliEncoderTakeOutput
+Trace2Pass: Instrumenting function: BrotliEncoderVersion
+Trace2Pass: Instrumenting function: BrotliEncoderPrepareDictionary
+Trace2Pass: Instrumenting function: BrotliEncoderDestroyPreparedDictionary
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in BrotliEncoderDestroyPreparedDictionary
+Trace2Pass: Instrumenting function: BrotliEncoderAttachPreparedDictionary
+Trace2Pass: Instrumenting function: brotli_min_int
+Trace2Pass: Instrumenting function: BrotliEncoderEstimatePeakMemoryUsage
+Trace2Pass: Instrumented 4 arithmetic operations, 3 division checks in BrotliEncoderEstimatePeakMemoryUsage
+Trace2Pass: Instrumenting function: BrotliEncoderInitParams
+Trace2Pass: Instrumenting function: SanitizeParams
+Trace2Pass: Instrumenting function: ComputeLgBlock
+Trace2Pass: Instrumenting function: ChooseHasher
+Trace2Pass: Instrumented 2 arithmetic operations in ChooseHasher
+Trace2Pass: Instrumenting function: HashTableSize
+Trace2Pass: Instrumented 1 arithmetic operations in HashTableSize
+Trace2Pass: Instrumenting function: MaxHashTableSize
+Trace2Pass: Instrumenting function: ComputeRbBits
+Trace2Pass: Instrumented 1 arithmetic operations in ComputeRbBits
+Trace2Pass: Instrumenting function: MaxMetablockSize
+Trace2Pass: Instrumented 1 arithmetic operations in MaxMetablockSize
+Trace2Pass: Instrumenting function: HasherSize
+Trace2Pass: Instrumenting function: BrotliEncoderGetPreparedDictionarySize
+Trace2Pass: Instrumented 4 arithmetic operations in BrotliEncoderGetPreparedDictionarySize
+Trace2Pass: Instrumenting function: HasherInit
+Trace2Pass: Instrumenting function: RingBufferInit
+Trace2Pass: Instrumenting function: RingBufferFree
+Trace2Pass: Instrumenting function: DestroyHasher
+Trace2Pass: Instrumenting function: BrotliEncoderCleanupParams
+Trace2Pass: Instrumenting function: ChooseDistanceParams
+Trace2Pass: Instrumented 2 arithmetic operations in ChooseDistanceParams
+Trace2Pass: Instrumenting function: RingBufferSetup
+Trace2Pass: Instrumented 3 arithmetic operations in RingBufferSetup
+Trace2Pass: Instrumenting function: brotli_max_int
+Trace2Pass: Instrumenting function: EncodeWindowBits
+Trace2Pass: Instrumented 5 arithmetic operations in EncodeWindowBits
+Trace2Pass: Instrumenting function: InitCommandPrefixCodes
+Trace2Pass: Instrumenting function: UnprocessedInputSize
+Trace2Pass: Instrumenting function: WriteMetadataHeader
+Trace2Pass: Instrumented 2 arithmetic operations, 1 division checks in WriteMetadataHeader
+Trace2Pass: Instrumenting function: brotli_min_uint32_t
+Trace2Pass: Instrumenting function: BrotliWriteBits
+Trace2Pass: Instrumented 2 arithmetic operations in BrotliWriteBits
+Trace2Pass: Instrumenting function: Log2FloorNonZero
+Trace2Pass: Instrumenting function: BrotliUnalignedWrite64
+Trace2Pass: Instrumenting function: GetBrotliStorage
+Trace2Pass: Instrumenting function: GetHashTable
+Trace2Pass: Instrumented 1 arithmetic operations in GetHashTable
+Trace2Pass: Instrumenting function: SetTotalOut
+Trace2Pass: Instrumenting function: InputBlockSize
+Trace2Pass: Instrumented 1 arithmetic operations in InputBlockSize
+Trace2Pass: Instrumenting function: RingBufferWrite
+Trace2Pass: Instrumenting function: RingBufferInitBuffer
+Trace2Pass: Instrumenting function: RingBufferWriteTail
+Trace2Pass: Instrumenting function: InjectBytePaddingBlock
+Trace2Pass: Instrumented 4 arithmetic operations in InjectBytePaddingBlock
+Trace2Pass: Instrumenting function: WrapPosition
+Trace2Pass: Instrumented 2 arithmetic operations in WrapPosition
+Trace2Pass: Instrumenting function: UpdateLastProcessedPos
+Trace2Pass: Instrumenting function: InitOrStitchToPreviousBlock
+Trace2Pass: Instrumenting function: ChooseContextMode
+Trace2Pass: Instrumenting function: ExtendLastCommand
+Trace2Pass: Instrumented 3 arithmetic operations in ExtendLastCommand
+Trace2Pass: Instrumenting function: HasherReset
+Trace2Pass: Instrumenting function: InitInsertCommand
+Trace2Pass: Instrumenting function: WriteMetaBlockInternal
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks in WriteMetaBlockInternal
+Trace2Pass: Instrumenting function: HasherSetup
+Trace2Pass: Instrumenting function: StitchToPreviousBlockH2
+Trace2Pass: Instrumenting function: StitchToPreviousBlockH3
+Trace2Pass: Instrumenting function: StitchToPreviousBlockH4
+Trace2Pass: Instrumenting function: StitchToPreviousBlockH5
+Trace2Pass: Instrumenting function: StitchToPreviousBlockH6
+Trace2Pass: Instrumenting function: StitchToPreviousBlockH40
+Trace2Pass: Instrumenting function: StitchToPreviousBlockH41
+Trace2Pass: Instrumenting function: StitchToPreviousBlockH42
+Trace2Pass: Instrumenting function: StitchToPreviousBlockH54
+Trace2Pass: Instrumenting function: StitchToPreviousBlockH58
+Trace2Pass: Instrumenting function: StitchToPreviousBlockH68
+Trace2Pass: Instrumenting function: StitchToPreviousBlockH35
+Trace2Pass: Instrumenting function: StitchToPreviousBlockH55
+Trace2Pass: Instrumenting function: StitchToPreviousBlockH65
+Trace2Pass: Instrumenting function: StitchToPreviousBlockH10
+Trace2Pass: Instrumenting function: InitializeH2
+Trace2Pass: Instrumenting function: InitializeH3
+Trace2Pass: Instrumenting function: InitializeH4
+Trace2Pass: Instrumenting function: InitializeH5
+Trace2Pass: Instrumented 3 arithmetic operations in InitializeH5
+Trace2Pass: Instrumenting function: InitializeH6
+Trace2Pass: Instrumented 2 arithmetic operations in InitializeH6
+Trace2Pass: Instrumenting function: InitializeH40
+Trace2Pass: Instrumented 2 arithmetic operations in InitializeH40
+Trace2Pass: Instrumenting function: InitializeH41
+Trace2Pass: Instrumented 2 arithmetic operations in InitializeH41
+Trace2Pass: Instrumenting function: InitializeH42
+Trace2Pass: Instrumented 2 arithmetic operations in InitializeH42
+Trace2Pass: Instrumenting function: InitializeH54
+Trace2Pass: Instrumenting function: InitializeH58
+Trace2Pass: Instrumented 4 arithmetic operations in InitializeH58
+Trace2Pass: Instrumenting function: InitializeH68
+Trace2Pass: Instrumented 2 arithmetic operations in InitializeH68
+Trace2Pass: Instrumenting function: InitializeH35
+Trace2Pass: Instrumenting function: InitializeH55
+Trace2Pass: Instrumenting function: InitializeH65
+Trace2Pass: Instrumenting function: InitializeH10
+Trace2Pass: Instrumented 1 arithmetic operations in InitializeH10
+Trace2Pass: Instrumenting function: PrepareH2
+Trace2Pass: Instrumenting function: PrepareH3
+Trace2Pass: Instrumented 1 arithmetic operations in PrepareH3
+Trace2Pass: Instrumenting function: PrepareH4
+Trace2Pass: Instrumented 1 arithmetic operations in PrepareH4
+Trace2Pass: Instrumenting function: PrepareH5
+Trace2Pass: Instrumented 1 arithmetic operations in PrepareH5
+Trace2Pass: Instrumenting function: PrepareH6
+Trace2Pass: Instrumented 1 arithmetic operations in PrepareH6
+Trace2Pass: Instrumenting function: PrepareH40
+Trace2Pass: Instrumenting function: PrepareH41
+Trace2Pass: Instrumenting function: PrepareH42
+Trace2Pass: Instrumenting function: PrepareH54
+Trace2Pass: Instrumented 1 arithmetic operations in PrepareH54
+Trace2Pass: Instrumenting function: PrepareH58
+Trace2Pass: Instrumented 2 arithmetic operations in PrepareH58
+Trace2Pass: Instrumenting function: PrepareH68
+Trace2Pass: Instrumented 2 arithmetic operations in PrepareH68
+Trace2Pass: Instrumenting function: PrepareH35
+Trace2Pass: Instrumenting function: PrepareH55
+Trace2Pass: Instrumenting function: PrepareH65
+Trace2Pass: Instrumenting function: PrepareH10
+Trace2Pass: Instrumenting function: HashBytesH2
+Trace2Pass: Instrumented 2 arithmetic operations in HashBytesH2
+Trace2Pass: Instrumenting function: BrotliUnalignedRead64
+Trace2Pass: Instrumenting function: HashBytesH3
+Trace2Pass: Instrumented 2 arithmetic operations in HashBytesH3
+Trace2Pass: Instrumenting function: HashBytesH4
+Trace2Pass: Instrumented 2 arithmetic operations in HashBytesH4
+Trace2Pass: Instrumenting function: HashBytesH5
+Trace2Pass: Instrumented 1 arithmetic operations in HashBytesH5
+Trace2Pass: Instrumenting function: BrotliUnalignedRead32
+Trace2Pass: Instrumenting function: HashBytesH6
+Trace2Pass: Instrumented 1 arithmetic operations in HashBytesH6
+Trace2Pass: Instrumenting function: AddrH40
+Trace2Pass: Instrumenting function: HeadH40
+Trace2Pass: Instrumenting function: TinyHashH40
+Trace2Pass: Instrumenting function: HashBytesH40
+Trace2Pass: Instrumented 1 arithmetic operations in HashBytesH40
+Trace2Pass: Instrumenting function: AddrH41
+Trace2Pass: Instrumenting function: HeadH41
+Trace2Pass: Instrumenting function: TinyHashH41
+Trace2Pass: Instrumenting function: HashBytesH41
+Trace2Pass: Instrumented 1 arithmetic operations in HashBytesH41
+Trace2Pass: Instrumenting function: AddrH42
+Trace2Pass: Instrumenting function: HeadH42
+Trace2Pass: Instrumenting function: TinyHashH42
+Trace2Pass: Instrumenting function: HashBytesH42
+Trace2Pass: Instrumented 1 arithmetic operations in HashBytesH42
+Trace2Pass: Instrumenting function: HashBytesH54
+Trace2Pass: Instrumented 2 arithmetic operations in HashBytesH54
+Trace2Pass: Instrumenting function: HashBytesH58
+Trace2Pass: Instrumented 1 arithmetic operations in HashBytesH58
+Trace2Pass: Instrumenting function: HashBytesH68
+Trace2Pass: Instrumented 1 arithmetic operations in HashBytesH68
+Trace2Pass: Instrumenting function: InitializeHROLLING_FAST
+Trace2Pass: Instrumenting function: PrepareHROLLING_FAST
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in PrepareHROLLING_FAST
+Trace2Pass: Instrumenting function: HashRollingFunctionInitialHROLLING_FAST
+Trace2Pass: Instrumenting function: HashByteHROLLING_FAST
+Trace2Pass: Instrumenting function: InitializeHROLLING
+Trace2Pass: Instrumenting function: PrepareHROLLING
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in PrepareHROLLING
+Trace2Pass: Instrumenting function: HashRollingFunctionInitialHROLLING
+Trace2Pass: Instrumenting function: HashByteHROLLING
+Trace2Pass: Instrumenting function: HashTypeLengthH2
+Trace2Pass: Instrumenting function: StoreH2
+Trace2Pass: Instrumenting function: HashTypeLengthH3
+Trace2Pass: Instrumenting function: StoreH3
+Trace2Pass: Instrumenting function: HashTypeLengthH4
+Trace2Pass: Instrumenting function: StoreH4
+Trace2Pass: Instrumenting function: HashTypeLengthH5
+Trace2Pass: Instrumenting function: StoreH5
+Trace2Pass: Instrumented 1 arithmetic operations in StoreH5
+Trace2Pass: Instrumenting function: HashTypeLengthH6
+Trace2Pass: Instrumenting function: StoreH6
+Trace2Pass: Instrumented 1 arithmetic operations in StoreH6
+Trace2Pass: Instrumenting function: HashTypeLengthH40
+Trace2Pass: Instrumenting function: StoreH40
+Trace2Pass: Instrumenting function: BanksH40
+Trace2Pass: Instrumenting function: HashTypeLengthH41
+Trace2Pass: Instrumenting function: StoreH41
+Trace2Pass: Instrumenting function: BanksH41
+Trace2Pass: Instrumenting function: HashTypeLengthH42
+Trace2Pass: Instrumenting function: StoreH42
+Trace2Pass: Instrumenting function: BanksH42
+Trace2Pass: Instrumenting function: HashTypeLengthH54
+Trace2Pass: Instrumenting function: StoreH54
+Trace2Pass: Instrumenting function: HashTypeLengthH58
+Trace2Pass: Instrumenting function: StoreH58
+Trace2Pass: Instrumented 2 arithmetic operations in StoreH58
+Trace2Pass: Instrumenting function: HashTypeLengthH68
+Trace2Pass: Instrumenting function: StoreH68
+Trace2Pass: Instrumented 2 arithmetic operations in StoreH68
+Trace2Pass: Instrumenting function: StitchToPreviousBlockHROLLING_FAST
+Trace2Pass: Instrumenting function: StitchToPreviousBlockHROLLING
+Trace2Pass: Instrumenting function: HashTypeLengthH10
+Trace2Pass: Instrumenting function: brotli_max_size_t
+Trace2Pass: Instrumenting function: StoreAndFindMatchesH10
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in StoreAndFindMatchesH10
+Trace2Pass: Instrumenting function: HashBytesH10
+Trace2Pass: Instrumented 1 arithmetic operations in HashBytesH10
+Trace2Pass: Instrumenting function: LeftChildIndexH10
+Trace2Pass: Instrumenting function: RightChildIndexH10
+Trace2Pass: Instrumenting function: FindMatchLengthWithLimit
+Trace2Pass: Instrumented 1 arithmetic operations in FindMatchLengthWithLimit
+Trace2Pass: Instrumenting function: InitBackwardMatch
+Trace2Pass: Instrumented 1 arithmetic operations in InitBackwardMatch
+Trace2Pass: Instrumenting function: CommandRestoreDistanceCode
+Trace2Pass: Instrumented 5 arithmetic operations in CommandRestoreDistanceCode
+Trace2Pass: Instrumenting function: GetLengthCode
+Trace2Pass: Instrumenting function: GetInsertLengthCode
+Trace2Pass: Instrumented 2 arithmetic operations in GetInsertLengthCode
+Trace2Pass: Instrumenting function: GetCopyLengthCode
+Trace2Pass: Instrumented 2 arithmetic operations in GetCopyLengthCode
+Trace2Pass: Instrumenting function: CombineLengthCodes
+Trace2Pass: Instrumented 5 arithmetic operations in CombineLengthCodes
+Trace2Pass: Instrumenting function: ShouldCompress
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks, 1 division checks in ShouldCompress
+Trace2Pass: Instrumenting function: InitMetaBlockSplit
+Trace2Pass: Instrumenting function: DecideOverLiteralContextModeling
+Trace2Pass: Instrumented 6 arithmetic operations in DecideOverLiteralContextModeling
+Trace2Pass: Instrumenting function: DestroyMetaBlockSplit
+Trace2Pass: Instrumenting function: ShouldUseComplexStaticContextMap
+Trace2Pass: Instrumented 5 arithmetic operations in ShouldUseComplexStaticContextMap
+Trace2Pass: Instrumenting function: ChooseContextMap
+Trace2Pass: Instrumented 0 arithmetic operations, 2 division checks in ChooseContextMap
+Trace2Pass: Instrumenting function: EstimateEntropy
+Trace2Pass: Instrumenting function: FastLog2
+Trace2Pass: Instrumenting function: HashMemAllocInBytesH2
+Trace2Pass: Instrumenting function: HashMemAllocInBytesH3
+Trace2Pass: Instrumenting function: HashMemAllocInBytesH4
+Trace2Pass: Instrumenting function: HashMemAllocInBytesH5
+Trace2Pass: Instrumented 2 arithmetic operations in HashMemAllocInBytesH5
+Trace2Pass: Instrumenting function: HashMemAllocInBytesH6
+Trace2Pass: Instrumented 2 arithmetic operations in HashMemAllocInBytesH6
+Trace2Pass: Instrumenting function: HashMemAllocInBytesH40
+Trace2Pass: Instrumenting function: HashMemAllocInBytesH41
+Trace2Pass: Instrumenting function: HashMemAllocInBytesH42
+Trace2Pass: Instrumenting function: HashMemAllocInBytesH54
+Trace2Pass: Instrumenting function: HashMemAllocInBytesH58
+Trace2Pass: Instrumented 2 arithmetic operations in HashMemAllocInBytesH58
+Trace2Pass: Instrumenting function: HashMemAllocInBytesH68
+Trace2Pass: Instrumented 2 arithmetic operations in HashMemAllocInBytesH68
+Trace2Pass: Instrumenting function: HashMemAllocInBytesH35
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in HashMemAllocInBytesH35
+Trace2Pass: Instrumenting function: HashMemAllocInBytesH55
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in HashMemAllocInBytesH55
+Trace2Pass: Instrumenting function: HashMemAllocInBytesH65
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in HashMemAllocInBytesH65
+Trace2Pass: Instrumenting function: HashMemAllocInBytesH10
+Trace2Pass: Instrumented 1 arithmetic operations in HashMemAllocInBytesH10
+Trace2Pass: Instrumenting function: HashMemAllocInBytesHROLLING_FAST
+Trace2Pass: Instrumenting function: HashMemAllocInBytesHROLLING
+[ 72%] Built target brotlidec
+[ 75%] Building C object CMakeFiles/brotlienc.dir/c/enc/histogram.c.o
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliSetDepth
+Trace2Pass: Instrumented 2 arithmetic operations in BrotliSetDepth
+Trace2Pass: Instrumenting function: BrotliCreateHuffmanTree
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in BrotliCreateHuffmanTree
+Trace2Pass: Instrumenting function: InitHuffmanTree
+Trace2Pass: Instrumenting function: brotli_max_uint32_t
+Trace2Pass: Instrumenting function: SortHuffmanTreeItems
+Trace2Pass: Instrumented 1 arithmetic operations in SortHuffmanTreeItems
+Trace2Pass: Instrumenting function: SortHuffmanTree
+Trace2Pass: Instrumenting function: BrotliOptimizeHuffmanCountsForRle
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks, 6 division checks in BrotliOptimizeHuffmanCountsForRle
+Trace2Pass: Instrumenting function: BrotliWriteHuffmanTree
+Trace2Pass: Instrumenting function: DecideOverRleUse
+Trace2Pass: Instrumenting function: BrotliWriteHuffmanTreeRepetitionsZeros
+Trace2Pass: Instrumented 1 arithmetic operations in BrotliWriteHuffmanTreeRepetitionsZeros
+Trace2Pass: Instrumenting function: BrotliWriteHuffmanTreeRepetitions
+Trace2Pass: Instrumented 1 arithmetic operations in BrotliWriteHuffmanTreeRepetitions
+Trace2Pass: Instrumenting function: BrotliConvertBitDepthsToSymbols
+Trace2Pass: Instrumented 2 arithmetic operations in BrotliConvertBitDepthsToSymbols
+Trace2Pass: Instrumenting function: BrotliReverseBits
+Trace2Pass: Instrumented 3 arithmetic operations in BrotliReverseBits
+Trace2Pass: Instrumenting function: Reverse
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliInitSharedEncoderDictionary
+Trace2Pass: Instrumenting function: InitEncoderDictionary
+Trace2Pass: Instrumenting function: BrotliCleanupSharedEncoderDictionary
+Trace2Pass: Instrumenting function: BrotliDestroyEncoderDictionary
+Trace2Pass: Instrumenting function: BrotliCreateManagedDictionary
+Trace2Pass: Instrumenting function: BrotliDestroyManagedDictionary
+Trace2Pass: Instrumenting function: BrotliTrieInit
+Trace2Pass: Instrumenting function: BrotliTrieFree
+[ 77%] Building C object CMakeFiles/brotlienc.dir/c/enc/literal_cost.c.o
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliBuildHistogramsWithContext
+Trace2Pass: Instrumented 3 arithmetic operations in BrotliBuildHistogramsWithContext
+Trace2Pass: Instrumenting function: InitBlockSplitIterator
+Trace2Pass: Instrumenting function: BlockSplitIteratorNext
+Trace2Pass: Instrumenting function: HistogramAddCommand
+Trace2Pass: Instrumenting function: HistogramAddLiteral
+Trace2Pass: Instrumenting function: CommandCopyLen
+Trace2Pass: Instrumenting function: CommandDistanceContext
+Trace2Pass: Instrumented 1 arithmetic operations in CommandDistanceContext
+Trace2Pass: Instrumenting function: HistogramAddDistance
+[ 80%] Building C object CMakeFiles/brotlienc.dir/c/enc/memory.c.o
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliEstimateBitCostsForLiterals
+Trace2Pass: Instrumenting function: EstimateBitCostsForLiteralsUTF8
+Trace2Pass: Instrumenting function: brotli_min_size_t
+Trace2Pass: Instrumenting function: FastLog2
+Trace2Pass: Instrumenting function: DecideMultiByteStatsLevel
+Trace2Pass: Instrumenting function: UTF8Position
+[ 82%] Building C object CMakeFiles/brotlienc.dir/c/enc/metablock.c.o
+[ 85%] Building C object CMakeFiles/brotlienc.dir/c/enc/static_dict.c.o
+[ 87%] Building C object CMakeFiles/brotlienc.dir/c/enc/static_dict_lut.c.o
+[ 90%] Building C object CMakeFiles/brotlienc.dir/c/enc/static_init.c.o
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliInitMemoryManager
+Trace2Pass: Instrumenting function: BrotliAllocate
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in BrotliAllocate
+Trace2Pass: Instrumenting function: BrotliFree
+Trace2Pass: Instrumenting function: BrotliWipeOutMemoryManager
+Trace2Pass: Instrumenting function: BrotliBootstrapAlloc
+Trace2Pass: Instrumenting function: BrotliBootstrapFree
+[ 92%] Building C object CMakeFiles/brotlienc.dir/c/enc/utf8_util.c.o
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliFindAllStaticDictionaryMatches
+Trace2Pass: Instrumented 4 arithmetic operations in BrotliFindAllStaticDictionaryMatches
+Trace2Pass: Instrumenting function: BrotliFindAllStaticDictionaryMatchesFor
+Trace2Pass: Instrumented 6 arithmetic operations, 1 unreachable blocks in BrotliFindAllStaticDictionaryMatchesFor
+Trace2Pass: Instrumenting function: AddMatch
+Trace2Pass: Instrumented 1 arithmetic operations in AddMatch
+Trace2Pass: Instrumenting function: Hash15
+Trace2Pass: Instrumented 1 arithmetic operations in Hash15
+Trace2Pass: Instrumenting function: DictMatchLength
+Trace2Pass: Instrumenting function: brotli_max_size_t
+Trace2Pass: Instrumenting function: brotli_min_size_t
+Trace2Pass: Instrumenting function: IsMatch
+Trace2Pass: Instrumenting function: BrotliUnalignedRead32
+Trace2Pass: Instrumenting function: FindMatchLengthWithLimit
+Trace2Pass: Instrumented 1 arithmetic operations in FindMatchLengthWithLimit
+Trace2Pass: Instrumenting function: BrotliUnalignedRead64
+Trace2Pass: Instrumenting function: brotli_min_uint32_t
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliInitDistanceParams
+Trace2Pass: Instrumented 4 arithmetic operations in BrotliInitDistanceParams
+Trace2Pass: Instrumenting function: BrotliCalculateDistanceCodeLimit
+Trace2Pass: Instrumented 11 arithmetic operations, 1 division checks in BrotliCalculateDistanceCodeLimit
+Trace2Pass: Instrumenting function: BrotliBuildMetaBlock
+Trace2Pass: Instrumented 5 arithmetic operations, 1 unreachable blocks, 1 division checks in BrotliBuildMetaBlock
+Trace2Pass: Instrumenting function: ComputeDistanceCost
+Trace2Pass: Instrumented 1 arithmetic operations in ComputeDistanceCost
+Trace2Pass: Instrumenting function: RecomputeDistancePrefixes
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in RecomputeDistancePrefixes
+Trace2Pass: Instrumenting function: ClearHistogramsLiteral
+Trace2Pass: Instrumenting function: ClearHistogramsDistance
+Trace2Pass: Instrumenting function: ClearHistogramsCommand
+Trace2Pass: Instrumenting function: BrotliBuildMetaBlockGreedy
+Trace2Pass: Instrumenting function: BrotliBuildMetaBlockGreedyInternal
+Trace2Pass: Instrumenting function: BrotliOptimizeHistograms
+Trace2Pass: Instrumenting function: HistogramClearDistance
+Trace2Pass: Instrumenting function: CommandCopyLen
+Trace2Pass: Instrumenting function: CommandRestoreDistanceCode
+Trace2Pass: Instrumented 5 arithmetic operations in CommandRestoreDistanceCode
+Trace2Pass: Instrumenting function: PrefixEncodeCopyDistance
+Trace2Pass: Instrumented 7 arithmetic operations in PrefixEncodeCopyDistance
+Trace2Pass: Instrumenting function: HistogramAddDistance
+Trace2Pass: Instrumenting function: Log2FloorNonZero
+Trace2Pass: Instrumenting function: HistogramClearLiteral
+Trace2Pass: Instrumenting function: HistogramClearCommand
+Trace2Pass: Instrumenting function: InitBlockSplitterLiteral
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in InitBlockSplitterLiteral
+Trace2Pass: Instrumenting function: InitContextBlockSplitter
+Trace2Pass: Instrumented 0 arithmetic operations, 2 division checks in InitContextBlockSplitter
+Trace2Pass: Instrumenting function: InitBlockSplitterCommand
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in InitBlockSplitterCommand
+Trace2Pass: Instrumenting function: InitBlockSplitterDistance
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in InitBlockSplitterDistance
+Trace2Pass: Instrumenting function: BlockSplitterAddSymbolCommand
+Trace2Pass: Instrumenting function: BlockSplitterAddSymbolLiteral
+Trace2Pass: Instrumenting function: ContextBlockSplitterAddSymbol
+Trace2Pass: Instrumenting function: BlockSplitterAddSymbolDistance
+Trace2Pass: Instrumenting function: BlockSplitterFinishBlockLiteral
+Trace2Pass: Instrumenting function: ContextBlockSplitterFinishBlock
+Trace2Pass: Instrumenting function: BlockSplitterFinishBlockCommand
+Trace2Pass: Instrumenting function: BlockSplitterFinishBlockDistance
+Trace2Pass: Instrumenting function: MapStaticContexts
+Trace2Pass: Instrumented 2 arithmetic operations in MapStaticContexts
+Trace2Pass: Instrumenting function: brotli_min_size_t
+Trace2Pass: Instrumenting function: HistogramAddCommand
+Trace2Pass: Instrumenting function: HistogramAddLiteral
+Trace2Pass: Instrumenting function: brotli_max_size_t
+Trace2Pass: Instrumenting function: HistogramAddHistogramLiteral
+Trace2Pass: Instrumenting function: HistogramAddHistogramCommand
+Trace2Pass: Instrumenting function: HistogramAddHistogramDistance
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliEncoderEnsureStaticInit
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BrotliIsMostlyUTF8
+Trace2Pass: Instrumenting function: BrotliParseAsUTF8
+Trace2Pass: Instrumented 6 arithmetic operations in BrotliParseAsUTF8
+[ 95%] Linking C shared library libbrotlienc.so
+[ 95%] Built target brotlienc
+[ 97%] Building C object CMakeFiles/brotli.dir/c/tools/brotli.c.o
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in main
+Trace2Pass: Instrumenting function: ParseParams
+Trace2Pass: Instrumented 6 arithmetic operations in ParseParams
+Trace2Pass: Instrumenting function: ReadDictionary
+Trace2Pass: Instrumenting function: PrintVersion
+Trace2Pass: Instrumenting function: CompressFiles
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in CompressFiles
+Trace2Pass: Instrumenting function: DecompressFiles
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in DecompressFiles
+Trace2Pass: Instrumenting function: PrintHelp
+Trace2Pass: Instrumenting function: FileName
+Trace2Pass: Instrumenting function: CheckAlias
+Trace2Pass: Instrumenting function: ParseInt
+Trace2Pass: Instrumented 4 arithmetic operations in ParseInt
+Trace2Pass: Instrumenting function: ParseBase64
+Trace2Pass: Instrumented 7 arithmetic operations in ParseBase64
+Trace2Pass: Instrumenting function: PrintablePath
+Trace2Pass: Instrumenting function: FileSize
+Trace2Pass: Instrumenting function: NextFile
+Trace2Pass: Instrumented 3 arithmetic operations in NextFile
+Trace2Pass: Instrumenting function: OpenFiles
+Trace2Pass: Instrumenting function: CompressFile
+Trace2Pass: Instrumenting function: CloseFiles
+Trace2Pass: Instrumenting function: OpenInputFile
+Trace2Pass: Instrumenting function: OpenOutputFile
+Trace2Pass: Instrumenting function: InitializeBuffers
+Trace2Pass: Instrumenting function: ProvideInput
+Trace2Pass: Instrumenting function: HasMoreInput
+Trace2Pass: Instrumenting function: ProvideOutput
+Trace2Pass: Instrumenting function: FlushOutput
+Trace2Pass: Instrumenting function: PrintFileProcessingProgress
+Trace2Pass: Instrumented 1 arithmetic operations in PrintFileProcessingProgress
+Trace2Pass: Instrumenting function: WriteOutput
+Trace2Pass: Instrumenting function: PrintBytes
+Trace2Pass: Instrumenting function: CopyStat
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in CopyStat
+Trace2Pass: Instrumenting function: CopyTimeStat
+Trace2Pass: Instrumenting function: InitDecoder
+Trace2Pass: Instrumenting function: DecompressFile
+Trace2Pass: Instrumenting function: OnMetadataStart
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in OnMetadataStart
+Trace2Pass: Instrumenting function: OnMetadataChunk
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in OnMetadataChunk
+Trace2Pass: Instrumenting function: PrettyDecoderErrorString
+[100%] Linking C executable brotli
+/usr/bin/ld: CMakeFiles/brotli.dir/c/tools/brotli.c.o: in function `main':
+brotli.c:(.text+0x297): undefined reference to `trace2pass_should_sample'
+/usr/bin/ld: brotli.c:(.text+0x2ca): undefined reference to `trace2pass_report_overflow'
+/usr/bin/ld: brotli.c:(.text+0x2e8): undefined reference to `trace2pass_should_sample'

@@ -1,0 +1,76 @@
+{
+  "verdict": "compiler_bug",
+  "ub_detection": {
+    "verdict": "compiler_bug",
+    "confidence": 1.0,
+    "ubsan_clean": true,
+    "msan_clean": null,
+    "optimization_sensitive": true,
+    "multi_compiler_differs": false,
+    "details": {
+      "ubsan": {
+        "clean": true,
+        "returncode": 0,
+        "stderr": null,
+        "stdout": "PASS: correct value after longjmp\n"
+      },
+      "msan": {
+        "available": false,
+        "compile_error": "clang: error: unsupported option '-fsanitize=memory' for target 'arm64-apple-darwin25.2.0'\n"
+      },
+      "optimization": {
+        "-O0": {
+          "returncode": 0,
+          "stdout": "PASS: correct value after longjmp\n",
+          "stderr": ""
+        },
+        "-O2": {
+          "returncode": 1,
+          "stdout": "FAIL: GVN propagated stale value 10 (expected 20)\n",
+          "stderr": ""
+        },
+        "-O3": {
+          "returncode": 1,
+          "stdout": "FAIL: GVN propagated stale value 10 (expected 20)\n",
+          "stderr": ""
+        }
+      },
+      "optimization_difference": {
+        "baseline": "-O0",
+        "differing_level": "-O2",
+        "baseline_output": "PASS: correct value after longjmp\n",
+        "differing_output": "FAIL: GVN propagated stale value 10 (expected 20)\n"
+      },
+      "multi_compiler": {
+        "clang": {
+          "returncode": 1,
+          "stdout": "FAIL: GVN propagated stale value 10 (expected 20)\n",
+          "stderr": ""
+        },
+        "gcc": {
+          "returncode": 1,
+          "stdout": "FAIL: GVN propagated stale value 10 (expected 20)\n",
+          "stderr": ""
+        }
+      }
+    }
+  },
+  "version_bisection": {
+    "verdict": "all_fail",
+    "first_bad_version": "14",
+    "last_good_version": null,
+    "total_tests": 8,
+    "used_docker": true
+  },
+  "pass_bisection": {
+    "verdict": "bisected",
+    "culprit_pass": "DSEPass",
+    "culprit_index": 98,
+    "total_passes": 269,
+    "total_tests": 10,
+    "mode": "clang_opt_bisect_limit"
+  },
+  "recommendation": "Compiler bug in DSEPass introduced in 14",
+  "project": "8cc",
+  "seeded_pattern": "gvn_116668"
+}

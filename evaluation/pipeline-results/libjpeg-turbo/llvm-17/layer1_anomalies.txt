@@ -1,0 +1,175 @@
+-- Compiler flags = -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so -O3 -DNDEBUG
+-- Linker flags =  
+-- Looking for sys/types.h
+-- Looking for sys/types.h - found
+-- Looking for stdint.h
+-- Looking for stdint.h - found
+--
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumenting function: PUTENV_S
+Trace2Pass: Instrumenting function: GETENV_S
+Trace2Pass: Instrumented 1 arithmetic operations in main
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 3 arithmetic operations, 2 unreachable blocks in main
+Trace2Pass: Instrumenting function: keymatch
+Trace2Pass: Instrumented 1 arithmetic operations, 1 pure function calls in keymatch
+Trace2Pass: Instrumenting function: usage
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in usage
+Trace2Pass: Instrumenting function: scan_JPEG_header
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in scan_JPEG_header
+Trace2Pass: Instrumenting function: tolower
+Trace2Pass: Instrumenting function: first_marker
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in first_marker
+Trace2Pass: Instrumenting function: next_marker
+Trace2Pass: Instrumented 1 arithmetic operations in next_marker
+Trace2Pass: Instrumenting function: process_SOFn
+Trace2Pass: Instrumented 3 arithmetic operations, 1 unreachable blocks in process_SOFn
+Trace2Pass: Instrumenting function: skip_variable
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in skip_variable
+Trace2Pass: Instrumenting function: process_COM
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in process_COM
+Trace2Pass: Instrumenting function: read_1_byte
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in read_1_byte
+Trace2Pass: Instrumenting function: read_2_bytes
+Trace2Pass: Instrumented 1 arithmetic operations, 2 unreachable blocks in read_2_bytes
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 5 arithmetic operations, 10 unreachable blocks in main
+Trace2Pass: Instrumenting function: keymatch
+Trace2Pass: Instrumented 1 arithmetic operations, 1 pure function calls in keymatch
+Trace2Pass: Instrumenting function: usage
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in usage
+Trace2Pass: Instrumenting function: scan_JPEG_header
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in scan_JPEG_header
+Trace2Pass: Instrumenting function: write_marker
+Trace2Pass: Instrumenting function: write_2_bytes
+Trace2Pass: Instrumented 1 arithmetic operations in write_2_bytes
+Trace2Pass: Instrumenting function: write_1_byte
+Trace2Pass: Instrumenting function: copy_rest_of_file
+Trace2Pass: Instrumenting function: tolower
+Trace2Pass: Instrumenting function: first_marker
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in first_marker
+Trace2Pass: Instrumenting function: next_marker
+Trace2Pass: Instrumented 1 arithmetic operations in next_marker
+Trace2Pass: Instrumenting function: copy_variable
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in copy_variable
+Trace2Pass: Instrumenting function: skip_variable
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in skip_variable
+Trace2Pass: Instrumenting function: read_1_byte
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in read_1_byte
+Trace2Pass: Instrumenting function: read_2_bytes
+Trace2Pass: Instrumented 1 arithmetic operations, 2 unreachable blocks in read_2_bytes
+[  2%] Building ASM_NASM object simd/CMakeFiles/simd.dir/x86_64/jdmerge-sse2.asm.o
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: MD5Init
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: MD5Init
+Trace2Pass: Instrumenting function: MD5Update
+Trace2Pass: Instrumenting function: MD5Update
+Trace2Pass: Instrumented 3 arithmetic operations, 1 unreachable blocks in MD5Update
+Trace2Pass: Instrumenting function: MD5Transform
+Trace2Pass: Instrumented 128 arithmetic operations in MD5Transform
+Trace2Pass: Instrumenting function: MD5Final
+Trace2Pass: Instrumented 1 arithmetic operations in MD5Final
+Trace2Pass: Instrumented 3 arithmetic operations, 1 unreachable blocks in MD5Update
+Trace2Pass: Instrumenting function: MD5Transform
+Trace2Pass: Instrumented 128 arithmetic operations in MD5Transform
+Trace2Pass: Instrumenting function: MD5Final
+Trace2Pass: Instrumented 1 arithmetic operations in MD5Final
+[  3%] Building ASM_NASM object simd/CMakeFiles/simd.dir/x86_64/jdsample-sse2.asm.o
+[  3%] Building ASM_NASM object simd/CMakeFiles/simd.dir/x86_64/jfdctfst-sse2.asm.o
+[  4%] Linking C executable strtest
+[  4%] Building ASM_NASM object simd/CMakeFiles/simd.dir/x86_64/jidctflt-sse2.asm.o
+[  4%] Building ASM_NASM object simd/CMakeFiles/simd.dir/x86_64/jfdctint-sse2.asm.o
+--
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: MD5File
+clang: error: linker command failed with exit code 1 (use -v to see invocation)
+Trace2Pass: Instrumenting function: MD5FileChunk
+Trace2Pass: Instrumented 3 arithmetic operations in MD5FileChunk
+Trace2Pass: Instrumenting function: MD5End
+Trace2Pass: Instrumented 6 arithmetic operations in MD5End
+make[2]: *** [CMakeFiles/rdjpgcom.dir/build.make:97: rdjpgcom] Error 1
+[  8%] Building ASM_NASM object simd/CMakeFiles/simd.dir/x86_64/jdsample-avx2.asm.o
+make[1]: *** [CMakeFiles/Makefile2:613: CMakeFiles/rdjpgcom.dir/all] Error 2
+make[1]: *** Waiting for unfinished jobs....
+make[2]: *** [CMakeFiles/wrjpgcom.dir/build.make:97: wrjpgcom] Error 1
+--
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: MD5File
+Trace2Pass: Instrumenting function: MD5FileChunk
+Trace2Pass: Instrumented 3 arithmetic operations in MD5FileChunk
+Trace2Pass: Instrumenting function: MD5End
+Trace2Pass: Instrumented 6 arithmetic operations in MD5End
+[  8%] Building ASM_NASM object simd/CMakeFiles/simd.dir/x86_64/jidctint-avx2.asm.o
+[  9%] Building ASM_NASM object simd/CMakeFiles/simd.dir/x86_64/jquanti-avx2.asm.o
+[  9%] Building C object simd/CMakeFiles/simd.dir/x86_64/jsimd.c.o
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: jsimd_can_rgb_ycc
+Trace2Pass: Instrumenting function: init_simd
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in init_simd
+Trace2Pass: Instrumenting function: jsimd_can_rgb_gray
+Trace2Pass: Instrumenting function: jsimd_can_ycc_rgb
+Trace2Pass: Instrumenting function: jsimd_can_ycc_rgb565
+Trace2Pass: Instrumenting function: jsimd_rgb_ycc_convert
+Trace2Pass: Instrumenting function: jsimd_rgb_gray_convert
+Trace2Pass: Instrumenting function: jsimd_ycc_rgb_convert
+Trace2Pass: Instrumenting function: jsimd_ycc_rgb565_convert
+Trace2Pass: Instrumenting function: jsimd_can_h2v2_downsample
+Trace2Pass: Instrumenting function: jsimd_can_h2v1_downsample
+Trace2Pass: Instrumenting function: jsimd_h2v2_downsample
+Trace2Pass: Instrumenting function: jsimd_h2v1_downsample
+Trace2Pass: Instrumenting function: jsimd_can_h2v2_upsample
+Trace2Pass: Instrumenting function: jsimd_can_h2v1_upsample
+Trace2Pass: Instrumenting function: jsimd_h2v2_upsample
+Trace2Pass: Instrumenting function: jsimd_h2v1_upsample
+Trace2Pass: Instrumenting function: jsimd_can_h2v2_fancy_upsample
+Trace2Pass: Instrumenting function: jsimd_can_h2v1_fancy_upsample
+Trace2Pass: Instrumenting function: jsimd_h2v2_fancy_upsample
+Trace2Pass: Instrumenting function: jsimd_h2v1_fancy_upsample
+Trace2Pass: Instrumenting function: jsimd_can_h2v2_merged_upsample
+Trace2Pass: Instrumenting function: jsimd_can_h2v1_merged_upsample
+Trace2Pass: Instrumenting function: jsimd_h2v2_merged_upsample
+Trace2Pass: Instrumenting function: jsimd_h2v1_merged_upsample
+Trace2Pass: Instrumenting function: jsimd_can_convsamp
+Trace2Pass: Instrumenting function: jsimd_can_convsamp_float
+Trace2Pass: Instrumenting function: jsimd_convsamp
+Trace2Pass: Instrumenting function: jsimd_convsamp_float
+Trace2Pass: Instrumenting function: jsimd_can_fdct_islow
+Trace2Pass: Instrumenting function: jsimd_can_fdct_ifast
+Trace2Pass: Instrumenting function: jsimd_can_fdct_float
+Trace2Pass: Instrumenting function: jsimd_fdct_islow
+Trace2Pass: Instrumenting function: jsimd_fdct_ifast
+Trace2Pass: Instrumenting function: jsimd_fdct_float
+Trace2Pass: Instrumenting function: jsimd_can_quantize
+Trace2Pass: Instrumenting function: jsimd_can_quantize_float
+Trace2Pass: Instrumenting function: jsimd_quantize
+Trace2Pass: Instrumenting function: jsimd_quantize_float
+Trace2Pass: Instrumenting function: jsimd_can_idct_2x2
+Trace2Pass: Instrumenting function: jsimd_can_idct_4x4
+Trace2Pass: Instrumenting function: jsimd_idct_2x2
+Trace2Pass: Instrumenting function: jsimd_idct_4x4
+Trace2Pass: Instrumenting function: jsimd_can_idct_islow
+Trace2Pass: Instrumenting function: jsimd_can_idct_ifast
+Trace2Pass: Instrumenting function: jsimd_can_idct_float
+Trace2Pass: Instrumenting function: jsimd_idct_islow
+Trace2Pass: Instrumenting function: jsimd_idct_ifast
+Trace2Pass: Instrumenting function: jsimd_idct_float
+Trace2Pass: Instrumenting function: jsimd_can_huff_encode_one_block
+Trace2Pass: Instrumenting function: jsimd_huff_encode_one_block
+Trace2Pass: Instrumenting function: jsimd_can_encode_mcu_AC_first_prepare
+Trace2Pass: Instrumenting function: jsimd_encode_mcu_AC_first_prepare
+Trace2Pass: Instrumenting function: jsimd_can_encode_mcu_AC_refine_prepare
+Trace2Pass: Instrumenting function: jsimd_encode_mcu_AC_refine_prepare
+Trace2Pass: Instrumenting function: GETENV_S
+[  9%] Linking C executable ../../test/md5sum
+[  9%] Linking C executable ../../test/md5cmp
+/usr/bin/ld: CMakeFiles/md5sum.dir/md5hl.c.o: in function `MD5FileChunk':
+md5hl.c:(.text+0x8a): undefined reference to `trace2pass_should_sample'
+/usr/bin/ld: md5hl.c:(.text+0xbb): undefined reference to `trace2pass_report_overflow'

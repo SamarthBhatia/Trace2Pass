@@ -1,0 +1,15 @@
+{
+  "project": "qsort",
+  "llvm_version": "17",
+  "layer": 3,
+  "uninstrumented_exit": "?",
+  "instrumented_exit": "?",
+  "anomaly_count": 0,
+  "patterns": {
+    "dse_72831": "PASS",
+    "licm_76789": "FAIL",
+    "instcombine_59836": "PASS",
+    "gvn_116668": "FAIL",
+    "gvn_null_127511": "FAIL"
+  }
+}

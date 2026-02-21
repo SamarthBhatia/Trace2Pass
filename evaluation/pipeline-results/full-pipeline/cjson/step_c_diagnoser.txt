@@ -1,0 +1,139 @@
+=== Running Full Diagnosis Pipeline ===
+
+Stage 1/3: UB Detection...
+=== UB Detection Result ===
+Verdict: compiler_bug
+Confidence: 100.00%
+UBSan clean: True
+MSan clean: N/A (unavailable)
+Optimization sensitive: True
+Multi-compiler differs: False
+
+Stage 2/3: Version Bisection...
+Searching for endpoints in 8 versions...
+  14: FAIL
+  21: FAIL
+Marching inward to find missing endpoint...
+All tested compilers FAIL (tested 8 versions)
+=== Version Bisection Result ===
+Verdict: all_fail
+First bad version: 14
+Last good version: Not found
+Total tests: 8
+
+Stage 3/3: Pass Bisection...
+Using clang -opt-bisect-limit mode (system default)
+Using clang -mllvm -opt-bisect-limit=N for pass bisection
+[PassBisector] Discovering total passes via -opt-bisect-limit=-1
+[PassBisector] Discovered 269 pass executions, max index = 269
+[PassBisector] Max pass index: 269, total executions: 269
+[PassBisector] Testing baseline (limit=0)
+[PassBisector]   Baseline PASS (no bug at limit=0)
+[PassBisector] Testing full pipeline (limit=269)
+[PassBisector]   Full pipeline FAIL (bug at full limit)
+[PassBisector] Binary searching between limit 0 and 269
+[PassBisector]   Testing limit=134
+[PassBisector]     -> FAIL (first bad: 134)
+[PassBisector]   Testing limit=67
+[PassBisector]     -> PASS (last good: 67)
+[PassBisector]   Testing limit=100
+[PassBisector]     -> FAIL (first bad: 100)
+[PassBisector]   Testing limit=83
+[PassBisector]     -> PASS (last good: 83)
+[PassBisector]   Testing limit=91
+[PassBisector]     -> PASS (last good: 91)
+[PassBisector]   Testing limit=95
+[PassBisector]     -> PASS (last good: 95)
+[PassBisector]   Testing limit=97
+[PassBisector]     -> PASS (last good: 97)
+[PassBisector]   Testing limit=98
+[PassBisector]     -> FAIL (first bad: 98)
+[PassBisector] Found culprit: DSEPass at index 98
+[PassBisector] Total compilations: 10
+=== Pass Bisection Result (clang -opt-bisect-limit) ===
+Verdict: bisected
+Culprit pass: DSEPass
+Culprit index: 98
+Total pass executions: 269
+Total tests: 10
+
+=== Diagnosis Complete ===
+Verdict: Compiler bug (confidence: 100.00%)
+First bad version: 14
+Culprit pass: DSEPass
+
+=== JSON Result ===
+{
+  "verdict": "compiler_bug",
+  "ub_detection": {
+    "verdict": "compiler_bug",
+    "confidence": 1.0,
+    "ubsan_clean": true,
+    "msan_clean": null,
+    "optimization_sensitive": true,
+    "multi_compiler_differs": false,
+    "details": {
+      "ubsan": {
+        "clean": true,
+        "returncode": 0,
+        "stderr": null,
+        "stdout": "PASS: correct value after longjmp\n"
+      },
+      "msan": {
+        "available": false,
+        "compile_error": "clang: error: unsupported option '-fsanitize=memory' for target 'arm64-apple-darwin25.2.0'\n"
+      },
+      "optimization": {
+        "-O0": {
+          "returncode": 0,
+          "stdout": "PASS: correct value after longjmp\n",
+          "stderr": ""
+        },
+        "-O2": {
+          "returncode": 1,
+          "stdout": "FAIL: GVN propagated stale value 10 (expected 20)\n",
+          "stderr": ""
+        },
+        "-O3": {
+          "returncode": 1,
+          "stdout": "FAIL: GVN propagated stale value 10 (expected 20)\n",
+          "stderr": ""
+        }
+      },
+      "optimization_difference": {
+        "baseline": "-O0",
+        "differing_level": "-O2",
+        "baseline_output": "PASS: correct value after longjmp\n",
+        "differing_output": "FAIL: GVN propagated stale value 10 (expected 20)\n"
+      },
+      "multi_compiler": {
+        "clang": {
+          "returncode": 1,
+          "stdout": "FAIL: GVN propagated stale value 10 (expected 20)\n",
+          "stderr": ""
+        },
+        "gcc": {
+          "returncode": 1,
+          "stdout": "FAIL: GVN propagated stale value 10 (expected 20)\n",
+          "stderr": ""
+        }
+      }
+    }
+  },
+  "version_bisection": {
+    "verdict": "all_fail",
+    "first_bad_version": "14",
+    "last_good_version": null,
+    "total_tests": 8,
+    "used_docker": true
+  },
+  "pass_bisection": {
+    "verdict": "bisected",
+    "culprit_pass": "DSEPass",
+    "culprit_index": 98,
+    "total_passes": 269,
+    "total_tests": 10,
+    "mode": "clang_opt_bisect_limit"
+  },
+  "recommendation": "Compiler bug in DSEPass introduced in 14"
+}

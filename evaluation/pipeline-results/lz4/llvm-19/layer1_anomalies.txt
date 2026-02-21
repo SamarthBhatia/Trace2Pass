@@ -1,0 +1,1015 @@
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: LZ4F_readOpen
+Trace2Pass: Instrumenting function: returnErrorCode
+Trace2Pass: Instrumented 1 arithmetic operations in returnErrorCode
+Trace2Pass: Instrumenting function: freeAndNullReadFile
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in freeAndNullReadFile
+Trace2Pass: Instrumenting function: readAndParseHeader
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in readAndParseHeader
+Trace2Pass: Instrumenting function: LZ4F_read
+Trace2Pass: Instrumenting function: LZ4F_readClose
+Trace2Pass: Instrumenting function: freeReadFileResources
+Trace2Pass: Instrumenting function: LZ4F_writeOpen
+Trace2Pass: Instrumenting function: freeAndNullWriteFile
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in freeAndNullWriteFile
+Trace2Pass: Instrumenting function: writeHeader
+Trace2Pass: Instrumenting function: LZ4F_write
+Trace2Pass: Instrumenting function: LZ4F_writeClose
+Trace2Pass: Instrumenting function: freeWriteFileResources
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: LZ4_XXH_versionNumber
+Trace2Pass: Instrumenting function: LZ4_XXH32
+Trace2Pass: Instrumenting function: XXH_isLittleEndian
+Trace2Pass: Instrumenting function: XXH32_endian_align
+Trace2Pass: Instrumented 8 arithmetic operations in XXH32_endian_align
+Trace2Pass: Instrumenting function: LZ4_XXH32_createState
+Trace2Pass: Instrumenting function: XXH_malloc
+Trace2Pass: Instrumenting function: LZ4_XXH32_freeState
+Trace2Pass: Instrumenting function: XXH_free
+Trace2Pass: Instrumenting function: LZ4_XXH32_copyState
+Trace2Pass: Instrumenting function: LZ4_XXH32_reset
+Trace2Pass: Instrumenting function: LZ4_XXH32_update
+Trace2Pass: Instrumenting function: XXH32_update_endian
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in XXH32_update_endian
+Trace2Pass: Instrumenting function: LZ4_XXH32_digest
+Trace2Pass: Instrumenting function: XXH32_digest_endian
+Trace2Pass: Instrumented 8 arithmetic operations in XXH32_digest_endian
+Trace2Pass: Instrumenting function: LZ4_XXH32_canonicalFromHash
+Trace2Pass: Instrumenting function: XXH_swap32
+Trace2Pass: Instrumented 4 arithmetic operations in XXH_swap32
+Trace2Pass: Instrumenting function: LZ4_XXH32_hashFromCanonical
+Trace2Pass: Instrumenting function: XXH_readBE32
+Trace2Pass: Instrumenting function: LZ4_XXH64
+Trace2Pass: Instrumenting function: XXH64_endian_align
+Trace2Pass: Instrumented 8 arithmetic operations in XXH64_endian_align
+Trace2Pass: Instrumenting function: LZ4_XXH64_createState
+Trace2Pass: Instrumenting function: LZ4_XXH64_freeState
+Trace2Pass: Instrumenting function: LZ4_XXH64_copyState
+Trace2Pass: Instrumenting function: LZ4_XXH64_reset
+Trace2Pass: Instrumenting function: LZ4_XXH64_update
+Trace2Pass: Instrumenting function: XXH64_update_endian
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in XXH64_update_endian
+Trace2Pass: Instrumenting function: LZ4_XXH64_digest
+Trace2Pass: Instrumenting function: XXH64_digest_endian
+Trace2Pass: Instrumented 8 arithmetic operations in XXH64_digest_endian
+Trace2Pass: Instrumenting function: LZ4_XXH64_canonicalFromHash
+Trace2Pass: Instrumenting function: XXH_swap64
+Trace2Pass: Instrumented 8 arithmetic operations in XXH_swap64
+Trace2Pass: Instrumenting function: LZ4_XXH64_hashFromCanonical
+Trace2Pass: Instrumenting function: XXH_readBE64
+Trace2Pass: Instrumenting function: XXH32_round
+Trace2Pass: Instrumented 2 arithmetic operations in XXH32_round
+Trace2Pass: Instrumenting function: XXH_readLE32_align
+Trace2Pass: Instrumenting function: XXH32_finalize
+Trace2Pass: Instrumented 36 arithmetic operations, 1 unreachable blocks in XXH32_finalize
+Trace2Pass: Instrumenting function: XXH_read32
+Trace2Pass: Instrumenting function: XXH32_avalanche
+Trace2Pass: Instrumented 3 arithmetic operations in XXH32_avalanche
+Trace2Pass: Instrumenting function: XXH_memcpy
+Trace2Pass: Instrumenting function: XXH_readLE32
+Trace2Pass: Instrumenting function: XXH64_round
+Trace2Pass: Instrumented 2 arithmetic operations in XXH64_round
+Trace2Pass: Instrumenting function: XXH_readLE64_align
+Trace2Pass: Instrumenting function: XXH64_mergeRound
+Trace2Pass: Instrumenting function: XXH64_finalize
+Trace2Pass: Instrumented 80 arithmetic operations, 1 unreachable blocks in XXH64_finalize
+Trace2Pass: Instrumenting function: XXH_read64
+Trace2Pass: Instrumenting function: XXH64_avalanche
+Trace2Pass: Instrumented 3 arithmetic operations in XXH64_avalanche
+Trace2Pass: Instrumenting function: XXH_readLE64
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: LZ4F_isError
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: LZ4HC_searchExtDict
+Trace2Pass: Instrumenting function: LZ4F_getErrorName
+Trace2Pass: Instrumented 3 arithmetic operations in LZ4HC_searchExtDict
+Trace2Pass: Instrumenting function: LZ4HC_hashPtr
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4HC_hashPtr
+Trace2Pass: Instrumenting function: LZ4_read32
+Trace2Pass: Instrumenting function: LZ4_count
+Trace2Pass: Instrumenting function: LZ4HC_countBack
+Trace2Pass: Instrumented 6 arithmetic operations in LZ4HC_countBack
+Trace2Pass: Instrumenting function: LZ4_sizeofStateHC
+Trace2Pass: Instrumenting function: LZ4_compress_HC_extStateHC_fastReset
+Trace2Pass: Instrumenting function: LZ4_isAligned
+Trace2Pass: Instrumenting function: LZ4_streamHC_t_alignment
+Trace2Pass: Instrumenting function: LZ4_resetStreamHC_fast
+Trace2Pass: Instrumenting function: LZ4HC_init_internal
+Trace2Pass: Instrumenting function: LZ4HC_compress_generic
+Trace2Pass: Instrumenting function: LZ4_compress_HC_extStateHC
+Trace2Pass: Instrumenting function: LZ4_initStreamHC
+Trace2Pass: Instrumenting function: LZ4_compress_HC
+Trace2Pass: Instrumenting function: LZ4_compress_HC_destSize
+Trace2Pass: Instrumenting function: LZ4_setCompressionLevel
+Trace2Pass: Instrumenting function: LZ4_createStreamHC
+Trace2Pass: Instrumenting function: LZ4_freeStreamHC
+Trace2Pass: Instrumenting function: LZ4_resetStreamHC
+Trace2Pass: Instrumenting function: LZ4_favorDecompressionSpeed
+Trace2Pass: Instrumenting function: LZ4_loadDictHC
+Trace2Pass: Instrumenting function: LZ4HC_getCLevelParams
+Trace2Pass: Instrumenting function: LZ4MID_fillHTable
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in LZ4MID_fillHTable
+Trace2Pass: Instrumenting function: LZ4HC_Insert
+Trace2Pass: Instrumenting function: LZ4_attach_HC_dictionary
+Trace2Pass: Instrumenting function: LZ4_compress_HC_continue
+Trace2Pass: Instrumenting function: LZ4_compressHC_continue_generic
+Trace2Pass: Instrumenting function: LZ4_compress_HC_continue_destSize
+Trace2Pass: Instrumenting function: LZ4_saveDictHC
+Trace2Pass: Instrumenting function: LZ4_compressHC
+Trace2Pass: Instrumenting function: LZ4_compressHC_limitedOutput
+Trace2Pass: Instrumenting function: LZ4_compressHC2
+Trace2Pass: Instrumenting function: LZ4_compressHC2_limitedOutput
+Trace2Pass: Instrumenting function: LZ4_compressHC_withStateHC
+Trace2Pass: Instrumenting function: LZ4_compressHC_limitedOutput_withStateHC
+Trace2Pass: Instrumenting function: LZ4_compressHC2_withStateHC
+Trace2Pass: Instrumenting function: LZ4_compressHC2_limitedOutput_withStateHC
+Trace2Pass: Instrumenting function: LZ4_compressHC_continue
+Trace2Pass: Instrumenting function: LZ4_compressHC_limitedOutput_continue
+Trace2Pass: Instrumenting function: LZ4_sizeofStreamStateHC
+Trace2Pass: Instrumenting function: LZ4_resetStreamStateHC
+Trace2Pass: Instrumenting function: LZ4_createHC
+Trace2Pass: Instrumenting function: LZ4_freeHC
+Trace2Pass: Instrumenting function: LZ4_compressHC2_continue
+Trace2Pass: Instrumenting function: LZ4_compressHC2_limitedOutput_continue
+Trace2Pass: Instrumenting function: LZ4_slideInputBufferHC
+Trace2Pass: Instrumenting function: LZ4_read_ARCH
+Trace2Pass: Instrumenting function: LZ4_NbCommonBytes
+Trace2Pass: Instrumented 2 arithmetic operations in LZ4_NbCommonBytes
+Trace2Pass: Instrumenting function: LZ4_read16
+Trace2Pass: Instrumenting function: LZ4_isLittleEndian
+Trace2Pass: Instrumenting function: LZ4HC_NbCommonBytes32
+Trace2Pass: Instrumented 2 arithmetic operations in LZ4HC_NbCommonBytes32
+Trace2Pass: Instrumenting function: LZ4HC_clearTables
+Trace2Pass: Instrumenting function: LZ4HC_compress_generic_noDictCtx
+Trace2Pass: Instrumenting function: LZ4HC_compress_generic_dictCtx
+Trace2Pass: Instrumenting function: LZ4HC_compress_generic_internal
+Trace2Pass: Instrumenting function: LZ4MID_compress
+Trace2Pass: Instrumented 7 arithmetic operations, 3 division checks in LZ4MID_compress
+Trace2Pass: Instrumenting function: LZ4HC_compress_hashChain
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4F_getErrorName
+Trace2Pass: Instrumenting function: LZ4F_getErrorCode
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4F_getErrorCode
+Trace2Pass: Instrumenting function: LZ4F_getVersion
+Trace2Pass: Instrumenting function: LZ4F_compressionLevel_max
+Trace2Pass: Instrumenting function: LZ4F_getBlockSize
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4F_getBlockSize
+Trace2Pass: Instrumenting function: LZ4F_returnErrorCode
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4F_returnErrorCode
+Trace2Pass: Instrumenting function: LZ4F_compressFrameBound
+Trace2Pass: Instrumenting function: LZ4F_compressBound_internal
+Trace2Pass: Instrumented 12 arithmetic operations, 3 division checks in Trace2Pass: Instrumented LZ4HC_compress_hashChain
+Trace2Pass: Instrumenting function: LZ4HC_compress_optimal
+0 arithmetic operations, 1 division checks in LZ4F_compressBound_internal
+Trace2Pass: Instrumenting function: LZ4F_compressFrame_usingCDict
+Trace2Pass: Instrumented 44 arithmetic operations, 1 unreachable blocks, 3 division checks in LZ4HC_compress_optimal
+Trace2Pass: Instrumenting function: select_searchDict_functionTrace2Pass: Instrumenting function: LZ4F_optimalBSID
+
+Trace2Pass: Instrumenting function: LZ4MID_hash8Ptr
+Trace2Pass: Instrumenting function: LZ4MID_addPosition
+Trace2Pass: Instrumenting function: LZ4MID_hash4Ptr
+Trace2Pass: Instrumenting function: LZ4HC_encodeSequence
+Trace2Pass: Instrumented 2 arithmetic operations, 2 division checks in LZ4HC_encodeSequence
+Trace2Pass: Instrumenting function: LZ4MID_searchExtDict
+Trace2Pass: Instrumenting function: LZ4MID_searchHCDict
+Trace2Pass: Instrumented 2 arithmetic operations in LZ4F_optimalBSID
+Trace2Pass: Instrumenting function: LZ4F_compressBegin_usingCDict
+Trace2Pass: Instrumenting function: LZ4MID_hash7
+Trace2Pass: Instrumenting function: LZ4F_compressUpdate
+Trace2Pass: Instrumenting function: LZ4F_compressEnd
+Trace2Pass: Instrumented 2 arithmetic operations in LZ4MID_hash7
+Trace2Pass: Instrumenting function: LZ4_readLE64
+Trace2Pass: Instrumenting function: LZ4F_compressFrame
+Trace2Pass: Instrumenting function: LZ4F_free
+Trace2Pass: Instrumenting function: LZ4F_createCDict_advanced
+Trace2Pass: Instrumented 7 arithmetic operations in LZ4_readLE64
+Trace2Pass: Instrumenting function: LZ4_read64
+Trace2Pass: Instrumenting function: LZ4MID_hash4
+Trace2Pass: Instrumenting function: LZ4F_malloc
+Trace2Pass: Instrumenting function: LZ4F_freeCDict
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4MID_hash4
+Trace2Pass: Instrumenting function: LZ4_wildCopy8
+Trace2Pass: Instrumenting function: LZ4F_createCDict
+Trace2Pass: Instrumenting function: LZ4F_createCompressionContext_advanced
+Trace2Pass: Instrumenting function: LZ4_writeLE16
+Trace2Pass: Instrumenting function: LZ4F_calloc
+Trace2Pass: Instrumenting function: LZ4F_createCompressionContext
+Trace2Pass: Instrumenting function: LZ4F_freeCompressionContext
+Trace2Pass: Instrumenting function: LZ4F_cctx_size
+Trace2Pass: Instrumenting function: ctxTypeID_to_size
+Trace2Pass: Instrumenting function: LZ4F_compressBegin_internal
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4_writeLE16
+Trace2Pass: Instrumenting function: LZ4_write16
+Trace2Pass: Instrumenting function: LZ4HC_InsertAndFindBestMatch
+Trace2Pass: Instrumenting function: LZ4HC_InsertAndGetWiderMatch
+Trace2Pass: Instrumented 5 arithmetic operations in LZ4F_compressBegin_internal
+Trace2Pass: Instrumenting function: LZ4F_initStream
+Trace2Pass: Instrumenting function: LZ4F_writeLE32
+Trace2Pass: Instrumented 3 arithmetic operations in LZ4F_writeLE32
+Trace2Pass: Instrumenting function: LZ4F_writeLE64
+Trace2Pass: Instrumented 7 arithmetic operations in LZ4F_writeLE64
+Trace2Pass: Instrumenting function: LZ4F_headerChecksum
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4F_headerChecksum
+Trace2Pass: Instrumenting function: LZ4F_compressBegin
+Trace2Pass: Instrumenting function: LZ4F_compressBegin_usingDictOnce
+Trace2Pass: Instrumenting function: LZ4F_compressBegin_usingDict
+Trace2Pass: Instrumenting function: LZ4F_compressBound
+Trace2Pass: Instrumenting function: LZ4F_compressUpdateImpl
+Trace2Pass: Instrumenting function: LZ4F_uncompressedUpdate
+Trace2Pass: Instrumenting function: LZ4F_flush
+Trace2Pass: Instrumented 16 arithmetic operations, 1 unreachable blocks in LZ4HC_InsertAndGetWiderMatch
+Trace2Pass: Instrumenting function: LZ4HC_countPattern
+Trace2Pass: Instrumenting function: LZ4F_selectCompression
+Trace2Pass: Instrumenting function: LZ4F_makeBlock
+Trace2Pass: Instrumented Trace2Pass: Instrumented 1 arithmetic operations in LZ4F_makeBlock
+3Trace2Pass: Instrumenting function:  arithmetic operations, 1 unreachable blocks in LZ4HC_countPattern
+Trace2Pass: Instrumenting function: LZ4HC_protectDictEnd
+LZ4F_localSaveDict
+Trace2Pass: Instrumenting function: LZ4HC_rotatePattern
+Trace2Pass: Instrumenting function: LZ4F_createDecompressionContext_advanced
+Trace2Pass: Instrumented Trace2Pass: Instrumenting function: LZ4F_createDecompressionContext
+4 arithmetic operations in LZ4HC_rotatePattern
+Trace2Pass: Instrumenting function: LZ4HC_reverseCountPattern
+Trace2Pass: Instrumenting function: LZ4HC_FindLongerMatch
+Trace2Pass: Instrumenting function: LZ4F_freeDecompressionContext
+Trace2Pass: Instrumenting function: LZ4HC_literalsPrice
+Trace2Pass: Instrumenting function: LZ4F_dctx_size
+Trace2Pass: Instrumenting function: LZ4F_resetDecompressionContext
+Trace2Pass: Instrumenting function: LZ4F_headerSize
+Trace2Pass: Instrumented 3 arithmetic operations, 1 division checks in LZ4HC_literalsPrice
+Trace2Pass: Instrumenting function: LZ4HC_sequencePrice
+Trace2Pass: Instrumented 4 arithmetic operations, 1 division checks in LZ4HC_sequencePrice
+Trace2Pass: Instrumenting function: isStateCompatible
+Trace2Pass: Instrumenting function: LZ4HC_setExternalDict
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4F_headerSize
+Trace2Pass: Instrumenting function: LZ4F_readLE32
+Trace2Pass: Instrumented 3 arithmetic operations in LZ4F_readLE32
+Trace2Pass: Instrumenting function: LZ4F_getFrameInfo
+Trace2Pass: Instrumenting function: LZ4F_decompress
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in LZ4F_decompress
+Trace2Pass: Instrumenting function: LZ4F_decodeHeader
+Trace2Pass: Instrumented 9 arithmetic operations in LZ4F_decodeHeader
+Trace2Pass: Instrumenting function: LZ4F_updateDict
+Trace2Pass: Instrumenting function: LZ4F_decompress_usingDict
+Trace2Pass: Instrumenting function: LZ4F_doNotCompressBlock
+Trace2Pass: Instrumenting function: LZ4F_compressBlock
+Trace2Pass: Instrumented 2 arithmetic operations in LZ4F_compressBlock
+Trace2Pass: Instrumenting function: LZ4F_compressBlock_continue
+Trace2Pass: Instrumented 2 arithmetic operations in LZ4F_compressBlock_continue
+Trace2Pass: Instrumenting function: LZ4F_compressBlockHC
+Trace2Pass: Instrumenting function: LZ4F_compressBlockHC_continue
+Trace2Pass: Instrumenting function: LZ4F_readLE64
+Trace2Pass: Instrumented 7 arithmetic operations in LZ4F_readLE64
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: LZ4_versionNumber
+Trace2Pass: Instrumenting function: LZ4_versionString
+Trace2Pass: Instrumenting function: LZ4_compressBound
+Trace2Pass: Instrumented 2 arithmetic operations, 1 division checks in LZ4_compressBound
+Trace2Pass: Instrumenting function: LZ4_sizeofState
+Trace2Pass: Instrumenting function: LZ4_compress_fast_extState
+Trace2Pass: Instrumenting function: LZ4_initStream
+Trace2Pass: Instrumenting function: LZ4_compress_generic
+Trace2Pass: Instrumenting function: LZ4_compress_fast_extState_fastReset
+Trace2Pass: Instrumenting function: LZ4_prepareTable
+Trace2Pass: Instrumenting function: LZ4_compress_fast
+Trace2Pass: Instrumenting function: LZ4_compress_default
+Trace2Pass: Instrumenting function: LZ4_compress_destSize_extState
+Trace2Pass: Instrumenting function: LZ4_compress_destSize_extState_internal
+Trace2Pass: Instrumenting function: LZ4_compress_destSize
+Trace2Pass: Instrumenting function: LZ4_createStream
+Trace2Pass: Instrumenting function: LZ4_isAligned
+Trace2Pass: Instrumenting function: LZ4_stream_t_alignment
+Trace2Pass: Instrumenting function: LZ4_resetStream
+Trace2Pass: Instrumenting function: LZ4_resetStream_fast
+Trace2Pass: Instrumenting function: LZ4_freeStream
+Trace2Pass: Instrumenting function: LZ4_loadDict_internal
+Trace2Pass: Instrumenting function: LZ4_hashPosition
+Trace2Pass: Instrumenting function: LZ4_putIndexOnHash
+Trace2Pass: Instrumenting function: LZ4_getIndexOnHash
+Trace2Pass: Instrumenting function: LZ4_loadDict
+Trace2Pass: Instrumenting function: LZ4_loadDictSlow
+Trace2Pass: Instrumenting function: LZ4_attach_dictionary
+Trace2Pass: Instrumenting function: LZ4_compress_fast_continue
+Trace2Pass: Instrumenting function: LZ4_renormDictT
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4_renormDictT
+Trace2Pass: Instrumenting function: LZ4_compress_forceExtDict
+Trace2Pass: Instrumenting function: LZ4_saveDict
+Trace2Pass: Instrumenting function: LZ4_decompress_safe
+Trace2Pass: Instrumenting function: LZ4_decompress_generic
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks in LZ4_decompress_generic
+Trace2Pass: Instrumenting function: LZ4_decompress_safe_partial
+Trace2Pass: Instrumenting function: LZ4_decompress_fast
+Trace2Pass: Instrumenting function: LZ4_decompress_unsafe_generic
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4_decompress_unsafe_generic
+Trace2Pass: Instrumenting function: LZ4_decompress_safe_withPrefix64k
+Trace2Pass: Instrumenting function: LZ4_decompress_fast_withPrefix64k
+Trace2Pass: Instrumenting function: LZ4_decompress_safe_forceExtDict
+Trace2Pass: Instrumenting function: LZ4_decompress_safe_partial_forceExtDict
+Trace2Pass: Instrumenting function: LZ4_createStreamDecode
+Trace2Pass: Instrumenting function: LZ4_freeStreamDecode
+Trace2Pass: Instrumenting function: LZ4_setStreamDecode
+Trace2Pass: Instrumenting function: LZ4_decoderRingBufferSize
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4_decoderRingBufferSize
+Trace2Pass: Instrumenting function: LZ4_decompress_safe_continue
+Trace2Pass: Instrumenting function: LZ4_decompress_safe_withSmallPrefix
+Trace2Pass: Instrumenting function: LZ4_decompress_safe_doubleDict
+Trace2Pass: Instrumenting function: LZ4_decompress_fast_continue
+Trace2Pass: Instrumenting function: LZ4_decompress_fast_extDict
+Trace2Pass: Instrumenting function: LZ4_decompress_safe_usingDict
+Trace2Pass: Instrumenting function: LZ4_decompress_safe_partial_usingDict
+Trace2Pass: Instrumenting function: LZ4_decompress_safe_partial_withPrefix64k
+Trace2Pass: Instrumenting function: LZ4_decompress_safe_partial_withSmallPrefix
+Trace2Pass: Instrumenting function: LZ4_decompress_fast_usingDict
+Trace2Pass: Instrumenting function: LZ4_compress_limitedOutput
+Trace2Pass: Instrumenting function: LZ4_compress
+Trace2Pass: Instrumenting function: LZ4_compress_limitedOutput_withState
+Trace2Pass: Instrumenting function: LZ4_compress_withState
+Trace2Pass: Instrumenting function: LZ4_compress_limitedOutput_continue
+Trace2Pass: Instrumenting function: LZ4_compress_continue
+Trace2Pass: Instrumenting function: LZ4_uncompress
+Trace2Pass: Instrumenting function: LZ4_uncompress_unknownOutputSize
+Trace2Pass: Instrumenting function: LZ4_sizeofStreamState
+Trace2Pass: Instrumenting function: LZ4_resetStreamState
+Trace2Pass: Instrumenting function: LZ4_create
+Trace2Pass: Instrumenting function: LZ4_slideInputBuffer
+Trace2Pass: Instrumenting function: LZ4_compress_generic_validated
+Trace2Pass: Instrumented 9 arithmetic operations, 1 unreachable blocks, 7 division checks in LZ4_compress_generic_validated
+Trace2Pass: Instrumenting function: LZ4_putPositionOnHash
+Trace2Pass: Instrumenting function: LZ4_getPositionOnHash
+Trace2Pass: Instrumenting function: LZ4_read32
+Trace2Pass: Instrumenting function: LZ4_wildCopy8
+Trace2Pass: Instrumenting function: LZ4_writeLE16
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4_writeLE16
+Trace2Pass: Instrumenting function: LZ4_count
+Trace2Pass: Instrumenting function: LZ4_clearHash
+Trace2Pass: Instrumenting function: LZ4_write32
+Trace2Pass: Instrumenting function: LZ4_getPosition
+Trace2Pass: Instrumenting function: LZ4_putPosition
+Trace2Pass: Instrumenting function: LZ4_isLittleEndian
+Trace2Pass: Instrumenting function: LZ4_write16
+Trace2Pass: Instrumenting function: LZ4_read_ARCH
+Trace2Pass: Instrumenting function: LZ4_NbCommonBytes
+Trace2Pass: Instrumented 2 arithmetic operations in LZ4_NbCommonBytes
+Trace2Pass: Instrumenting function: LZ4_read16
+Trace2Pass: Instrumenting function: LZ4_hash5
+Trace2Pass: Instrumented 4 arithmetic operations in LZ4_hash5
+Trace2Pass: Instrumenting function: LZ4_hash4
+Trace2Pass: Instrumented 2 arithmetic operations in LZ4_hash4
+Trace2Pass: Instrumenting function: read_variable_length
+Trace2Pass: Instrumenting function: LZ4_wildCopy32
+Trace2Pass: Instrumenting function: LZ4_readLE16
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4_readLE16
+Trace2Pass: Instrumenting function: LZ4_memcpy_using_offset
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in LZ4_memcpy_using_offset
+Trace2Pass: Instrumenting function: LZ4_memcpy_using_offset_base
+Trace2Pass: Instrumenting function: read_long_length_no_check
+AR cachedObjs/63dd770b9b94392542380761bc5257c3/liblz4.a
+make: Leaving directory '/workspace/project/lib'
+make: Entering directory '/workspace/project/programs'
+CC cachedObjs/12fa9fd07a9e0c2c10c0b402031fdf89/lz4.o
+CC cachedObjs/12fa9fd07a9e0c2c10c0b402031fdf89/lz4frame.o
+--
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: LZ4_XXH_versionNumber
+Trace2Pass: Instrumenting function: LZ4_XXH32
+Trace2Pass: Instrumenting function: XXH_isLittleEndian
+Trace2Pass: Instrumenting function: XXH32_endian_align
+Trace2Pass: Instrumented 8 arithmetic operations in XXH32_endian_align
+Trace2Pass: Instrumenting function: LZ4_XXH32_createState
+Trace2Pass: Instrumenting function: XXH_malloc
+Trace2Pass: Instrumenting function: LZ4_XXH32_freeState
+Trace2Pass: Instrumenting function: XXH_free
+Trace2Pass: Instrumenting function: LZ4_XXH32_copyState
+Trace2Pass: Instrumenting function: LZ4_XXH32_reset
+Trace2Pass: Instrumenting function: LZ4_XXH32_update
+Trace2Pass: Instrumenting function: XXH32_update_endian
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in XXH32_update_endian
+Trace2Pass: Instrumenting function: LZ4_XXH32_digest
+Trace2Pass: Instrumenting function: XXH32_digest_endian
+Trace2Pass: Instrumented 8 arithmetic operations in XXH32_digest_endian
+Trace2Pass: Instrumenting function: LZ4_XXH32_canonicalFromHash
+Trace2Pass: Instrumenting function: XXH_swap32
+Trace2Pass: Instrumented 4 arithmetic operations in XXH_swap32
+Trace2Pass: Instrumenting function: LZ4_XXH32_hashFromCanonical
+Trace2Pass: Instrumenting function: XXH_readBE32
+Trace2Pass: Instrumenting function: LZ4_XXH64
+Trace2Pass: Instrumenting function: XXH64_endian_align
+Trace2Pass: Instrumented 8 arithmetic operations in XXH64_endian_align
+Trace2Pass: Instrumenting function: LZ4_XXH64_createState
+Trace2Pass: Instrumenting function: LZ4_XXH64_freeState
+Trace2Pass: Instrumenting function: LZ4_XXH64_copyState
+Trace2Pass: Instrumenting function: LZ4_XXH64_reset
+Trace2Pass: Instrumenting function: LZ4_XXH64_update
+Trace2Pass: Instrumenting function: XXH64_update_endian
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in XXH64_update_endian
+Trace2Pass: Instrumenting function: LZ4_XXH64_digest
+Trace2Pass: Instrumenting function: XXH64_digest_endian
+Trace2Pass: Instrumented 8 arithmetic operations in XXH64_digest_endian
+Trace2Pass: Instrumenting function: LZ4_XXH64_canonicalFromHash
+Trace2Pass: Instrumenting function: XXH_swap64
+Trace2Pass: Instrumented 8 arithmetic operations in XXH_swap64
+Trace2Pass: Instrumenting function: LZ4_XXH64_hashFromCanonical
+Trace2Pass: Instrumenting function: XXH_readBE64
+Trace2Pass: Instrumenting function: XXH32_round
+Trace2Pass: Instrumented 2 arithmetic operations in XXH32_round
+Trace2Pass: Instrumenting function: XXH_readLE32_align
+Trace2Pass: Instrumenting function: XXH32_finalize
+Trace2Pass: Instrumented 36 arithmetic operations, 1 unreachable blocks in XXH32_finalize
+Trace2Pass: Instrumenting function: XXH_read32
+Trace2Pass: Instrumenting function: XXH32_avalanche
+Trace2Pass: Instrumented 3 arithmetic operations in XXH32_avalanche
+Trace2Pass: Instrumenting function: XXH_memcpy
+Trace2Pass: Instrumenting function: XXH_readLE32
+Trace2Pass: Instrumenting function: XXH64_round
+Trace2Pass: Instrumented 2 arithmetic operations in XXH64_round
+Trace2Pass: Instrumenting function: XXH_readLE64_align
+Trace2Pass: Instrumenting function: XXH64_mergeRound
+Trace2Pass: Instrumenting function: XXH64_finalize
+Trace2Pass: Instrumented 80 arithmetic operations, 1 unreachable blocks in XXH64_finalize
+Trace2Pass: Instrumenting function: XXH_read64
+Trace2Pass: Instrumenting function: XXH64_avalanche
+Trace2Pass: Instrumented 3 arithmetic operations in XXH64_avalanche
+Trace2Pass: Instrumenting function: XXH_readLE64
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: LZ4F_readOpen
+Trace2Pass: Instrumenting function: returnErrorCode
+Trace2Pass: Instrumented 1 arithmetic operations in returnErrorCode
+Trace2Pass: Instrumenting function: freeAndNullReadFile
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in freeAndNullReadFile
+Trace2Pass: Instrumenting function: readAndParseHeader
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in readAndParseHeader
+Trace2Pass: Instrumenting function: LZ4F_read
+Trace2Pass: Instrumenting function: LZ4F_readClose
+Trace2Pass: Instrumenting function: freeReadFileResources
+Trace2Pass: Instrumenting function: LZ4F_writeOpen
+Trace2Pass: Instrumenting function: freeAndNullWriteFile
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in freeAndNullWriteFile
+Trace2Pass: Instrumenting function: writeHeader
+Trace2Pass: Instrumenting function: LZ4F_write
+Trace2Pass: Instrumenting function: LZ4F_writeClose
+Trace2Pass: Instrumenting function: freeWriteFileResources
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: LOREM_genBlock
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in LOREM_genBlock
+Trace2Pass: Instrumenting function: init_word_len
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in init_word_len
+Trace2Pass: Instrumenting function: init_word_buffer
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in init_word_buffer
+Trace2Pass: Instrumenting function: init_word_distrib
+Trace2Pass: Instrumented 1 arithmetic operations in init_word_distrib
+Trace2Pass: Instrumenting function: generateFirstSentence
+Trace2Pass: Instrumented 1 arithmetic operations in generateFirstSentence
+Trace2Pass: Instrumenting function: about
+Trace2Pass: Instrumenting function: generateParagraph
+Trace2Pass: Instrumented 1 arithmetic operations in generateParagraph
+Trace2Pass: Instrumenting function: LOREM_genBuffer
+Trace2Pass: Instrumenting function: sumLen
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in sumLen
+Trace2Pass: Instrumenting function: countFreqs
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in countFreqs
+Trace2Pass: Instrumenting function: generateWord
+Trace2Pass: Instrumented 1 arithmetic operations, 3 unreachable blocks in generateWord
+Trace2Pass: Instrumenting function: generateLastWord
+Trace2Pass: Instrumented 1 arithmetic operations in generateLastWord
+Trace2Pass: Instrumenting function: writeLastCharacters
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in writeLastCharacters
+Trace2Pass: Instrumenting function: LOREM_rand
+Trace2Pass: Instrumented 3 arithmetic operations in LOREM_rand
+Trace2Pass: Instrumenting function: generateSentence
+Trace2Pass: Instrumented 3 arithmetic operations in generateSentence
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: LZ4F_isError
+Trace2Pass: Instrumenting function: LZ4F_getErrorName
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4F_getErrorName
+Trace2Pass: Instrumenting function: LZ4F_getErrorCode
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4F_getErrorCode
+Trace2Pass: Instrumenting function: LZ4F_getVersion
+Trace2Pass: Instrumenting function: LZ4F_compressionLevel_max
+Trace2Pass: Instrumenting function: LZ4F_getBlockSize
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4F_getBlockSize
+Trace2Pass: Instrumenting function: LZ4F_returnErrorCode
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4F_returnErrorCode
+Trace2Pass: Instrumenting function: LZ4F_compressFrameBound
+Trace2Pass: Instrumenting function: LZ4F_compressBound_internal
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in LZ4F_compressBound_internal
+Trace2Pass: Instrumenting function: LZ4F_compressFrame_usingCDict
+Trace2Pass: Instrumenting function: LZ4F_optimalBSID
+Trace2Pass: Instrumented 2 arithmetic operations in LZ4F_optimalBSID
+Trace2Pass: Instrumenting function: LZ4F_compressBegin_usingCDict
+Trace2Pass: Instrumenting function: LZ4F_compressUpdate
+Trace2Pass: Instrumenting function: LZ4F_compressEnd
+Trace2Pass: Instrumenting function: LZ4F_compressFrame
+Trace2Pass: Instrumenting function: LZ4F_free
+Trace2Pass: Instrumenting function: LZ4F_createCDict_advanced
+Trace2Pass: Instrumenting function: LZ4F_malloc
+Trace2Pass: Instrumenting function: LZ4F_freeCDict
+Trace2Pass: Instrumenting function: LZ4F_createCDict
+Trace2Pass: Instrumenting function: LZ4F_createCompressionContext_advanced
+Trace2Pass: Instrumenting function: LZ4F_calloc
+Trace2Pass: Instrumenting function: LZ4F_createCompressionContext
+Trace2Pass: Instrumenting function: LZ4F_freeCompressionContext
+Trace2Pass: Instrumenting function: LZ4F_cctx_size
+Trace2Pass: Instrumenting function: ctxTypeID_to_size
+Trace2Pass: Instrumenting function: LZ4F_compressBegin_internal
+Trace2Pass: Instrumented 5 arithmetic operations in LZ4F_compressBegin_internal
+Trace2Pass: Instrumenting function: LZ4F_initStream
+Trace2Pass: Instrumenting function: LZ4F_writeLE32
+Trace2Pass: Instrumented 3 arithmetic operations in LZ4F_writeLE32
+Trace2Pass: Instrumenting function: LZ4F_writeLE64
+Trace2Pass: Instrumented 7 arithmetic operations in LZ4F_writeLE64
+Trace2Pass: Instrumenting function: LZ4F_headerChecksum
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4F_headerChecksum
+Trace2Pass: Instrumenting function: LZ4F_compressBegin
+Trace2Pass: Instrumenting function: LZ4F_compressBegin_usingDictOnce
+Trace2Pass: Instrumenting function: LZ4F_compressBegin_usingDict
+Trace2Pass: Instrumenting function: LZ4F_compressBound
+Trace2Pass: Instrumenting function: LZ4F_compressUpdateImpl
+Trace2Pass: Instrumenting function: LZ4F_uncompressedUpdate
+Trace2Pass: Instrumenting function: LZ4F_flush
+Trace2Pass: Instrumenting function: LZ4F_selectCompression
+Trace2Pass: Instrumenting function: LZ4F_makeBlock
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4F_makeBlock
+Trace2Pass: Instrumenting function: LZ4F_localSaveDict
+Trace2Pass: Instrumenting function: LZ4F_createDecompressionContext_advanced
+Trace2Pass: Instrumenting function: LZ4F_createDecompressionContext
+Trace2Pass: Instrumenting function: LZ4F_freeDecompressionContext
+Trace2Pass: Instrumenting function: LZ4F_dctx_size
+Trace2Pass: Instrumenting function: LZ4F_resetDecompressionContext
+Trace2Pass: Instrumenting function: LZ4F_headerSize
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4F_headerSize
+Trace2Pass: Instrumenting function: LZ4F_readLE32
+Trace2Pass: Instrumented 3 arithmetic operations in LZ4F_readLE32
+Trace2Pass: Instrumenting function: LZ4F_getFrameInfo
+Trace2Pass: Instrumenting function: LZ4F_decompress
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in LZ4F_decompress
+Trace2Pass: Instrumenting function: LZ4F_decodeHeader
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: LZ4HC_searchExtDict
+Trace2Pass: Instrumented 9 arithmetic operations in LZ4F_decodeHeader
+Trace2Pass: Instrumenting function: LZ4F_updateDict
+Trace2Pass: Instrumenting function: LZ4F_decompress_usingDict
+Trace2Pass: Instrumenting function: LZ4F_doNotCompressBlock
+Trace2Pass: Instrumenting function: LZ4F_compressBlock
+Trace2Pass: Instrumented 2 arithmetic operations in LZ4F_compressBlock
+Trace2Pass: Instrumenting function: LZ4F_compressBlock_continue
+Trace2Pass: Instrumented 2 arithmetic operations in LZ4F_compressBlock_continue
+Trace2Pass: Instrumenting function: LZ4F_compressBlockHC
+Trace2Pass: Instrumenting function: LZ4F_compressBlockHC_continue
+Trace2Pass: Instrumenting function: LZ4F_readLE64
+Trace2Pass: Instrumented 7 arithmetic operations in LZ4F_readLE64
+Trace2Pass: Instrumented 3 arithmetic operations in LZ4HC_searchExtDict
+Trace2Pass: Instrumenting function: LZ4HC_hashPtr
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4HC_hashPtr
+Trace2Pass: Instrumenting function: LZ4_read32
+Trace2Pass: Instrumenting function: LZ4_count
+Trace2Pass: Instrumenting function: LZ4HC_countBack
+Trace2Pass: Instrumented 6 arithmetic operations in LZ4HC_countBack
+Trace2Pass: Instrumenting function: LZ4_sizeofStateHC
+Trace2Pass: Instrumenting function: LZ4_compress_HC_extStateHC_fastReset
+Trace2Pass: Instrumenting function: LZ4_isAligned
+Trace2Pass: Instrumenting function: LZ4_streamHC_t_alignment
+Trace2Pass: Instrumenting function: LZ4_resetStreamHC_fast
+Trace2Pass: Instrumenting function: LZ4HC_init_internal
+Trace2Pass: Instrumenting function: LZ4HC_compress_generic
+Trace2Pass: Instrumenting function: LZ4_compress_HC_extStateHC
+Trace2Pass: Instrumenting function: LZ4_initStreamHC
+Trace2Pass: Instrumenting function: LZ4_compress_HC
+Trace2Pass: Instrumenting function: LZ4_compress_HC_destSize
+Trace2Pass: Instrumenting function: LZ4_setCompressionLevel
+Trace2Pass: Instrumenting function: LZ4_createStreamHC
+Trace2Pass: Instrumenting function: LZ4_freeStreamHC
+Trace2Pass: Instrumenting function: LZ4_resetStreamHC
+Trace2Pass: Instrumenting function: LZ4_favorDecompressionSpeed
+Trace2Pass: Instrumenting function: LZ4_loadDictHC
+Trace2Pass: Instrumenting function: LZ4HC_getCLevelParams
+Trace2Pass: Instrumenting function: LZ4MID_fillHTable
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in LZ4MID_fillHTable
+Trace2Pass: Instrumenting function: LZ4HC_Insert
+Trace2Pass: Instrumenting function: LZ4_attach_HC_dictionary
+Trace2Pass: Instrumenting function: LZ4_compress_HC_continue
+Trace2Pass: Instrumenting function: LZ4_compressHC_continue_generic
+Trace2Pass: Instrumenting function: LZ4_compress_HC_continue_destSize
+Trace2Pass: Instrumenting function: LZ4_saveDictHC
+Trace2Pass: Instrumenting function: LZ4_compressHC
+Trace2Pass: Instrumenting function: LZ4_compressHC_limitedOutput
+Trace2Pass: Instrumenting function: LZ4_compressHC2
+Trace2Pass: Instrumenting function: LZ4_compressHC2_limitedOutput
+Trace2Pass: Instrumenting function: LZ4_compressHC_withStateHC
+Trace2Pass: Instrumenting function: LZ4_compressHC_limitedOutput_withStateHC
+Trace2Pass: Instrumenting function: LZ4_compressHC2_withStateHC
+Trace2Pass: Instrumenting function: LZ4_compressHC2_limitedOutput_withStateHC
+Trace2Pass: Instrumenting function: LZ4_compressHC_continue
+Trace2Pass: Instrumenting function: LZ4_compressHC_limitedOutput_continue
+Trace2Pass: Instrumenting function: LZ4_sizeofStreamStateHC
+Trace2Pass: Instrumenting function: LZ4_resetStreamStateHC
+Trace2Pass: Instrumenting function: LZ4_createHC
+Trace2Pass: Instrumenting function: LZ4_freeHC
+Trace2Pass: Instrumenting function: LZ4_compressHC2_continue
+Trace2Pass: Instrumenting function: LZ4_compressHC2_limitedOutput_continue
+Trace2Pass: Instrumenting function: LZ4_slideInputBufferHC
+Trace2Pass: Instrumenting function: LZ4_read_ARCH
+Trace2Pass: Instrumenting function: LZ4_NbCommonBytes
+Trace2Pass: Instrumented 2 arithmetic operations in LZ4_NbCommonBytes
+Trace2Pass: Instrumenting function: LZ4_read16
+Trace2Pass: Instrumenting function: LZ4_isLittleEndian
+Trace2Pass: Instrumenting function: LZ4HC_NbCommonBytes32
+Trace2Pass: Instrumented 2 arithmetic operations in LZ4HC_NbCommonBytes32
+Trace2Pass: Instrumenting function: LZ4HC_clearTables
+Trace2Pass: Instrumenting function: LZ4HC_compress_generic_noDictCtx
+Trace2Pass: Instrumenting function: LZ4HC_compress_generic_dictCtx
+Trace2Pass: Instrumenting function: LZ4HC_compress_generic_internal
+Trace2Pass: Instrumenting function: LZ4MID_compress
+Trace2Pass: Instrumented 7 arithmetic operations, 3 division checks in LZ4MID_compress
+Trace2Pass: Instrumenting function: LZ4HC_compress_hashChain
+Trace2Pass: Instrumented 12 arithmetic operations, 3 division checks in LZ4HC_compress_hashChain
+Trace2Pass: Instrumenting function: LZ4HC_compress_optimal
+Trace2Pass: Instrumented 44 arithmetic operations, 1 unreachable blocks, 3 division checks in LZ4HC_compress_optimal
+Trace2Pass: Instrumenting function: select_searchDict_function
+Trace2Pass: Instrumenting function: LZ4MID_hash8Ptr
+Trace2Pass: Instrumenting function: LZ4MID_addPosition
+Trace2Pass: Instrumenting function: LZ4MID_hash4Ptr
+Trace2Pass: Instrumenting function: LZ4HC_encodeSequence
+Trace2Pass: Instrumented 2 arithmetic operations, 2 division checks in LZ4HC_encodeSequence
+Trace2Pass: Instrumenting function: LZ4MID_searchExtDict
+Trace2Pass: Instrumenting function: LZ4MID_searchHCDict
+Trace2Pass: Instrumenting function: LZ4MID_hash7
+Trace2Pass: Instrumented 2 arithmetic operations in LZ4MID_hash7
+Trace2Pass: Instrumenting function: LZ4_readLE64
+Trace2Pass: Instrumented 7 arithmetic operations in LZ4_readLE64
+Trace2Pass: Instrumenting function: LZ4_read64
+Trace2Pass: Instrumenting function: LZ4MID_hash4
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4MID_hash4
+Trace2Pass: Instrumenting function: LZ4_wildCopy8
+Trace2Pass: Instrumenting function: LZ4_writeLE16
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4_writeLE16
+Trace2Pass: Instrumenting function: LZ4_write16
+Trace2Pass: Instrumenting function: LZ4HC_InsertAndFindBestMatch
+Trace2Pass: Instrumenting function: LZ4HC_InsertAndGetWiderMatch
+Trace2Pass: Instrumented 16 arithmetic operations, 1 unreachable blocks in LZ4HC_InsertAndGetWiderMatch
+Trace2Pass: Instrumenting function: LZ4HC_countPattern
+Trace2Pass: Instrumented 3 arithmetic operations, 1 unreachable blocks in LZ4HC_countPattern
+Trace2Pass: Instrumenting function: LZ4HC_protectDictEnd
+Trace2Pass: Instrumenting function: LZ4HC_rotatePattern
+Trace2Pass: Instrumented 4 arithmetic operations in LZ4HC_rotatePattern
+Trace2Pass: Instrumenting function: LZ4HC_reverseCountPattern
+Trace2Pass: Instrumenting function: LZ4HC_FindLongerMatch
+Trace2Pass: Instrumenting function: LZ4HC_literalsPrice
+Trace2Pass: Instrumented 3 arithmetic operations, 1 division checks in LZ4HC_literalsPrice
+Trace2Pass: Instrumenting function: LZ4HC_sequencePrice
+Trace2Pass: Instrumented 4 arithmetic operations, 1 division checks in LZ4HC_sequencePrice
+Trace2Pass: Instrumenting function: isStateCompatible
+Trace2Pass: Instrumenting function: LZ4HC_setExternalDict
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: LZ4_versionNumber
+Trace2Pass: Instrumenting function: LZ4_versionString
+Trace2Pass: Instrumenting function: LZ4_compressBound
+Trace2Pass: Instrumented 2 arithmetic operations, 1 division checks in LZ4_compressBound
+Trace2Pass: Instrumenting function: LZ4_sizeofState
+Trace2Pass: Instrumenting function: LZ4_compress_fast_extState
+Trace2Pass: Instrumenting function: LZ4_initStream
+Trace2Pass: Instrumenting function: LZ4_compress_generic
+Trace2Pass: Instrumenting function: LZ4_compress_fast_extState_fastReset
+Trace2Pass: Instrumenting function: LZ4_prepareTable
+Trace2Pass: Instrumenting function: LZ4_compress_fast
+Trace2Pass: Instrumenting function: LZ4_compress_default
+Trace2Pass: Instrumenting function: LZ4_compress_destSize_extState
+Trace2Pass: Instrumenting function: LZ4_compress_destSize_extState_internal
+Trace2Pass: Instrumenting function: LZ4_compress_destSize
+Trace2Pass: Instrumenting function: LZ4_createStream
+Trace2Pass: Instrumenting function: LZ4_isAligned
+Trace2Pass: Instrumenting function: LZ4_stream_t_alignment
+Trace2Pass: Instrumenting function: LZ4_resetStream
+Trace2Pass: Instrumenting function: LZ4_resetStream_fast
+Trace2Pass: Instrumenting function: LZ4_freeStream
+Trace2Pass: Instrumenting function: LZ4_loadDict_internal
+Trace2Pass: Instrumenting function: LZ4_hashPosition
+Trace2Pass: Instrumenting function: LZ4_putIndexOnHash
+Trace2Pass: Instrumenting function: LZ4_getIndexOnHash
+Trace2Pass: Instrumenting function: LZ4_loadDict
+Trace2Pass: Instrumenting function: LZ4_loadDictSlow
+Trace2Pass: Instrumenting function: LZ4_attach_dictionary
+Trace2Pass: Instrumenting function: LZ4_compress_fast_continue
+Trace2Pass: Instrumenting function: LZ4_renormDictT
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4_renormDictT
+Trace2Pass: Instrumenting function: LZ4_compress_forceExtDict
+Trace2Pass: Instrumenting function: LZ4_saveDict
+Trace2Pass: Instrumenting function: LZ4_decompress_safe
+Trace2Pass: Instrumenting function: LZ4_decompress_generic
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks in LZ4_decompress_generic
+Trace2Pass: Instrumenting function: LZ4_decompress_safe_partial
+Trace2Pass: Instrumenting function: LZ4_decompress_fast
+Trace2Pass: Instrumenting function: LZ4_decompress_unsafe_generic
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4_decompress_unsafe_generic
+Trace2Pass: Instrumenting function: LZ4_decompress_safe_withPrefix64k
+Trace2Pass: Instrumenting function: LZ4_decompress_fast_withPrefix64k
+Trace2Pass: Instrumenting function: LZ4_decompress_safe_forceExtDict
+Trace2Pass: Instrumenting function: LZ4_decompress_safe_partial_forceExtDict
+Trace2Pass: Instrumenting function: LZ4_createStreamDecode
+Trace2Pass: Instrumenting function: LZ4_freeStreamDecode
+Trace2Pass: Instrumenting function: LZ4_setStreamDecode
+Trace2Pass: Instrumenting function: LZ4_decoderRingBufferSize
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4_decoderRingBufferSize
+Trace2Pass: Instrumenting function: LZ4_decompress_safe_continue
+Trace2Pass: Instrumenting function: LZ4_decompress_safe_withSmallPrefix
+Trace2Pass: Instrumenting function: LZ4_decompress_safe_doubleDict
+Trace2Pass: Instrumenting function: LZ4_decompress_fast_continue
+Trace2Pass: Instrumenting function: LZ4_decompress_fast_extDict
+Trace2Pass: Instrumenting function: LZ4_decompress_safe_usingDict
+Trace2Pass: Instrumenting function: LZ4_decompress_safe_partial_usingDict
+Trace2Pass: Instrumenting function: LZ4_decompress_safe_partial_withPrefix64k
+Trace2Pass: Instrumenting function: LZ4_decompress_safe_partial_withSmallPrefix
+Trace2Pass: Instrumenting function: LZ4_decompress_fast_usingDict
+Trace2Pass: Instrumenting function: LZ4_compress_limitedOutput
+Trace2Pass: Instrumenting function: LZ4_compress
+Trace2Pass: Instrumenting function: LZ4_compress_limitedOutput_withState
+Trace2Pass: Instrumenting function: LZ4_compress_withState
+Trace2Pass: Instrumenting function: LZ4_compress_limitedOutput_continue
+Trace2Pass: Instrumenting function: LZ4_compress_continue
+Trace2Pass: Instrumenting function: LZ4_uncompress
+Trace2Pass: Instrumenting function: LZ4_uncompress_unknownOutputSize
+Trace2Pass: Instrumenting function: LZ4_sizeofStreamState
+Trace2Pass: Instrumenting function: LZ4_resetStreamState
+Trace2Pass: Instrumenting function: LZ4_create
+Trace2Pass: Instrumenting function: LZ4_slideInputBuffer
+Trace2Pass: Instrumenting function: LZ4_compress_generic_validated
+Trace2Pass: Instrumented 9 arithmetic operations, 1 unreachable blocks, 7 division checks in LZ4_compress_generic_validated
+Trace2Pass: Instrumenting function: LZ4_putPositionOnHash
+Trace2Pass: Instrumenting function: LZ4_getPositionOnHash
+Trace2Pass: Instrumenting function: LZ4_read32
+Trace2Pass: Instrumenting function: LZ4_wildCopy8
+Trace2Pass: Instrumenting function: LZ4_writeLE16
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4_writeLE16
+Trace2Pass: Instrumenting function: LZ4_count
+Trace2Pass: Instrumenting function: LZ4_clearHash
+Trace2Pass: Instrumenting function: LZ4_write32
+Trace2Pass: Instrumenting function: LZ4_getPosition
+Trace2Pass: Instrumenting function: LZ4_putPosition
+Trace2Pass: Instrumenting function: LZ4_isLittleEndian
+Trace2Pass: Instrumenting function: LZ4_write16
+Trace2Pass: Instrumenting function: LZ4_read_ARCH
+Trace2Pass: Instrumenting function: LZ4_NbCommonBytes
+Trace2Pass: Instrumented 2 arithmetic operations in LZ4_NbCommonBytes
+Trace2Pass: Instrumenting function: LZ4_read16
+Trace2Pass: Instrumenting function: LZ4_hash5
+Trace2Pass: Instrumented 4 arithmetic operations in LZ4_hash5
+Trace2Pass: Instrumenting function: LZ4_hash4
+Trace2Pass: Instrumented 2 arithmetic operations in LZ4_hash4
+Trace2Pass: Instrumenting function: read_variable_length
+Trace2Pass: Instrumenting function: LZ4_wildCopy32
+Trace2Pass: Instrumenting function: LZ4_readLE16
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4_readLE16
+Trace2Pass: Instrumenting function: LZ4_memcpy_using_offset
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in LZ4_memcpy_using_offset
+Trace2Pass: Instrumenting function: LZ4_memcpy_using_offset_base
+Trace2Pass: Instrumenting function: read_long_length_no_check
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 8 arithmetic operations, 11 unreachable blocks in main
+Trace2Pass: Instrumenting function: init_cLevel
+Trace2Pass: Instrumenting function: init_nbWorkers
+Trace2Pass: Instrumenting function: lastNameFromPath
+Trace2Pass: Instrumenting function: exeNameMatch
+Trace2Pass: Instrumenting function: usage_advanced
+Trace2Pass: Instrumenting function: longCommandWArg
+Trace2Pass: Instrumenting function: readU32FromChar
+Trace2Pass: Instrumented 3 arithmetic operations in readU32FromChar
+Trace2Pass: Instrumenting function: errorOut
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in errorOut
+Trace2Pass: Instrumenting function: badusage
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in badusage
+Trace2Pass: Instrumenting function: usage_longhelp
+Trace2Pass: Instrumenting function: UTIL_createFileList
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in UTIL_createFileList
+Trace2Pass: Instrumenting function: determineOpMode
+Trace2Pass: Instrumenting function: waitEnter
+Trace2Pass: Instrumenting function: usage
+Trace2Pass: Instrumenting function: UTIL_isDirectory
+Trace2Pass: Instrumenting function: UTIL_realloc
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in UTIL_realloc
+Trace2Pass: Instrumenting function: UTIL_prepareFileList
+Trace2Pass: Instrumented 2 arithmetic operations in UTIL_prepareFileList
+Trace2Pass: Instrumenting function: getchar
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: BMK_setNotificationLevel
+Trace2Pass: Instrumenting function: BMK_setAdditionalParam
+Trace2Pass: Instrumenting function: BMK_setNbSeconds
+Trace2Pass: Instrumenting function: BMK_setBlockSize
+Trace2Pass: Instrumenting function: BMK_setBenchSeparately
+Trace2Pass: Instrumenting function: BMK_setDecodeOnlyMode
+Trace2Pass: Instrumenting function: BMK_skipChecksums
+Trace2Pass: Instrumenting function: BMK_benchFiles
+Trace2Pass: Instrumented 0 arithmetic operations, 6 unreachable blocks in BMK_benchFiles
+Trace2Pass: Instrumenting function: UTIL_getFileSize
+Trace2Pass: Instrumenting function: BMK_syntheticTest
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in BMK_syntheticTest
+Trace2Pass: Instrumenting function: BMK_benchFilesSeparately
+Trace2Pass: Instrumenting function: BMK_benchFileTable
+Trace2Pass: Instrumented 2 arithmetic operations, 3 unreachable blocks, 1 division checks in BMK_benchFileTable
+Trace2Pass: Instrumenting function: BMK_benchCLevel
+Trace2Pass: Instrumented 2 arithmetic operations in BMK_benchCLevel
+Trace2Pass: Instrumenting function: BMK_benchMem
+Trace2Pass: Instrumented 0 arithmetic operations, 7 unreachable blocks, 13 division checks in BMK_benchMem
+Trace2Pass: Instrumenting function: LZ4_buildCompressionParameters
+Trace2Pass: Instrumenting function: LZ4F_decompress_binding
+Trace2Pass: Instrumenting function: LZ4_compressInitStream
+Trace2Pass: Instrumenting function: LZ4_compressResetStream
+Trace2Pass: Instrumenting function: LZ4_compressBlockStream
+Trace2Pass: Instrumented 2 arithmetic operations in LZ4_compressBlockStream
+Trace2Pass: Instrumenting function: LZ4_compressCleanupStream
+Trace2Pass: Instrumenting function: LZ4_compressInitStreamHC
+Trace2Pass: Instrumenting function: LZ4_compressResetStreamHC
+Trace2Pass: Instrumenting function: LZ4_compressBlockStreamHC
+Trace2Pass: Instrumenting function: LZ4_compressCleanupStreamHC
+Trace2Pass: Instrumenting function: LZ4_compressInitNoStream
+Trace2Pass: Instrumenting function: LZ4_compressResetNoStream
+Trace2Pass: Instrumenting function: LZ4_compressCleanupNoStream
+Trace2Pass: Instrumenting function: LZ4_compressBlockNoStream
+Trace2Pass: Instrumented 2 arithmetic operations in LZ4_compressBlockNoStream
+Trace2Pass: Instrumenting function: LZ4_compressBlockNoStreamHC
+Trace2Pass: Instrumenting function: UTIL_getTotalFileSize
+Trace2Pass: Instrumenting function: BMK_findMaxMem
+Trace2Pass: Instrumented 4 arithmetic operations in BMK_findMaxMem
+Trace2Pass: Instrumenting function: BMK_loadFiles
+Trace2Pass: Instrumented 1 arithmetic operations, 4 unreachable blocks in BMK_loadFiles
+Trace2Pass: Instrumenting function: UTIL_isDirectory
+CC cachedObjs/12fa9fd07a9e0c2c10c0b402031fdf89/lz4io.o
+CC cachedObjs/12fa9fd07a9e0c2c10c0b402031fdf89/threadpool.o
+CC cachedObjs/12fa9fd07a9e0c2c10c0b402031fdf89/timefn.o
+CC cachedObjs/12fa9fd07a9e0c2c10c0b402031fdf89/util.o
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: TPool_free
+Trace2Pass: Instrumenting function: TPool_shutdown
+Trace2Pass: Instrumenting function: TPool_create
+Trace2Pass: Instrumented 1 arithmetic operations in TPool_create
+Trace2Pass: Instrumenting function: TPool_thread
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in TPool_thread
+Trace2Pass: Instrumenting function: TPool_jobsCompleted
+Trace2Pass: Instrumenting function: TPool_submitJob
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in TPool_submitJob
+Trace2Pass: Instrumenting function: isQueueFull
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in isQueueFull
+Trace2Pass: Instrumenting function: TPool_submitJob_internal
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks, 1 division checks in TPool_submitJob_internal
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: TIME_getTime
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in TIME_getTime
+Trace2Pass: Instrumenting function: TIME_span_ns
+Trace2Pass: Instrumenting function: TIME_clockSpan_ns
+Trace2Pass: Instrumenting function: TIME_waitForNextTick
+Trace2Pass: Instrumenting function: TIME_support_MT_measurements
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: LZ4IO_defaultNbWorkers
+Trace2Pass: Instrumented 2 arithmetic operations in LZ4IO_defaultNbWorkers
+Trace2Pass: Instrumenting function: LZ4IO_freePreferences
+Trace2Pass: Instrumenting function: LZ4IO_defaultPreferences
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in LZ4IO_defaultPreferences
+Trace2Pass: Instrumenting function: LZ4IO_setNbWorkers
+Trace2Pass: Instrumenting function: LZ4IO_setDictionaryFilename
+Trace2Pass: Instrumenting function: LZ4IO_setPassThrough
+Trace2Pass: Instrumenting function: LZ4IO_setOverwrite
+Trace2Pass: Instrumenting function: LZ4IO_setTestMode
+Trace2Pass: Instrumenting function: LZ4IO_setBlockSizeID
+Trace2Pass: Instrumenting function: LZ4IO_setBlockSize
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4IO_setBlockSize
+Trace2Pass: Instrumenting function: LZ4IO_setBlockMode
+Trace2Pass: Instrumenting function: LZ4IO_setBlockChecksumMode
+Trace2Pass: Instrumenting function: LZ4IO_setStreamChecksumMode
+Trace2Pass: Instrumenting function: LZ4IO_setNotificationLevel
+Trace2Pass: Instrumenting function: LZ4IO_setSparseFile
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4IO_setSparseFile
+Trace2Pass: Instrumenting function: LZ4IO_setContentSize
+Trace2Pass: Instrumenting function: LZ4IO_favorDecSpeed
+Trace2Pass: Instrumenting function: LZ4IO_setRemoveSrcFile
+Trace2Pass: Instrumenting function: LZ4IO_compressFilename_Legacy
+Trace2Pass: Instrumenting function: cpuTime_sec
+Trace2Pass: Instrumenting function: LZ4IO_compressLegacy_internal
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in LZ4IO_compressLegacy_internal
+Trace2Pass: Instrumenting function: LZ4IO_finalTimeDisplay
+Trace2Pass: Instrumenting function: LZ4IO_compressMultipleFilenames_Legacy
+Trace2Pass: Instrumented 3 arithmetic operations in LZ4IO_compressMultipleFilenames_Legacy
+Trace2Pass: Instrumenting function: LZ4IO_isStdout
+Trace2Pass: Instrumenting function: LZ4IO_compressFilename_extRess_MT
+Trace2Pass: Instrumented 1 arithmetic operations, 14 unreachable blocks in LZ4IO_compressFilename_extRess_MT
+Trace2Pass: Instrumenting function: LZ4IO_openSrcFile
+Trace2Pass: Instrumenting function: LZ4IO_openDstFile
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in LZ4IO_openDstFile
+Trace2Pass: Instrumenting function: UTIL_getOpenFileSize
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in UTIL_getOpenFileSize
+Trace2Pass: Instrumenting function: WR_init
+Trace2Pass: Instrumenting function: LZ4IO_compressFrameChunk
+Trace2Pass: Instrumented 0 arithmetic operations, 5 unreachable blocks in LZ4IO_compressFrameChunk
+Trace2Pass: Instrumenting function: LZ4IO_compressChunk
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in LZ4IO_compressChunk
+Trace2Pass: Instrumenting function: LZ4IO_readAndProcess
+Trace2Pass: Instrumented 2 arithmetic operations, 5 unreachable blocks in LZ4IO_readAndProcess
+Trace2Pass: Instrumenting function: LZ4IO_writeLE32
+Trace2Pass: Instrumented 3 arithmetic operations in LZ4IO_writeLE32
+Trace2Pass: Instrumenting function: WR_destroy
+Trace2Pass: Instrumenting function: LZ4IO_isStdin
+Trace2Pass: Instrumenting function: LZ4IO_isDevNull
+Trace2Pass: Instrumenting function: UTIL_getFileStat
+Trace2Pass: Instrumenting function: UTIL_setFileStat
+Trace2Pass: Instrumented 4 arithmetic operations in UTIL_setFileStat
+Trace2Pass: Instrumenting function: LZ4IO_compressFilename_extRess_ST
+Trace2Pass: Instrumented 2 arithmetic operations, 11 unreachable blocks in LZ4IO_compressFilename_extRess_ST
+Trace2Pass: Instrumenting function: LZ4IO_compressFilename
+Trace2Pass: Instrumenting function: LZ4IO_createCResources
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in LZ4IO_createCResources
+Trace2Pass: Instrumenting function: LZ4IO_compressFilename_extRess
+Trace2Pass: Instrumenting function: LZ4IO_freeCResources
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in LZ4IO_freeCResources
+Trace2Pass: Instrumenting function: LZ4IO_compressMultipleFilenames
+Trace2Pass: Instrumented 3 arithmetic operations in LZ4IO_compressMultipleFilenames
+Trace2Pass: Instrumenting function: BufPool_releaseBuffer
+Trace2Pass: Instrumented 1 arithmetic operations, 2 unreachable blocks, 1 division checks in BufPool_releaseBuffer
+Trace2Pass: Instrumenting function: LZ4IO_decompressFilename
+Trace2Pass: Instrumenting function: LZ4IO_createDResources
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in LZ4IO_createDResources
+Trace2Pass: Instrumenting function: LZ4IO_decompressDstFile
+Trace2Pass: Instrumenting function: LZ4IO_freeDResources
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in LZ4IO_freeDResources
+Trace2Pass: Instrumenting function: LZ4IO_decompressMultipleFilenames
+Trace2Pass: Instrumented 5 arithmetic operations, 3 unreachable blocks in LZ4IO_decompressMultipleFilenames
+Trace2Pass: Instrumenting function: LZ4IO_decompressSrcFile
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in LZ4IO_decompressSrcFile
+Trace2Pass: Instrumenting function: UTIL_sameString
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in UTIL_sameString
+Trace2Pass: Instrumenting function: LZ4IO_blockTypeID
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in LZ4IO_blockTypeID
+Trace2Pass: Instrumenting function: LZ4IO_displayCompressedFilesInfo
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in LZ4IO_displayCompressedFilesInfo
+Trace2Pass: Instrumenting function: LZ4IO_baseName
+Trace2Pass: Instrumenting function: UTIL_isRegFD
+Trace2Pass: Instrumenting function: UTIL_isRegFile
+Trace2Pass: Instrumenting function: LZ4IO_getCompressedFileInfo
+Trace2Pass: Instrumented 0 arithmetic operations, 6 unreachable blocks in LZ4IO_getCompressedFileInfo
+Trace2Pass: Instrumenting function: LZ4IO_toHuman
+Trace2Pass: Instrumenting function: LZ4IO_compressBlockLegacy_fast
+Trace2Pass: Instrumented 1 arithmetic operations, 2 unreachable blocks in LZ4IO_compressBlockLegacy_fast
+Trace2Pass: Instrumenting function: LZ4IO_compressBlockLegacy_HC
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in LZ4IO_compressBlockLegacy_HC
+Trace2Pass: Instrumenting function: cpuTimeSpan_sec
+Trace2Pass: Instrumenting function: UTIL_isDirectory
+Trace2Pass: Instrumenting function: getchar
+Trace2Pass: Instrumenting function: LZ4IO_checkWriteOrder
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in LZ4IO_checkWriteOrder
+Trace2Pass: Instrumenting function: WR_addBufDesc
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in WR_addBufDesc
+Trace2Pass: Instrumenting function: LZ4IO_writeBuffer
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in LZ4IO_writeBuffer
+Trace2Pass: Instrumenting function: WR_isPresent
+Trace2Pass: Instrumenting function: WR_getBufID
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in WR_getBufID
+Trace2Pass: Instrumenting function: WR_removeBuffID
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in WR_removeBuffID
+Trace2Pass: Instrumenting function: LZ4IO_compressAndFreeChunk
+Trace2Pass: Instrumenting function: LZ4IO_createCDict
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in LZ4IO_createCDict
+Trace2Pass: Instrumenting function: LZ4IO_createDict
+Trace2Pass: Instrumented 0 arithmetic operations, 4 unreachable blocks, 2 division checks in LZ4IO_createDict
+Trace2Pass: Instrumenting function: LZ4IO_loadDDict
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in LZ4IO_loadDDict
+Trace2Pass: Instrumenting function: selectDecoder
+Trace2Pass: Instrumented 0 arithmetic operations, 4 unreachable blocks in selectDecoder
+Trace2Pass: Instrumenting function: LZ4IO_readLE32
+Trace2Pass: Instrumented 3 arithmetic operations in LZ4IO_readLE32
+Trace2Pass: Instrumenting function: LZ4IO_isSkippableMagicNumber
+Trace2Pass: Instrumenting function: LZ4IO_decompressLZ4F
+Trace2Pass: Instrumented 3 arithmetic operations, 9 unreachable blocks, 1 division checks in LZ4IO_decompressLZ4F
+Trace2Pass: Instrumenting function: LZ4IO_decodeLegacyStream
+Trace2Pass: Instrumented 3 arithmetic operations, 7 unreachable blocks, 1 division checks in LZ4IO_decodeLegacyStream
+Trace2Pass: Instrumenting function: fseek_u32
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in fseek_u32
+Trace2Pass: Instrumenting function: LZ4IO_passThrough
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in LZ4IO_passThrough
+Trace2Pass: Instrumenting function: LZ4IO_createBufferPool
+Trace2Pass: Instrumented 1 arithmetic operations in LZ4IO_createBufferPool
+Trace2Pass: Instrumenting function: LZ4IO_decompressLZ4FChunk
+Trace2Pass: Instrumented 0 arithmetic operations, 6 unreachable blocks in LZ4IO_decompressLZ4FChunk
+Trace2Pass: Instrumenting function: LZ4IO_fwriteSparseEnd
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in LZ4IO_fwriteSparseEnd
+Trace2Pass: Instrumenting function: LZ4IO_freeBufferPool
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in LZ4IO_freeBufferPool
+Trace2Pass: Instrumenting function: BufPool_getBuffer
+Trace2Pass: Instrumented 1 arithmetic operations, 2 unreachable blocks, 1 division checks in BufPool_getBuffer
+Trace2Pass: Instrumenting function: LZ4IO_writeDecodedLZ4FChunk
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in LZ4IO_writeDecodedLZ4FChunk
+Trace2Pass: Instrumenting function: LZ4IO_fwriteSparse
+Trace2Pass: Instrumented 1 arithmetic operations, 6 unreachable blocks, 1 division checks in LZ4IO_fwriteSparse
+Trace2Pass: Instrumenting function: LZ4IO_decompressBlockLegacy
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in LZ4IO_decompressBlockLegacy
+Trace2Pass: Instrumenting function: LZ4IO_writeDecodedChunk
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in LZ4IO_writeDecodedChunk
+Trace2Pass: Instrumenting function: skipStream
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in skipStream
+Trace2Pass: Instrumenting function: UTIL_getFDStat
+Trace2Pass: Instrumenting function: LZ4IO_skipBlocksData
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in LZ4IO_skipBlocksData
+Trace2Pass: Instrumenting function: LZ4IO_skipLegacyBlocksData
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in LZ4IO_skipLegacyBlocksData
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: UTIL_countCores
+LD cachedObjs/12fa9fd07a9e0c2c10c0b402031fdf89/lz4
+/usr/bin/ld: cachedObjs/12fa9fd07a9e0c2c10c0b402031fdf89/lz4.o: in function `LZ4_compress_fast_extState':
+lz4.c:(.text+0x3ac): undefined reference to `trace2pass_should_sample'
+/usr/bin/ld: lz4.c:(.text+0x3e9): undefined reference to `trace2pass_report_overflow'
+/usr/bin/ld: lz4.c:(.text+0x84c): undefined reference to `trace2pass_should_sample'
