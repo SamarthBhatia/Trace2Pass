@@ -1,0 +1,302 @@
+#!/usr/bin/env python3
+"""
+trace2pass-cc — Drop-in compiler wrapper for Trace2Pass healing.
+
+Usage:
+    make CC=/path/to/trace2pass-cc CFLAGS="-O2"
+
+Modes (via TRACE2PASS_HEAL_MODE env var):
+    off         — Pure passthrough to real clang
+    cache-only  — Apply cached recipes, no new diagnosis (default)
+    auto        — Full loop: compile -> test -> diagnose -> heal -> recompile
+
+Environment variables:
+    TRACE2PASS_CLANG       — Path to real clang (default: auto-detect)
+    TRACE2PASS_HEAL_MODE   — Healing mode (default: cache-only)
+    TRACE2PASS_RECIPE_DIR  — Recipe cache directory (default: .trace2pass/recipes)
+    TRACE2PASS_TEST_CMD    — Test command for auto mode ({binary} placeholder)
+    TRACE2PASS_VERBOSE     — Set to 1 for verbose output
+"""
+
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+
+
+def find_clang():
+    """Find the real clang binary."""
+    env_clang = os.environ.get("TRACE2PASS_CLANG")
+    if env_clang:
+        return env_clang
+
+    # Homebrew LLVM (macOS)
+    homebrew = "/opt/homebrew/opt/llvm/bin/clang"
+    if os.path.exists(homebrew):
+        return homebrew
+
+    # System clang (avoid recursion if we're symlinked as 'clang')
+    for path in os.environ.get("PATH", "").split(os.pathsep):
+        candidate = os.path.join(path, "clang")
+        if os.path.exists(candidate) and os.path.realpath(candidate) != os.path.realpath(__file__):
+            return candidate
+
+    print("trace2pass-cc: error: cannot find clang. Set TRACE2PASS_CLANG.", file=sys.stderr)
+    sys.exit(1)
+
+
+def parse_args(argv):
+    """Extract source file and optimization level from compiler arguments."""
+    source_file = None
+    opt_level = None
+    is_compile_only = False
+    output_file = None
+
+    i = 0
+    while i < len(argv):
+        arg = argv[i]
+        if arg.startswith("-O"):
+            opt_level = arg
+        elif arg == "-c":
+            is_compile_only = True
+        elif arg == "-o" and i + 1 < len(argv):
+            output_file = argv[i + 1]
+            i += 1
+        elif not arg.startswith("-") and (arg.endswith(".c") or arg.endswith(".cc")
+                                          or arg.endswith(".cpp") or arg.endswith(".cxx")):
+            source_file = arg
+        i += 1
+
+    return source_file, opt_level or "-O2", is_compile_only, output_file
+
+
+def compute_cache_key(source_file, opt_level):
+    """Compute cache key from source content and optimization level."""
+    with open(source_file, "rb") as f:
+        content = f.read()
+    combined = content + opt_level.encode("utf-8")
+    return hashlib.sha256(combined).hexdigest()
+
+
+def load_recipe(recipe_dir, source_file, opt_level):
+    """Load cached recipe if available."""
+    index_path = os.path.join(recipe_dir, "index.json")
+    if not os.path.exists(index_path):
+        return None
+
+    with open(index_path, "r") as f:
+        index = json.load(f)
+
+    cache_key = compute_cache_key(source_file, opt_level)
+    recipe_id = index.get(cache_key)
+    if not recipe_id:
+        return None
+
+    recipe_path = os.path.join(recipe_dir, f"{recipe_id}.json")
+    if not os.path.exists(recipe_path):
+        return None
+
+    with open(recipe_path, "r") as f:
+        return json.load(f)
+
+
+def apply_recipe(recipe, argv, clang, source_file, opt_level):
+    """Modify compiler arguments based on the healing recipe."""
+    strategy = recipe.get("strategy")
+    verbose = os.environ.get("TRACE2PASS_VERBOSE") == "1"
+
+    if strategy == "pass_bypass":
+        # Add -fno-* flag if available
+        excluded = recipe.get("excluded_passes", [])
+        if excluded:
+            new_argv = list(argv)
+            for flag in excluded:
+                if flag not in new_argv:
+                    new_argv.append(flag)
+            if verbose:
+                print(f"trace2pass-cc: applying pass_bypass: {excluded}", file=sys.stderr)
+            return [clang] + new_argv
+        # Check for disable_flag from workaround recipe
+        disable_flag = recipe.get("disable_flag")
+        if disable_flag and disable_flag not in argv:
+            if verbose:
+                print(f"trace2pass-cc: applying pass_bypass: {disable_flag}", file=sys.stderr)
+            return [clang] + list(argv) + [disable_flag]
+
+    elif strategy == "function_optnone":
+        # Write modified source with optnone attribute to temp file
+        func_name = recipe.get("function_name")
+        if func_name and source_file:
+            modified = inject_optnone(source_file, func_name)
+            if modified:
+                if verbose:
+                    print(f"trace2pass-cc: applying optnone to '{func_name}'", file=sys.stderr)
+                # Replace source file in argv
+                new_argv = []
+                for a in argv:
+                    if a == source_file:
+                        new_argv.append(modified)
+                    else:
+                        new_argv.append(a)
+                return [clang] + new_argv
+
+    elif strategy == "compiler_barrier":
+        # Insert barriers and compile from modified source
+        barrier_locations = recipe.get("barrier_locations", [])
+        if barrier_locations and source_file:
+            modified = inject_barriers(source_file, barrier_locations)
+            if modified:
+                if verbose:
+                    print(f"trace2pass-cc: inserting {len(barrier_locations)} barrier(s)", file=sys.stderr)
+                new_argv = []
+                for a in argv:
+                    if a == source_file:
+                        new_argv.append(modified)
+                    else:
+                        new_argv.append(a)
+                return [clang] + new_argv
+
+    # No modification applicable, passthrough
+    return [clang] + list(argv)
+
+
+def inject_optnone(source_file, func_name):
+    """Inject optnone attribute before function definition."""
+    import re
+
+    with open(source_file, "r") as f:
+        source = f.read()
+
+    attr = (
+        '#if defined(__clang__)\n'
+        '__attribute__((optnone))\n'
+        '#elif defined(__GNUC__)\n'
+        '__attribute__((optimize("O0")))\n'
+        '#endif\n'
+    )
+
+    pattern = (
+        rf'(^[ \t]*(?:static\s+|inline\s+|extern\s+)*'
+        rf'[\w\s\*]+\s+\*?{re.escape(func_name)}\s*\()'
+    )
+    match = re.search(pattern, source, re.MULTILINE)
+    if not match:
+        return None
+
+    # Check not already attributed
+    preceding = source[max(0, match.start() - 200):match.start()]
+    if "optnone" in preceding:
+        # Already patched, use as-is
+        tmpdir = tempfile.mkdtemp(prefix="trace2pass_cc_")
+        path = os.path.join(tmpdir, os.path.basename(source_file))
+        with open(path, "w") as f:
+            f.write(source)
+        return path
+
+    modified = source[:match.start()] + attr + source[match.start():]
+    tmpdir = tempfile.mkdtemp(prefix="trace2pass_cc_")
+    path = os.path.join(tmpdir, os.path.basename(source_file))
+    with open(path, "w") as f:
+        f.write(modified)
+    return path
+
+
+def inject_barriers(source_file, locations):
+    """Insert compiler barriers at specified line numbers."""
+    with open(source_file, "r") as f:
+        lines = f.readlines()
+
+    barrier = '    __asm__ volatile("" ::: "memory");\n'
+    for loc in sorted(locations, key=lambda l: l.get("line", 0), reverse=True):
+        line_no = loc.get("line", 0)
+        if 1 <= line_no <= len(lines):
+            lines.insert(line_no - 1, barrier)
+
+    tmpdir = tempfile.mkdtemp(prefix="trace2pass_cc_")
+    path = os.path.join(tmpdir, os.path.basename(source_file))
+    with open(path, "w") as f:
+        f.writelines(lines)
+    return path
+
+
+def main():
+    clang = find_clang()
+    mode = os.environ.get("TRACE2PASS_HEAL_MODE", "cache-only")
+    recipe_dir = os.environ.get("TRACE2PASS_RECIPE_DIR", ".trace2pass/recipes")
+    verbose = os.environ.get("TRACE2PASS_VERBOSE") == "1"
+
+    argv = sys.argv[1:]
+
+    if mode == "off":
+        os.execvp(clang, [clang] + argv)
+
+    source_file, opt_level, is_compile, output_file = parse_args(argv)
+
+    if mode == "cache-only" and source_file and os.path.exists(source_file):
+        recipe = load_recipe(recipe_dir, source_file, opt_level)
+        if recipe:
+            cmd = apply_recipe(recipe, argv, clang, source_file, opt_level)
+            if verbose:
+                print(f"trace2pass-cc: recipe applied for {os.path.basename(source_file)}", file=sys.stderr)
+            result = subprocess.run(cmd)
+            sys.exit(result.returncode)
+
+    elif mode == "auto" and source_file and os.path.exists(source_file):
+        test_cmd = os.environ.get("TRACE2PASS_TEST_CMD")
+
+        # First, compile normally
+        normal_result = subprocess.run([clang] + argv)
+        if normal_result.returncode != 0:
+            sys.exit(normal_result.returncode)
+
+        # If we have a test command and an output binary, test it
+        if test_cmd and output_file:
+            actual_test = test_cmd.replace("{binary}", output_file)
+            test_result = subprocess.run(actual_test, shell=True, capture_output=True)
+            if test_result.returncode != 0:
+                # Test failed — trigger healing
+                if verbose:
+                    print(f"trace2pass-cc: test failed, triggering healing...", file=sys.stderr)
+                try:
+                    # Add project root to path
+                    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                    sys.path.insert(0, project_root)
+                    from healer import Healer
+
+                    healer = Healer(recipe_cache_dir=recipe_dir)
+                    # Build a minimal diagnosis for healing
+                    # In auto mode, we run full pipeline
+                    sys.path.insert(0, os.path.join(project_root, "diagnoser"))
+                    sys.path.insert(0, os.path.join(project_root, "diagnoser", "src"))
+                    from diagnose import full_pipeline_cmd
+
+                    diagnosis = full_pipeline_cmd(source_file, test_cmd,
+                                                  optimization_level=opt_level)
+                    if diagnosis.get("verdict") == "compiler_bug":
+                        result = healer.heal(diagnosis, source_file, test_cmd,
+                                             optimization_level=opt_level)
+                        if result.test_passed:
+                            if verbose:
+                                print(f"trace2pass-cc: healed! Strategy: {result.recipe.strategy}",
+                                      file=sys.stderr)
+                            # Recompile with healing
+                            recipe = result.recipe.to_dict()
+                            cmd = apply_recipe(recipe, argv, clang, source_file, opt_level)
+                            recompile = subprocess.run(cmd)
+                            sys.exit(recompile.returncode)
+                except Exception as e:
+                    if verbose:
+                        print(f"trace2pass-cc: healing failed: {e}", file=sys.stderr)
+
+        sys.exit(0)
+
+    # Default: passthrough
+    result = subprocess.run([clang] + argv)
+    sys.exit(result.returncode)
+
+
+if __name__ == "__main__":
+    main()

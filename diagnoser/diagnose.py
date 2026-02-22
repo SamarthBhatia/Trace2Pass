@@ -36,6 +36,9 @@ from pass_bisector import PassBisector, PassBisectionResult
 from pass_bisector_enhanced import EnhancedPassBisector, PassHeuristicScorer
 from instrumentation import test_with_instrumentation, create_instrumented_test_function
 
+# Add healer to path
+sys.path.insert(0, str(Path(__file__).parent.parent / "healer"))
+
 
 def analyze_report_cmd(report_file: str, full_diagnosis: bool = False,
                        use_docker: bool = True,
@@ -953,6 +956,92 @@ def full_pipeline_cmd(source_file: str, test_command: str,
         }
 
 
+def heal_cmd(source_file: str, test_command: str,
+             strategy: str = "auto",
+             optimization_level: str = "-O2",
+             recipe_dir: str = ".trace2pass/recipes",
+             benchmark: bool = False,
+             use_docker: bool = True,
+             docker_image: Optional[str] = None,
+             use_clang_bisect: bool = False) -> Dict[str, Any]:
+    """
+    Run full diagnosis pipeline then heal the identified compiler bug.
+
+    Args:
+        source_file: Path to C source file
+        test_command: Test command with {binary} placeholder
+        strategy: Healing strategy ("auto", "function_optnone", "pass_bypass", "compiler_barrier")
+        optimization_level: Optimization level (default: -O2)
+        recipe_dir: Directory for recipe cache
+        benchmark: Measure performance overhead
+        use_docker: Use Docker for version bisection
+        docker_image: Custom Docker image for pass bisection
+        use_clang_bisect: Use clang -opt-bisect-limit for pass bisection
+
+    Returns:
+        Combined diagnosis + healing result dictionary
+    """
+    # Step 1: Run full diagnosis pipeline
+    diagnosis = full_pipeline_cmd(
+        source_file, test_command,
+        optimization_level=optimization_level,
+        use_docker=use_docker,
+        docker_image=docker_image,
+        use_clang_bisect=use_clang_bisect,
+    )
+
+    # Only heal if verdict is compiler_bug
+    if diagnosis.get("verdict") != "compiler_bug":
+        diagnosis["healing"] = {
+            "status": "skipped",
+            "reason": f"Verdict is '{diagnosis.get('verdict')}', not 'compiler_bug'"
+        }
+        return diagnosis
+
+    # Step 2: Heal
+    print("\n=== Stage 4/4: Healing ===")
+    try:
+        from healer import Healer
+    except ImportError:
+        # Try direct path
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        from healer import Healer
+
+    healer = Healer(recipe_cache_dir=recipe_dir)
+    result = healer.heal(
+        diagnosis, source_file, test_command,
+        strategy=strategy,
+        optimization_level=optimization_level,
+        benchmark=benchmark,
+    )
+
+    # Add healing results to diagnosis
+    healing_info = {
+        "status": "healed" if result.test_passed else "failed",
+        "strategy_used": result.recipe.strategy if result.recipe else None,
+        "strategies_tried": result.strategies_tried,
+        "verified": result.test_passed,
+        "perf_overhead_pct": result.perf_overhead_pct,
+        "error": result.error,
+    }
+    if result.recipe:
+        healing_info["recipe_id"] = result.recipe.recipe_id
+        healing_info["description"] = result.compile_command
+
+    diagnosis["healing"] = healing_info
+
+    if result.test_passed:
+        print(f"\n✓ Healing successful! Strategy: {result.recipe.strategy}")
+        if result.perf_overhead_pct is not None:
+            print(f"  Performance overhead: {result.perf_overhead_pct:.2f}%")
+    else:
+        print(f"\n✗ Healing failed. Strategies tried: {result.strategies_tried}")
+        if result.error:
+            print(f"  Error: {result.error}")
+
+    return diagnosis
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Trace2Pass Diagnoser - Automated Compiler Bug Diagnosis",
@@ -1042,6 +1131,30 @@ def main():
                                  help='Custom Docker image for pass bisection (e.g., "trace2pass-buggy:115458"). '
                                       'Overrides default silkeh/clang image.')
 
+    # heal command
+    heal_parser = subparsers.add_parser(
+        'heal',
+        help='Run full diagnosis pipeline then automatically heal the compiler bug'
+    )
+    heal_parser.add_argument('source_file', help='Path to C source file')
+    heal_parser.add_argument('test_command',
+                             help='Test command with {binary} placeholder (e.g., "{binary} | grep -q OK")')
+    heal_parser.add_argument('--strategy', default='auto',
+                             choices=['auto', 'function_optnone', 'pass_bypass', 'compiler_barrier'],
+                             help='Healing strategy (default: auto)')
+    heal_parser.add_argument('--optimization-level', default='-O2',
+                             help='Optimization level (default: -O2)')
+    heal_parser.add_argument('--recipe-dir', default='.trace2pass/recipes',
+                             help='Directory for recipe cache (default: .trace2pass/recipes)')
+    heal_parser.add_argument('--benchmark', action='store_true', default=False,
+                             help='Measure performance overhead of healing')
+    heal_parser.add_argument('--no-docker', dest='use_docker', action='store_false', default=True,
+                             help='Disable Docker for version bisection')
+    heal_parser.add_argument('--use-clang-bisect', action='store_true', default=False,
+                             help='Use clang -opt-bisect-limit for pass bisection')
+    heal_parser.add_argument('--docker-image',
+                             help='Custom Docker image for pass bisection')
+
     args = parser.parse_args()
 
     if not args.command:
@@ -1077,6 +1190,15 @@ def main():
                                       use_instrumentation=args.use_instrumentation,
                                       use_enhanced=args.use_enhanced,
                                       use_clang_bisect=args.use_clang_bisect)
+        elif args.command == 'heal':
+            result = heal_cmd(args.source_file, args.test_command,
+                              strategy=args.strategy,
+                              optimization_level=args.optimization_level,
+                              recipe_dir=args.recipe_dir,
+                              benchmark=args.benchmark,
+                              use_docker=args.use_docker,
+                              docker_image=getattr(args, 'docker_image', None),
+                              use_clang_bisect=args.use_clang_bisect)
         else:
             parser.print_help()
             sys.exit(1)
