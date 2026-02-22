@@ -53,8 +53,12 @@ get_project_url() {
         quickjs)        echo "QUICKJS_TARBALL" ;;
         mruby)          echo "https://github.com/mruby/mruby.git" ;;
         monocypher)     echo "https://github.com/LoupVaillant/Monocypher.git" ;;
-        libsodium)      echo "https://github.com/jedisct1/libsodium.git" ;;
+        libsodium)      echo "LIBSODIUM_TARBALL" ;;
         tinycc)         echo "https://repo.or.cz/tinycc.git" ;;
+        # --- C++ projects for Strategy 3 ---
+        simdjson)       echo "https://github.com/simdjson/simdjson.git" ;;
+        fmt)            echo "https://github.com/fmtlib/fmt.git" ;;
+        glm)            echo "https://github.com/g-truc/glm.git" ;;
         *)              echo "UNKNOWN" ;;
     esac
 }
@@ -84,6 +88,9 @@ get_project_download() {
             ;;
         QUICKJS_TARBALL)
             echo "cd /workspace && wget -q https://bellard.org/quickjs/quickjs-2024-01-13.tar.xz && tar xJf quickjs-2024-01-13.tar.xz && mv quickjs-2024-01-13 project"
+            ;;
+        LIBSODIUM_TARBALL)
+            echo "cd /workspace && wget -q https://download.libsodium.org/libsodium/releases/libsodium-1.0.20-stable.tar.gz -O libsodium.tar.gz || wget -q https://github.com/jedisct1/libsodium/releases/download/1.0.20-RELEASE/libsodium-1.0.20.tar.gz -O libsodium.tar.gz && tar xzf libsodium.tar.gz && mv libsodium-* project"
             ;;
         UNKNOWN)
             echo "echo 'ERROR: Unknown project $proj' && exit 1"
@@ -818,9 +825,18 @@ BUILDEOF
         quickjs)
             cat <<'BUILDEOF'
 cd /workspace/project
-# QuickJS: use the Makefile but inject our CFLAGS
-make CC="$CC" CFLAGS_OPT="" CFLAGS_EXTRA="$CFLAGS -fpass-plugin=$TRACE2PASS_PLUGIN -D_GNU_SOURCE" -j$(nproc) qjs 2>&1 || \
-    make CC="$CC" CFLAGS="$CFLAGS -fpass-plugin=$TRACE2PASS_PLUGIN -D_GNU_SOURCE -DCONFIG_BIGNUM" -j$(nproc) qjs 2>&1
+# QuickJS: compile key files directly to avoid Makefile CFLAGS conflicts
+# Add _GNU_SOURCE and compat defines for glibc headers
+QJSFLAGS="$CFLAGS -fpass-plugin=$TRACE2PASS_PLUGIN -D_GNU_SOURCE -DCONFIG_VERSION=\"2024-01-13\""
+$CC $QJSFLAGS -c quickjs.c -o quickjs.o
+$CC $QJSFLAGS -c quickjs-libc.c -o quickjs-libc.o
+$CC $QJSFLAGS -c cutils.c -o cutils.o
+$CC $QJSFLAGS -c libbf.c -o libbf.o
+$CC $QJSFLAGS -c libregexp.c -o libregexp.o
+$CC $QJSFLAGS -c libunicode.c -o libunicode.o
+$CC $QJSFLAGS -c qjs.c -o qjs.o
+$CC qjs.o quickjs.o quickjs-libc.o cutils.o libbf.o libregexp.o libunicode.o \
+    $TRACE2PASS_RUNTIME -lm -lpthread -ldl -o qjs
 cat > /tmp/qjs_test.js << 'QJSEOF'
 var r = 2 + 3 * 4;
 if (r !== 14) throw new Error("arithmetic: " + r);
@@ -885,15 +901,8 @@ BUILDEOF
         libsodium)
             cat <<'BUILDEOF'
 cd /workspace/project
-apt-get update -qq && apt-get install -y -qq autoconf automake libtool 2>/dev/null || true
-./autogen.sh 2>/dev/null || true
-if [ -f configure ]; then
-    CC="$CC" CFLAGS="$CFLAGS -fpass-plugin=$TRACE2PASS_PLUGIN" ./configure --disable-shared --enable-static --disable-asm
-    make -j$(nproc)
-else
-    echo "libsodium: autogen failed, skipping"
-    exit 1
-fi
+CC="$CC" CFLAGS="$CFLAGS -fpass-plugin=$TRACE2PASS_PLUGIN" ./configure --disable-shared --enable-static --disable-asm
+make -j$(nproc)
 BUILDEOF
             ;;
         tinycc)
@@ -903,6 +912,137 @@ cd /workspace/project
 make -j$(nproc)
 echo 'int main(){return 42;}' > /tmp/tcc_test.c
 ./tcc -run /tmp/tcc_test.c; [ $? -eq 42 ] && echo "tinycc: OK (exit 42)" || echo "tinycc: FAIL"
+BUILDEOF
+            ;;
+        # --- C++ projects for Strategy 3 ---
+        simdjson)
+            cat <<'BUILDEOF'
+cd /workspace/project
+cat > /tmp/simdjson_test.cpp << 'SJEOF'
+#include "simdjson.h"
+#include <iostream>
+#include <cstring>
+#include <cmath>
+int main() {
+    // Test 1: basic JSON parsing
+    const char *json = R"({"name":"trace2pass","version":1,"values":[1.5,2.5,3.5]})";
+    simdjson::ondemand::parser parser;
+    simdjson::padded_string padded = simdjson::padded_string(json, strlen(json));
+    auto doc = parser.iterate(padded);
+    std::string_view name = doc["name"].get_string().value();
+    if (name != "trace2pass") { std::cout << "FAIL: name=" << name << std::endl; return 1; }
+    int64_t version = doc["version"].get_int64().value();
+    if (version != 1) { std::cout << "FAIL: version=" << version << std::endl; return 1; }
+
+    // Test 2: floating-point precision (sensitive to -ffast-math)
+    const char *json2 = R"({"pi":3.141592653589793,"e":2.718281828459045,"tiny":1e-308})";
+    simdjson::padded_string padded2 = simdjson::padded_string(json2, strlen(json2));
+    auto doc2 = parser.iterate(padded2);
+    double pi = doc2["pi"].get_double().value();
+    if (std::abs(pi - 3.141592653589793) > 1e-15) { std::cout << "FAIL: pi=" << pi << std::endl; return 1; }
+    double tiny = doc2["tiny"].get_double().value();
+    if (tiny != 1e-308) { std::cout << "FAIL: tiny=" << tiny << std::endl; return 1; }
+
+    std::cout << "simdjson: all tests OK (parsing, float precision)" << std::endl;
+    return 0;
+}
+SJEOF
+$CXX -std=c++17 $CFLAGS -fpass-plugin=$TRACE2PASS_PLUGIN -I/workspace/project/singleheader \
+    /workspace/project/singleheader/simdjson.cpp /tmp/simdjson_test.cpp \
+    $TRACE2PASS_RUNTIME -o simdjson_test
+BUILDEOF
+            ;;
+        fmt)
+            cat <<'BUILDEOF'
+cd /workspace/project
+cat > /tmp/fmt_test.cpp << 'FMTEOF'
+#define FMT_HEADER_ONLY
+#include "fmt/format.h"
+#include "fmt/core.h"
+#include <iostream>
+#include <string>
+#include <cmath>
+int main() {
+    // Test 1: basic formatting
+    std::string s1 = fmt::format("Hello, {}!", "world");
+    if (s1 != "Hello, world!") { std::cout << "FAIL: " << s1 << std::endl; return 1; }
+
+    // Test 2: integer formatting
+    std::string s2 = fmt::format("{:08x}", 255);
+    if (s2 != "000000ff") { std::cout << "FAIL: " << s2 << std::endl; return 1; }
+
+    // Test 3: float formatting (sensitive to -ffast-math)
+    std::string s3 = fmt::format("{:.6f}", 3.141593);
+    if (s3 != "3.141593") { std::cout << "FAIL: " << s3 << std::endl; return 1; }
+
+    // Test 4: NaN/Inf formatting (breaks with -ffast-math)
+    double nan_val = std::nan("");
+    double inf_val = INFINITY;
+    std::string s4 = fmt::format("{}", nan_val);
+    std::string s5 = fmt::format("{}", inf_val);
+    // NaN should format as "nan", Inf as "inf"
+    if (s4 != "nan") { std::cout << "FAIL: nan=" << s4 << std::endl; return 1; }
+    if (s5 != "inf") { std::cout << "FAIL: inf=" << s5 << std::endl; return 1; }
+
+    std::cout << "fmt: all tests OK (strings, hex, float, nan/inf)" << std::endl;
+    return 0;
+}
+FMTEOF
+$CXX -std=c++17 $CFLAGS -fpass-plugin=$TRACE2PASS_PLUGIN -I/workspace/project/include \
+    /tmp/fmt_test.cpp $TRACE2PASS_RUNTIME -o fmt_test
+BUILDEOF
+            ;;
+        glm)
+            cat <<'BUILDEOF'
+cd /workspace/project
+cat > /tmp/glm_test.cpp << 'GLMEOF'
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/string_cast.hpp>
+#include <iostream>
+#include <cmath>
+int main() {
+    // Test 1: cross product (basic vector math)
+    glm::vec3 a(1.0f, 0.0f, 0.0f);
+    glm::vec3 b(0.0f, 1.0f, 0.0f);
+    glm::vec3 c = glm::cross(a, b);
+    if (std::abs(c.z - 1.0f) > 1e-6f) { std::cout << "FAIL: cross=" << glm::to_string(c) << std::endl; return 1; }
+
+    // Test 2: matrix rotation (IEEE float precision matters)
+    glm::mat4 identity(1.0f);
+    glm::mat4 rot = glm::rotate(identity, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    glm::vec4 v(1.0f, 0.0f, 0.0f, 1.0f);
+    glm::vec4 result = rot * v;
+    // After 90-degree rotation around Z, (1,0,0) → (0,1,0)
+    if (std::abs(result.x) > 1e-5f || std::abs(result.y - 1.0f) > 1e-5f) {
+        std::cout << "FAIL: rot=" << glm::to_string(result) << std::endl; return 1;
+    }
+
+    // Test 3: normalize (division, sqrt — sensitive to -ffast-math)
+    glm::vec3 n = glm::normalize(glm::vec3(3.0f, 4.0f, 0.0f));
+    float len = glm::length(n);
+    if (std::abs(len - 1.0f) > 1e-6f) { std::cout << "FAIL: len=" << len << std::endl; return 1; }
+    if (std::abs(n.x - 0.6f) > 1e-6f || std::abs(n.y - 0.8f) > 1e-6f) {
+        std::cout << "FAIL: norm=" << glm::to_string(n) << std::endl; return 1;
+    }
+
+    // Test 4: determinant (matrix operations, FP accumulation)
+    glm::mat4 m = glm::mat4(1.0f);
+    float det = glm::determinant(m);
+    if (std::abs(det - 1.0f) > 1e-6f) { std::cout << "FAIL: det=" << det << std::endl; return 1; }
+
+    // Test 5: perspective projection (tan, division — IEEE sensitive)
+    glm::mat4 proj = glm::perspective(glm::radians(45.0f), 16.0f/9.0f, 0.1f, 100.0f);
+    if (std::abs(proj[3][3]) > 1e-6f) { std::cout << "FAIL: proj[3][3]=" << proj[3][3] << std::endl; return 1; }
+
+    std::cout << "glm: all tests OK (cross, rotate, normalize, det, perspective)" << std::endl;
+    return 0;
+}
+GLMEOF
+$CXX -std=c++17 $CFLAGS -fpass-plugin=$TRACE2PASS_PLUGIN -I/workspace/project \
+    /tmp/glm_test.cpp $TRACE2PASS_RUNTIME -lm -o glm_test
 BUILDEOF
             ;;
         *)
@@ -952,6 +1092,10 @@ get_project_test() {
         monocypher)     echo "./monocypher_test" ;;
         libsodium)      echo "make check 2>/dev/null || echo 'libsodium: build OK'" ;;
         tinycc)         echo "echo 'int main(){return 0;}' > /tmp/t.c && ./tcc -run /tmp/t.c" ;;
+        # --- C++ projects ---
+        simdjson)       echo "./simdjson_test" ;;
+        fmt)            echo "./fmt_test" ;;
+        glm)            echo "./glm_test" ;;
         *)              echo "echo 'Unknown'" ;;
     esac
 }
@@ -977,6 +1121,10 @@ get_project_category() {
         duktape|quickjs|mruby)              echo "interpreter" ;;
         monocypher|libsodium)               echo "crypto" ;;
         tinycc)                             echo "compiler" ;;
+        # --- C++ projects ---
+        simdjson)                           echo "parsing" ;;
+        fmt)                                echo "formatting" ;;
+        glm)                                echo "math" ;;
         *)                                  echo "other" ;;
     esac
 }
@@ -987,7 +1135,7 @@ get_project_opt_level() {
     esac
 }
 
-# All projects in order (original 25 + 13 new)
+# All projects in order (original 25 + 13 new C + 3 C++)
 ALL_PROJECTS=(
     cjson xxhash lz4 miniz stb picohttpparser utf8proc qsort
     zlib lua sqlite yyjson http-parser
@@ -997,6 +1145,7 @@ ALL_PROJECTS=(
     dr_libs miniaudio lodepng giflib tinyexpr
     libdeflate snappy duktape quickjs mruby
     monocypher libsodium
+    simdjson fmt glm
 )
 # Backwards compat alias
 ALL_25_PROJECTS=("${ALL_PROJECTS[@]}")

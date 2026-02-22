@@ -50,11 +50,13 @@ if [ -z "$DOCKER_IMAGE" ]; then
 fi
 
 # --- Projects with meaningful test suites ---
-# Original 11 + new projects. Excluded: snappy (C++), quickjs/libsodium (build issues)
+# Original 20 C projects + libsodium (fixed) + 3 C++ projects
+# Excluded: quickjs (bootstrap build requires qjsc codegen, incompatible with direct compilation)
 S3_PROJECTS=(
     mbedtls lua sqlite tcc zlib lz4 cjson brotli zstd yyjson xxhash
     dr_libs miniaudio lodepng giflib tinyexpr libdeflate
-    duktape mruby monocypher
+    duktape mruby monocypher libsodium
+    simdjson fmt glm
 )
 
 if [ -n "$SINGLE_PROJECT" ]; then
