@@ -76,7 +76,7 @@ class FunctionOptNoneStrategy(HealingStrategy):
     def apply(self, diagnosis: dict, source_file: str,
               optimization_level: str, clang_path: str,
               **kwargs) -> Optional[HealingArtifact]:
-        func_name = self._extract_function_name(diagnosis)
+        func_name = self._extract_function_name(diagnosis, source_file)
         if not func_name:
             return None
 
@@ -103,11 +103,9 @@ class FunctionOptNoneStrategy(HealingStrategy):
                         f"via __attribute__((optnone))",
         )
 
-    def _extract_function_name(self, diagnosis: dict) -> Optional[str]:
+    def _extract_function_name(self, diagnosis: dict,
+                               source_file: str = None) -> Optional[str]:
         """Extract function name from diagnosis anomaly or pass bisection data."""
-        # Check pass_bisection for function context
-        pass_bis = diagnosis.get("pass_bisection", {})
-
         # Check anomaly location
         anomaly = diagnosis.get("anomaly", {})
         location = anomaly.get("location", {})
@@ -121,9 +119,36 @@ class FunctionOptNoneStrategy(HealingStrategy):
         if func:
             return func
 
-        # Try to extract from test_command or source context
-        # (fallback: look for 'main' if nothing else available)
+        # Fallback: parse source file for C function definitions
+        if source_file:
+            candidates = self._parse_function_candidates(source_file)
+            if candidates:
+                return candidates[0]
+
         return None
+
+    @staticmethod
+    def _parse_function_candidates(source_file: str) -> List[str]:
+        """Parse C source for function definitions, return names excluding main."""
+        try:
+            with open(source_file, "r") as f:
+                source = f.read()
+        except OSError:
+            return []
+
+        # Match function definitions at column 0: return_type func_name(
+        pattern = r'^[\w][\w\s\*]*\s+(\w+)\s*\([^)]*\)\s*\{'
+        non_functions = {"if", "for", "while", "switch", "return", "sizeof",
+                         "else", "do", "typedef"}
+        candidates = []
+        for m in re.finditer(pattern, source, re.MULTILINE):
+            name = m.group(1)
+            if name not in non_functions and name != "main":
+                candidates.append(name)
+        # Add main last as ultimate fallback
+        if re.search(r'^[\w][\w\s\*]*\s+main\s*\(', source, re.MULTILINE):
+            candidates.append("main")
+        return candidates
 
     def _inject_optnone(self, source: str, func_name: str) -> Optional[str]:
         """
@@ -186,6 +211,21 @@ class PassBypassStrategy(HealingStrategy):
                 compile_command=[clang_path, optimization_level, disable_flag,
                                  source_file, "-o", "{output}"],
                 description=f"Disabled pass '{culprit}' via {disable_flag}",
+            )
+
+        # clang opt-bisect-limit: stop pipeline just before the culprit pass
+        mode = pass_bis.get("mode")
+        culprit_index = pass_bis.get("culprit_index")
+        if mode == "clang_opt_bisect_limit" and culprit_index is not None:
+            limit = culprit_index - 1
+            return HealingArtifact(
+                strategy=self.name,
+                compile_command=[
+                    clang_path, optimization_level,
+                    "-mllvm", f"-opt-bisect-limit={limit}",
+                    source_file, "-o", "{output}",
+                ],
+                description=f"Bypassing '{culprit}' via -opt-bisect-limit={limit}",
             )
 
         # No -fno-* flag: build custom pipeline minus the culprit

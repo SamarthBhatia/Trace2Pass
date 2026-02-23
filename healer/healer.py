@@ -153,22 +153,34 @@ class Healer:
             strategies_tried.append(strat_name)
             self._log(f"Trying strategy: {strat_name}")
 
-            artifact = strat.apply(
-                diagnosis, source_file, optimization_level, self.clang_path
-            )
-            if artifact is None:
-                self._log(f"  Strategy {strat_name} not applicable")
-                continue
+            # For function_optnone, try multiple function candidates
+            if strat_name == "function_optnone":
+                candidates = FunctionOptNoneStrategy._parse_function_candidates(
+                    source_file
+                )
+                verified, artifact = self._try_optnone_candidates(
+                    strat, diagnosis, source_file, optimization_level,
+                    test_command, candidates
+                )
+                if not verified:
+                    continue
+            else:
+                artifact = strat.apply(
+                    diagnosis, source_file, optimization_level, self.clang_path
+                )
+                if artifact is None:
+                    self._log(f"  Strategy {strat_name} not applicable")
+                    continue
 
-            self._log(f"  Applied: {artifact.description}")
+                self._log(f"  Applied: {artifact.description}")
 
-            # Verify the fix
-            verified = self._verify(source_file, test_command, artifact,
-                                    optimization_level)
-            if not verified:
-                self._log(f"  Verification FAILED for {strat_name}")
-                self._cleanup_artifact(artifact)
-                continue
+                # Verify the fix
+                verified = self._verify(source_file, test_command, artifact,
+                                        optimization_level)
+                if not verified:
+                    self._log(f"  Verification FAILED for {strat_name}")
+                    self._cleanup_artifact(artifact)
+                    continue
 
             self._log(f"  Verification PASSED for {strat_name}")
 
@@ -225,6 +237,49 @@ class Healer:
             strategies_tried=strategies_tried,
             error="All healing strategies failed verification",
         )
+
+    def _try_optnone_candidates(
+        self, strat, diagnosis, source_file, optimization_level,
+        test_command, candidates
+    ):
+        """Try function_optnone with each candidate function until one works."""
+        if not candidates:
+            # Let the strategy try its own extraction (diagnosis-based)
+            artifact = strat.apply(
+                diagnosis, source_file, optimization_level, self.clang_path
+            )
+            if artifact is None:
+                self._log(f"  Strategy function_optnone not applicable")
+                return False, None
+            self._log(f"  Applied: {artifact.description}")
+            verified = self._verify(source_file, test_command, artifact,
+                                    optimization_level)
+            if not verified:
+                self._log(f"  Verification FAILED for function_optnone")
+                self._cleanup_artifact(artifact)
+            return verified, artifact
+
+        for func_name in candidates:
+            self._log(f"  Trying optnone on function '{func_name}'")
+            # Temporarily inject function name into diagnosis for the strategy
+            patched = dict(diagnosis)
+            patched["anomaly"] = {
+                "location": {"function": func_name},
+            }
+            artifact = strat.apply(
+                patched, source_file, optimization_level, self.clang_path
+            )
+            if artifact is None:
+                continue
+            self._log(f"  Applied: {artifact.description}")
+            verified = self._verify(source_file, test_command, artifact,
+                                    optimization_level)
+            if verified:
+                return True, artifact
+            self._log(f"  Verification FAILED for optnone({func_name})")
+            self._cleanup_artifact(artifact)
+
+        return False, None
 
     def _select_strategy(self, diagnosis: dict) -> str:
         """Auto-select the best strategy based on diagnosis."""
