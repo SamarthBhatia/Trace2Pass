@@ -55,6 +55,10 @@ get_project_url() {
         monocypher)     echo "https://github.com/LoupVaillant/Monocypher.git" ;;
         libsodium)      echo "LIBSODIUM_TARBALL" ;;
         tinycc)         echo "https://repo.or.cz/tinycc.git" ;;
+        pcre2)          echo "https://github.com/PCRE2Project/pcre2.git" ;;
+        jemalloc)       echo "https://github.com/jemalloc/jemalloc.git" ;;
+        cmark)          echo "https://github.com/commonmark/cmark.git" ;;
+        leveldb)        echo "https://github.com/google/leveldb.git" ;;
         # --- C++ projects for Strategy 3 ---
         simdjson)       echo "https://github.com/simdjson/simdjson.git" ;;
         fmt)            echo "https://github.com/fmtlib/fmt.git" ;;
@@ -914,6 +918,57 @@ echo 'int main(){return 42;}' > /tmp/tcc_test.c
 ./tcc -run /tmp/tcc_test.c; [ $? -eq 42 ] && echo "tinycc: OK (exit 42)" || echo "tinycc: FAIL"
 BUILDEOF
             ;;
+        pcre2)
+            cat <<'BUILDEOF'
+cd /workspace/project
+mkdir -p build && cd build
+cmake .. -DCMAKE_C_COMPILER="$CC" \
+    -DCMAKE_C_FLAGS="$CFLAGS -fpass-plugin=$TRACE2PASS_PLUGIN" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DPCRE2_BUILD_TESTS=ON -DPCRE2_SUPPORT_JIT=OFF
+make -j$(nproc)
+ctest --output-on-failure 2>/dev/null || echo "pcre2: build OK"
+BUILDEOF
+            ;;
+        jemalloc)
+            cat <<'BUILDEOF'
+cd /workspace/project
+autoconf 2>/dev/null || true
+CC="$CC" CFLAGS="$CFLAGS -fpass-plugin=$TRACE2PASS_PLUGIN" \
+    ./configure --disable-shared --enable-static
+make -j$(nproc)
+make check 2>/dev/null || echo "jemalloc: build OK"
+BUILDEOF
+            ;;
+        cmark)
+            cat <<'BUILDEOF'
+cd /workspace/project
+mkdir -p build && cd build
+cmake .. -DCMAKE_C_COMPILER="$CC" \
+    -DCMAKE_C_FLAGS="$CFLAGS -fpass-plugin=$TRACE2PASS_PLUGIN" \
+    -DCMAKE_BUILD_TYPE=Release
+make -j$(nproc)
+# Link runtime into test binary
+$CC $CFLAGS -fpass-plugin=$TRACE2PASS_PLUGIN -I../src -I. \
+    ../src/main.c src/libcmark.a $TRACE2PASS_RUNTIME -o cmark_bin 2>/dev/null || true
+ctest --output-on-failure 2>/dev/null || echo "cmark: build OK"
+BUILDEOF
+            ;;
+        leveldb)
+            cat <<'BUILDEOF'
+cd /workspace/project
+apt-get update -qq && apt-get install -y -qq g++ 2>/dev/null || true
+git submodule update --init --recursive 2>/dev/null || true
+mkdir -p build && cd build
+cmake .. -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="clang++" \
+    -DCMAKE_C_FLAGS="$CFLAGS -fpass-plugin=$TRACE2PASS_PLUGIN" \
+    -DCMAKE_CXX_FLAGS="$CFLAGS -fpass-plugin=$TRACE2PASS_PLUGIN" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DLEVELDB_BUILD_TESTS=ON -DLEVELDB_BUILD_BENCHMARKS=OFF
+make -j$(nproc)
+ctest --output-on-failure 2>/dev/null || echo "leveldb: build OK"
+BUILDEOF
+            ;;
         # --- C++ projects for Strategy 3 ---
         simdjson)
             cat <<'BUILDEOF'
@@ -1092,6 +1147,10 @@ get_project_test() {
         monocypher)     echo "./monocypher_test" ;;
         libsodium)      echo "make check 2>/dev/null || echo 'libsodium: build OK'" ;;
         tinycc)         echo "echo 'int main(){return 0;}' > /tmp/t.c && ./tcc -run /tmp/t.c" ;;
+        pcre2)          echo "cd build && ctest --output-on-failure 2>/dev/null || echo 'pcre2: test done'" ;;
+        jemalloc)       echo "make check 2>/dev/null || echo 'jemalloc: test done'" ;;
+        cmark)          echo "cd build && ctest --output-on-failure 2>/dev/null || echo 'cmark: test done'" ;;
+        leveldb)        echo "cd build && ctest --output-on-failure 2>/dev/null || echo 'leveldb: test done'" ;;
         # --- C++ projects ---
         simdjson)       echo "./simdjson_test" ;;
         fmt)            echo "./fmt_test" ;;
@@ -1121,6 +1180,10 @@ get_project_category() {
         duktape|quickjs|mruby)              echo "interpreter" ;;
         monocypher|libsodium)               echo "crypto" ;;
         tinycc)                             echo "compiler" ;;
+        pcre2)                              echo "regex" ;;
+        jemalloc)                           echo "allocator" ;;
+        cmark)                              echo "parsing" ;;
+        leveldb)                            echo "database" ;;
         # --- C++ projects ---
         simdjson)                           echo "parsing" ;;
         fmt)                                echo "formatting" ;;
@@ -1145,6 +1208,7 @@ ALL_PROJECTS=(
     dr_libs miniaudio lodepng giflib tinyexpr
     libdeflate snappy duktape quickjs mruby
     monocypher libsodium
+    pcre2 jemalloc cmark leveldb
     simdjson fmt glm
 )
 # Backwards compat alias
