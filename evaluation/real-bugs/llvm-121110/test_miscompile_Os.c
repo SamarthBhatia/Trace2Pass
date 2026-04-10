@@ -28,4 +28,7 @@ static short j(unsigned long i) {
 int main() {
   j(6 < (unsigned short)(f - 7) + f);
   printf("%d\n", a);
+  if (a != 0)
+    return 1;
+  return 0;
 }

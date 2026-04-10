@@ -52,6 +52,9 @@ int8_t k() {
 }
 
 int main() {
-  printf("%d\n", k());
+  int result = k();
+  printf("%d\n", result);
+  if (result != 0)
+    return 1;
   return 0;
 }

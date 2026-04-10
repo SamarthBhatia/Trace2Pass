@@ -3,8 +3,8 @@
 # Usage: bash evaluation/scripts/test_all_bugs_local.sh [--with-instrumentation]
 
 PROJ_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-CLANG="/opt/homebrew/opt/llvm/bin/clang"
-CLANGPP="/opt/homebrew/opt/llvm/bin/clang++"
+CLANG="${CLANG:-clang}"
+CLANGPP="${CLANGPP:-clang++}"
 PLUGIN="$PROJ_ROOT/instrumentor/build/Trace2PassInstrumentor.so"
 RUNTIME="$PROJ_ROOT/runtime/build/libTrace2PassRuntime.a"
 RESULTS_DIR="$PROJ_ROOT/evaluation/results"
@@ -33,7 +33,7 @@ test_bug() {
   local o0_exit=99 o0_output="COMPILE_FAIL"
   if $CC -O0 "$full_path" -o /tmp/test_${bug_id}_O0 -lm 2>/dev/null; then
     o0_output=$(timeout 10 /tmp/test_${bug_id}_O0 2>/dev/null) || true
-    /tmp/test_${bug_id}_O0 >/dev/null 2>&1
+    timeout 10 /tmp/test_${bug_id}_O0 >/dev/null 2>&1
     o0_exit=$?
   fi
 
@@ -41,7 +41,7 @@ test_bug() {
   local o2_exit=99 o2_output="COMPILE_FAIL"
   if $CC $opt_level "$full_path" -o /tmp/test_${bug_id}_O2 -lm 2>/dev/null; then
     o2_output=$(timeout 10 /tmp/test_${bug_id}_O2 2>/dev/null) || true
-    /tmp/test_${bug_id}_O2 >/dev/null 2>&1
+    timeout 10 /tmp/test_${bug_id}_O2 >/dev/null 2>&1
     o2_exit=$?
   fi
 
@@ -118,6 +118,20 @@ test_bug 124275 "evaluation/real-bugs/llvm-124275/test_bug.c" "-O1" "c"
 test_bug 58765 "evaluation/real-bugs/llvm-58765/test_bug.c" "-O1" "c"
 test_bug 98753 "evaluation/real-bugs/llvm-98753/test_bug.cpp" "-O1" "cpp"
 test_bug 175018 "evaluation/real-bugs/llvm-175018/test_bug.cpp" "-O1" "cpp"
+
+# New bugs added 2026-04-10
+test_bug 166496 "evaluation/real-bugs/llvm-166496/test_bug.c" "-O1" "c"
+test_bug 116483 "evaluation/real-bugs/llvm-116483/test_bug.c" "-O3" "c"
+test_bug 87534 "evaluation/real-bugs/llvm-87534/test_bug.c" "-O1" "c"
+test_bug 79743 "evaluation/real-bugs/llvm-79743/test_bug.c" "-O2" "c"
+test_bug 129181 "evaluation/real-bugs/llvm-129181/test_bug.c" "-O2" "c"
+test_bug 164617 "evaluation/real-bugs/llvm-164617/test_bug.c" "-O2" "c"
+test_bug 124387 "evaluation/real-bugs/llvm-124387/test_bug.c" "-O2" "c"
+test_bug 121110 "evaluation/real-bugs/llvm-121110/test_miscompile_Os.c" "-Os" "c"
+test_bug 85536 "evaluation/real-bugs/llvm-85536/test_bug.c" "-O2" "c"
+test_bug 140481 "evaluation/real-bugs/llvm-140481/test_bug.c" "-O2" "c"
+test_bug 62992 "evaluation/real-bugs/llvm-62992/test_bug.c" "-O1" "c"
+test_bug 181103 "evaluation/real-bugs/llvm-181103/test_bug.c" "-O3" "c"
 
 echo ""
 echo "=== Results saved to $OUTFILE ==="
