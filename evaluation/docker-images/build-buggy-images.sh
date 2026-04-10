@@ -45,6 +45,27 @@ BUGS=(
     "72855:ae10baf0a0dff53837c3729b8bde64505f54f7aa:MachineLICM CSE on hoist (Nov 2023)"
     "56103:7c5957aedb75f381cd9996f9eba96f3add16a721:X86 jg/jge SF flag (Jun 2022)"
     "62175:ff9dc9c4fb113de9619fad6a77f4888277579718:InstCombine mul/shl FPE (Apr 2023)"
+    # --- Batch 3: 20 new bugs (Apr 2026 session) ---
+    "64060:1ae72c0f666beea11de7e9dea17675a89437849c:EarlyMachineLICM wrong code (Jul 2023)"
+    "82243:fcd6549e5801de938935b93fd2d13020b42eebdb:IndVars poison flags (Feb 2024)"
+    "63327:222d73ff7a861445c7ca33215925789426dda483:InstCombine bitwise (Jun 2023)"
+    "64345:9c837b7d0e2e2dffae804f3df49c4aeefe4743c0:LoopVectorize IV (Aug 2023)"
+    "64333:2d87319f06ef936233ba6aaa612da9586c427d68:SCEVExpander poison (Aug 2023)"
+    "60944:ff11d6b6f6e27f5de389002b8f6102b6cf3ed474:SCEV nowrap flags (Mar 2023)"
+    "70507:428af867d89eb28b09e80c6826c4c6daad1ba8cc:SLPVectorizer reduction (Oct 2023)"
+    "70470:46cb7e4eeae3a3d64d2d6ba82a6309162bbb9808:InstCombine trunc/sext (Oct 2023)"
+    "69097:47b8763f8a814c0e755e154516537d8deb57e4b0:SCEV/LV invalidation (Oct 2023)"
+    "69096:8906a0fe64abf1a9c8641ee51908bba7cbf8ec54:EarlyCSE/BasicAA NSW (Oct 2023)"
+    "66066:54a38c9c9c46f39dbd159b26626f6ecc2a7944e9:SCEV nsw multiply (Sep 2023)"
+    "67287:75b48b40771ae8124f8624fff8f1fb422a5d1fc7:DemandedBits MOVMSK (Sep 2023)"
+    "62660:1d5651060e14eeee1323bb8ca4fb34d452c3db89:LSR wrong code (Jun 2023)"
+    "62515:ca4ebf95172d24f8c47655709b2c9eb85bda5cb2:LSR FPE (Jun 2023)"
+    "58401:240b85b1a8540f1ac000dda9042ac2fbccd9bc69:InstCombine foldOpIntoPhi (Oct 2022)"
+    "58340:b107ff485621f93df3b9b17d098375364fc4a6f6:IndVarSimplify forget exit (Oct 2022)"
+    "63611:e9c8973f1c6879a4545329afceb66cc98447574f:GVN phi node (Jun 2023)"
+    "63893:b7836d856206ec39509d42529f958c920368166b:Two-Address isCopyInstrImpl (Jul 2023)"
+    "54112:42e8e00189be787b4d916c6d297a8315998c7687:LoopSimplifyCFG FPE (Mar 2022)"
+    "57899:76fd4bf675b5ceeeca0e4e15cf15d89c7acf4947:InstCombine zext icmp (Sep 2022)"
 )
 
 MAX_PARALLEL=1
@@ -59,9 +80,12 @@ if [ -n "$DOCKER_MEM_GB" ] && [ "$DOCKER_MEM_GB" -lt 6 ]; then
     echo "  Increase Docker Desktop memory to 8GB+ in Settings > Resources for faster builds."
     NINJA_JOBS=1
     MAX_PARALLEL=1
+elif [ -n "$DOCKER_MEM_GB" ] && [ "$DOCKER_MEM_GB" -ge 24 ]; then
+    NINJA_JOBS=10
+    MAX_PARALLEL=1
 elif [ -n "$DOCKER_MEM_GB" ] && [ "$DOCKER_MEM_GB" -ge 12 ]; then
-    NINJA_JOBS=4
-    MAX_PARALLEL=2
+    NINJA_JOBS=6
+    MAX_PARALLEL=1
 fi
 
 # Parse arguments
