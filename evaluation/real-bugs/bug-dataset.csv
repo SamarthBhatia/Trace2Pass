@@ -41,6 +41,11 @@ phantom,n/a,Synthetic,InstCombine,-O2,c,yes,user_ub,30,n/a,bisected,InstCombine,
 124387,https://github.com/llvm/llvm-project/issues/124387,Closed,InstCombine/fshl,-O2,c,no(fixed),compiler_bug,90,all_fail,bisected,InstCombinePass@251,n/a,n/a,yes,function_optnone
 121110,https://github.com/llvm/llvm-project/issues/121110,Closed,VectorCombine,-Os,c,no(fixed),compiler_bug,90,all_fail,bisected,VectorCombinePass@235,n/a,n/a,yes,function_optnone
 129181,https://github.com/llvm/llvm-project/issues/129181,Closed,SelectionDAG,-O2,c,yes,compiler_bug,100,all_fail,bisected,LoopFullUnrollPass@56,n/a,n/a,yes,pass_bypass
+69097,https://github.com/llvm/llvm-project/issues/69097,Closed,SCEV/LV,-O2,c,no(fixed),compiler_bug,90,all_fail,bisected,InstCombinePass@184,n/a,n/a,yes,function_optnone
+62660,https://github.com/llvm/llvm-project/issues/62660,Closed,LSR,-O1,c,no(fixed),compiler_bug,90,all_fail,bisected,Loop Strength Reduction@192,n/a,n/a,yes,function_optnone
+58340,https://github.com/llvm/llvm-project/issues/58340,Closed,IndVarSimplify,-O3,c,no(fixed),compiler_bug,90,all_fail,bisected,IndVarSimplifyPass@145,n/a,n/a,yes,function_optnone
+54112,https://github.com/llvm/llvm-project/issues/54112,Closed,LoopSimplifyCFG,-Os,c,no(fixed),compiler_bug,90,all_fail,bisected,LoopSimplifyCFGPass@69,n/a,n/a,yes,function_optnone
+57899,https://github.com/llvm/llvm-project/issues/57899,Closed,InstCombine,-O1,c,no(fixed),compiler_bug,90,all_fail,bisected,InstCombinePass@123,n/a,n/a,yes,function_optnone
 64333,https://github.com/llvm/llvm-project/issues/64333,Closed,SCEVExpander,-O3,c,no(fixed),compiler_bug,90,all_fail,bisected,InstCombinePass@443,n/a,n/a,yes,function_optnone
 64345,https://github.com/llvm/llvm-project/issues/64345,Closed,JumpThreading,-O2,c,no(fixed),compiler_bug,90,all_fail,bisected,JumpThreadingPass@57,n/a,n/a,yes,function_optnone
 82243,https://github.com/llvm/llvm-project/issues/82243,Closed,IndVars,-Os,c,no(fixed),compiler_bug,90,all_fail,bisected,GVNPass@160,n/a,n/a,yes,function_optnone
