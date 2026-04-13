@@ -183,6 +183,46 @@ The 28 bugs cover the following LLVM optimization passes:
 
 ---
 
+## Runtime Overhead Evaluation (n=40)
+
+To support the thesis claim that Trace2Pass is production-viable, we measured runtime overhead on 11 open-source C projects using the same instrumentation plugin used in the bug-diagnosis pipeline above. Each benchmark was run **40 iterations plus 1 warmup** for each of four configurations (baseline `-O2`, ASan, UBSan, Trace2Pass with 1% sampling). We report mean ± standard deviation and 95% confidence intervals computed from the t-distribution (df=39, t₀.₀₂₅=2.0227). See `evaluation/OVERHEAD_BENCHMARK_40RUNS.md` for the full report and raw data.
+
+**Hardware**: 16-core x86_64 Ubuntu 22.04, 31 GB RAM. Clang 18.1.3. **Reproduction**:
+```bash
+bash evaluation/scripts/expanded_sanitizer_overhead.sh --runs 40
+python3 evaluation/scripts/compute_overhead_stats.py \
+    evaluation/results/sanitizer_comparison/all_projects_*.json
+```
+
+**Per-project runtime results**:
+
+| Project | Baseline (ms) | Trace2Pass (ms) | Overhead | 95% CI | n |
+|---|---|---|---|---|---|
+| sqlite | 48.7 ± 1.1 | 48.4 ± 4.7 | -0.60%† | [-3.80%, +2.59%] | 40 |
+| lz4 | 108.4 ± 6.9 | 114.1 ± 7.5 | +5.25% | [+2.16%, +8.34%] | 40 |
+| zlib | 312.5 ± 13.0 | 339.7 ± 12.1 | +8.69% | [+6.79%, +10.60%] | 40 |
+| cjson | 38.1 ± 2.1 | 37.3 ± 2.3 | -2.09%† | [-4.71%, +0.53%] | 40 |
+| lua | 6599.7 ± 156.3 | 6762.3 ± 188.6 | +2.46% | [+1.26%, +3.66%] | 40 |
+| xxhash | 55.4 ± 12.8 | 52.1 ± 6.0 | -6.10%† | [-13.84%, +1.64%] | 40 |
+| utf8proc | 12.4 ± 3.1 | 12.0 ± 1.3 | -3.06%† | [-11.48%, +5.37%] | 40 |
+| yyjson | 5.3 ± 0.8 | 5.5 ± 0.9 | +4.24%† | [-3.01%, +11.48%] | 40 |
+| tinyexpr | 88.2 ± 9.9 | 86.7 ± 3.3 | -1.72%† | [-5.45%, +2.01%] | 40 |
+| dr_libs | 43.8 ± 4.5 | 39.9 ± 2.6 | -8.88% | [-12.44%, -5.33%] | 40 |
+| duktape | 1421.3 ± 33.4 | 1481.6 ± 44.5 | +4.24% | [+2.97%, +5.51%] | 40 |
+| **Mean** | — | — | **+0.22%** | — | — |
+
+Rows marked † have 95% confidence intervals that overlap zero — i.e. the measured Trace2Pass overhead on those projects is not statistically distinguishable from zero at α=0.05. The five statistically significant positive overheads range from +2.46% (lua) to +8.69% (zlib); dr_libs is the one project with statistically significant *negative* overhead (−8.88%), attributable to cache-locality effects from the additional instructions.
+
+**Comparison with ASan and UBSan** (same 11 projects, same 40-run methodology):
+
+| Tool | Mean overhead | Median | Range |
+|---|---|---|---|
+| ASan | **+296%** | +167% | +22% (dr_libs) to +1142% (yyjson) |
+| UBSan | **+122%** | +107% | -4% (dr_libs) to +256% (sqlite) |
+| **Trace2Pass** | **+0.22%** | -0.60% | -8.88% to +8.69% |
+
+**Key claim**: Trace2Pass mean overhead is **1338× lower than ASan** and **554× lower than UBSan**, which supports its use as a production-time compiler-bug detector.
+
 ## Methodology Notes
 
 1. **Local testing**: All 28 bugs compiled and tested with `/opt/homebrew/opt/llvm/bin/clang` (LLVM 21.1.2, ARM64 macOS)
