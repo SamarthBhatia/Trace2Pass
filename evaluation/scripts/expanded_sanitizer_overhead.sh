@@ -66,6 +66,9 @@ for f in "$T2P_PLUGIN" "$T2P_RUNTIME"; do
 done
 
 export TRACE2PASS_QUIET=1
+# Allow caller to override the runtime's sample rate (default 0.10 = 10%, range [0.0, 1.0]).
+# The nosample wrapper sets TRACE2PASS_SAMPLE_RATE=1.0 to sample every check.
+export TRACE2PASS_SAMPLE_RATE="${TRACE2PASS_SAMPLE_RATE:-0.10}"
 
 # Handle paths with spaces by symlinking to /tmp
 if [[ "$T2P_PLUGIN" == *" "* ]] || [[ "$T2P_RUNTIME" == *" "* ]]; then
@@ -179,6 +182,70 @@ download_project() {
         leveldb)
             git clone --depth 1 -q --recurse-submodules --shallow-submodules https://github.com/google/leveldb.git "$dest" 2>/dev/null
             ;;
+        # --- Tier 3: 30-project expansion (Apr 2026) ---
+        jsmn)
+            git clone --depth 1 -q https://github.com/zserge/jsmn.git "$dest" 2>/dev/null
+            ;;
+        stb_image|stb_sprintf)
+            # stb is a single repo containing both single-header libraries
+            git clone --depth 1 -q https://github.com/nothings/stb.git "$dest" 2>/dev/null
+            ;;
+        miniaudio)
+            git clone --depth 1 -q https://github.com/mackron/miniaudio.git "$dest" 2>/dev/null
+            ;;
+        http_parser)
+            git clone --depth 1 -q https://github.com/nodejs/http-parser.git "$dest" 2>/dev/null
+            ;;
+        snappy)
+            git clone --depth 1 -q https://github.com/andikleen/snappy-c.git "$dest" 2>/dev/null
+            ;;
+        libyaml)
+            git clone --depth 1 -q https://github.com/yaml/libyaml.git "$dest" 2>/dev/null
+            # libyaml's yaml_private.h does #include "config.h" — provide a stub.
+            cat > "$dest/src/config.h" <<'CFGEOF'
+#ifndef YAML_CONFIG_H
+#define YAML_CONFIG_H
+#define YAML_VERSION_MAJOR 0
+#define YAML_VERSION_MINOR 2
+#define YAML_VERSION_PATCH 5
+#define YAML_VERSION_STRING "0.2.5"
+#endif
+CFGEOF
+            ;;
+        libexpat)
+            git clone --depth 1 -q https://github.com/libexpat/libexpat.git "$dest/_top" 2>/dev/null
+            mv "$dest/_top/expat" "$dest/expat" 2>/dev/null || true
+            ;;
+        libcbor)
+            git clone --depth 1 -q https://github.com/PJK/libcbor.git "$dest" 2>/dev/null
+            # libcbor needs CMake-generated configuration.h and cbor_export.h.
+            # Provide stubs in src/cbor/ so the source compiles directly.
+            mkdir -p "$dest/src/cbor"
+            cat > "$dest/src/cbor/configuration.h" <<'CFGEOF'
+#ifndef LIBCBOR_CONFIGURATION_H
+#define LIBCBOR_CONFIGURATION_H
+#define CBOR_MAJOR_VERSION 0
+#define CBOR_MINOR_VERSION 11
+#define CBOR_PATCH_VERSION 0
+#define CBOR_BUFFER_GROWTH 2
+#define CBOR_MAX_STACK_SIZE 2048
+#define CBOR_PRETTY_PRINTER 0
+#define CBOR_RESTRICT_SPECIFIER restrict
+#define CBOR_INLINE_SPECIFIER
+#define CBOR_CUSTOM_ALLOC 0
+#endif
+CFGEOF
+            cat > "$dest/src/cbor/cbor_export.h" <<'EXPEOF'
+#ifndef CBOR_EXPORT_H
+#define CBOR_EXPORT_H
+#define CBOR_EXPORT
+#define CBOR_NO_EXPORT
+#define CBOR_DEPRECATED
+#define CBOR_DEPRECATED_EXPORT
+#define CBOR_DEPRECATED_NO_EXPORT
+#endif
+EXPEOF
+            ;;
     esac
 }
 
@@ -195,7 +262,7 @@ get_project_config() {
         xxhash)    echo "|$d||" ;;  # header-only with XXH_INLINE_ALL
         utf8proc)  echo "$d/utf8proc.c|$d||" ;;
         brotli)    echo "$(ls $d/c/common/*.c $d/c/dec/*.c $d/c/enc/*.c 2>/dev/null | tr '\n' ' ')|$d/c/include||" ;;
-        zstd)      echo "$(ls $d/lib/common/*.c $d/lib/compress/*.c $d/lib/decompress/*.c 2>/dev/null | tr '\n' ' ')|$d/lib $d/lib/common||" ;;
+        zstd)      echo "$(ls $d/lib/common/*.c $d/lib/compress/*.c $d/lib/decompress/*.c 2>/dev/null | tr '\n' ' ')|$d/lib $d/lib/common|-DZSTD_DISABLE_ASM=1|" ;;
         mbedtls)   echo "$(ls $d/library/aes.c $d/library/platform_util.c $d/library/constant_time.c 2>/dev/null | tr '\n' ' ')|$d/include||" ;;
         yyjson)    echo "$d/src/yyjson.c|$d/src||" ;;
         http-parser) echo "$d/http_parser.c|$d||" ;;
@@ -205,7 +272,7 @@ get_project_config() {
         stb)       echo "|$d||" ;;  # header-only with STB_SPRINTF_IMPLEMENTATION
         # --- Tier 2 ---
         tinyexpr)  echo "$d/tinyexpr.c|$d||-lm" ;;
-        monocypher) echo "$d/src/monocypher.c|$d||" ;;
+        monocypher) echo "$d/src/monocypher.c|$d/src||" ;;
         dr_libs)   echo "|$d||-lm" ;;  # header-only with DR_WAV_IMPLEMENTATION
         lodepng)   echo "$d/lodepng.cpp|$d||" ;;
         giflib)    echo "$d/dgif_lib.c $d/egif_lib.c $d/gif_err.c $d/gif_font.c $d/gif_hash.c $d/gifalloc.c $d/quantize.c|$d||" ;;
@@ -217,6 +284,16 @@ get_project_config() {
         cmark)     echo "$(ls $d/src/*.c 2>/dev/null | grep -v main.c | tr '\n' ' ')|$d/src -I$d/build/src||" ;;
         jemalloc)  echo "$(ls $d/src/*.c 2>/dev/null | head -10 | tr '\n' ' ')|$d/include||" ;;
         leveldb)   echo "$(ls $d/db/*.cc $d/table/*.cc $d/util/*.cc 2>/dev/null | head -20 | tr '\n' ' ')|$d/include -I$d||" ;;
+        # --- Tier 3: 30-project expansion ---
+        jsmn)         echo "|$d||" ;;  # single-header
+        stb_image)    echo "|$d||-lm" ;;  # single-header; needs libm for pow()
+        stb_sprintf)  echo "|$d||" ;;  # single-header
+        miniaudio)    echo "|$d|-DMA_NO_DEVICE_IO -DMA_NO_THREADING -DMA_NO_GENERATION -DMA_NO_DECODING -DMA_NO_ENCODING|-lm -lpthread -ldl" ;;
+        http_parser)  echo "$d/http_parser.c|$d||" ;;
+        snappy)       echo "$d/snappy.c $d/util.c|$d||" ;;
+        libyaml)      echo "$(ls $d/src/*.c 2>/dev/null | tr '\n' ' ')|$d/include -I$d/src|-DHAVE_CONFIG_H|" ;;
+        libexpat)     echo "$d/expat/lib/xmlparse.c $d/expat/lib/xmltok.c $d/expat/lib/xmlrole.c|$d/expat/lib|-DHAVE_EXPAT_CONFIG_H=0 -DXML_GE=1 -DXML_DTD -DXML_NS -DXML_CONTEXT_BYTES=1024 -DHAVE_MEMMOVE -DHAVE_GETRANDOM|" ;;
+        libcbor)      echo "$(ls $d/src/cbor.c $d/src/allocators.c $d/src/cbor/*.c $d/src/cbor/internal/*.c 2>/dev/null | tr '\n' ' ')|$d/src -I$d|-DCBOR_CUSTOM_ALLOC=0|" ;;
     esac
 }
 

@@ -140,7 +140,7 @@ From the literature (Regehr et al. PLDI 2012):
 
 ### 3.1 Overhead Comparison Experiment
 
-**Setup**: Built 11 open-source C projects with baseline `-O2`, ASan, UBSan, and Trace2Pass (1% sampling rate). Each benchmark ran **40 iterations** plus 1 warmup. We report mean ± standard deviation and 95% confidence intervals computed from the t-distribution (df=39, t₀.₀₂₅=2.0227). All measurements on a 16-core x86_64 Ubuntu 22.04 server, Clang 18.1.3. Reproducible via:
+**Setup**: Built 11 open-source C projects with baseline `-O2`, ASan, UBSan, and Trace2Pass (default **10% sampling rate**, controlled by `TRACE2PASS_SAMPLE_RATE`). Each benchmark ran **40 iterations** plus 1 warmup. We report mean ± standard deviation and 95% confidence intervals computed from the t-distribution (df=39, t₀.₀₂₅=2.0227). All measurements on a 16-core x86_64 Ubuntu 22.04 server, Clang 18.1.3. A separate **no-sampling (100%) upper-bound run** is reported in `evaluation/OVERHEAD_BENCHMARK_40RUNS.md` ("No-sampling baseline" section); see that file for the worst-case Trace2Pass numbers. Reproducible via:
 ```bash
 bash evaluation/scripts/expanded_sanitizer_overhead.sh --runs 40
 python3 evaluation/scripts/compute_overhead_stats.py \
@@ -167,7 +167,7 @@ Full data and per-iteration measurements are in `evaluation/results/sanitizer_co
 
 Rows marked † have a CI that overlaps zero, i.e. the measured overhead is not statistically distinguishable from zero at α=0.05.
 
-*Trace2Pass overhead explanation: On correct code, instrumented checks (compare+branch) always take the not-taken path. Modern CPUs predict these perfectly, resulting in near-zero overhead. The 1% sampling rate only affects reporting frequency when anomalies trigger — which never happens on correct code. The overhead comes entirely from the added compare+branch instructions at each instrumented arithmetic operation. Five projects (sqlite, cjson, xxhash, utf8proc, yyjson, tinyexpr) show overhead statistically indistinguishable from zero; one (dr_libs) is significantly faster (cache effects from the added instructions). The mean across all 11 projects is **+0.22%**.*
+*Trace2Pass overhead explanation: On correct code, instrumented checks (compare+branch) always take the not-taken path. Modern CPUs predict these perfectly, resulting in near-zero overhead. The default 10% sampling rate only affects reporting frequency when anomalies trigger — which never happens on correct code. The overhead comes entirely from the added compare+branch instructions at each instrumented arithmetic operation. Six projects (sqlite, cjson, xxhash, utf8proc, yyjson, tinyexpr) show overhead statistically indistinguishable from zero; one (dr_libs) is significantly faster (cache effects from the added instructions). The mean across all 11 projects is **+0.22%**. With sampling forced to 100% (worst case), the mean rises to **+2.30%** across 12 projects — still ~120× lower than ASan. See `OVERHEAD_BENCHMARK_40RUNS.md` for the full no-sampling table.*
 
 **Binary Size Overhead** (n=40 run, deterministic per config):
 

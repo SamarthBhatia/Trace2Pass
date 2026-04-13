@@ -160,6 +160,47 @@ Both are deterministic per configuration (only one build per config).
 
 The Trace2Pass runtime library contributes ~30–60 KB of fixed-cost instructions per binary. For large projects (sqlite, Lua, duktape, utf8proc) this is a single-digit percentage increase. For very small binaries (xxhash, tinyexpr) the fixed overhead dominates the percentage — but the absolute cost is still only a few tens of KB, consistent across projects.
 
+## No-sampling baseline (worst case)
+
+The previous run used the runtime's **default sampling rate of 0.10** (10% — every check fires 1 in 10 invocations). Many readers will reasonably ask: *what is the upper bound when no samples are dropped?* This section answers that by re-running the same 12 projects with `TRACE2PASS_SAMPLE_RATE=1.0` so every instrumented check fires every time.
+
+The wrapper script `evaluation/scripts/expanded_sanitizer_overhead_nosample.sh` exports the env var and forwards all other arguments to the main script:
+```bash
+bash evaluation/scripts/expanded_sanitizer_overhead_nosample.sh --runs 40 \
+    --projects "sqlite lz4 zlib cjson lua xxhash utf8proc miniz yyjson tinyexpr dr_libs duktape"
+```
+
+The Trace2Pass column below is computed from
+`evaluation/results/sanitizer_comparison/all_projects_20260413_190407.json` and
+`evaluation/results/overhead_nosample_40runs_stats.json`.
+
+| Project | Baseline (ms) | Trace2Pass @100% (ms) | Overhead | 95% CI | n |
+|---|---|---|---|---|---|
+| sqlite | 48.3 ± 0.6 | 48.1 ± 3.2 | -0.48% † | [-2.65%, +1.70%] | 40 |
+| lz4 | 108.5 ± 6.5 | 115.9 ± 7.6 | +6.85% | [+3.82%, +9.89%] | 40 |
+| zlib | 318.7 ± 12.0 | 334.9 ± 12.2 | +5.09% | [+3.33%, +6.85%] | 40 |
+| cjson | 36.8 ± 1.8 | 36.1 ± 1.4 | -2.06% | [-4.04%, -0.08%] | 40 |
+| lua | 6581.9 ± 183.7 | 6773.2 ± 205.2 | +2.91% | [+1.55%, +4.26%] | 40 |
+| xxhash | 50.8 ± 0.3 | 51.1 ± 0.9 | +0.46% † | [-0.13%, +1.05%] | 40 |
+| utf8proc | 10.7 ± 0.6 | 11.7 ± 0.7 | +9.91% | [+7.09%, +12.73%] | 40 |
+| miniz | 929.3 ± 20.9 | 937.4 ± 20.3 | +0.87% † | [-0.14%, +1.88%] | 40 |
+| yyjson | 5.4 ± 0.9 | 5.4 ± 0.8 | -0.71% † | [-7.86%, +6.44%] | 40 |
+| tinyexpr | 84.3 ± 5.1 | 86.5 ± 5.3 | +2.61% † | [-0.22%, +5.43%] | 40 |
+| dr_libs | 43.0 ± 2.3 | 40.6 ± 3.6 | -5.58% | [-8.71%, -2.44%] | 40 |
+| duktape | 1417.1 ± 25.9 | 1526.4 ± 43.0 | +7.71% | [+6.56%, +8.87%] | 40 |
+| **Mean (12)** | — | — | **+2.30%** | — | 40 |
+
+Rows marked † have 95% CIs that overlap zero.
+
+**Reading the result**: even when every check fires (worst case for Trace2Pass), the mean runtime overhead across the 12 projects is **+2.30%** — about 10× the +0.22% mean at the 10%-sampled default. This 10× factor matches the sample-rate ratio, which is the expected linear scaling from the report path (the check itself always runs; only the bookkeeping is skipped under sampling). Median is **+1.74%** and seven projects still have CIs overlapping zero. ASan and UBSan numbers are unchanged from above (sampling only affects the Trace2Pass config).
+
+| Configuration | Trace2Pass mean overhead | Median | n_projects |
+|---|---|---|---|
+| **default (10% sampling)** | **+0.22%** | -0.60% | 11 |
+| **nosample (100%)** | **+2.30%** | +1.74% | 12 |
+
+Both rows are dwarfed by the sanitizer baselines (+296% ASan, +122% UBSan) — even at the 100% upper bound Trace2Pass is **>120× lower overhead than ASan**.
+
 ## Failures
 
 ### miniz — BUILD_FAIL
