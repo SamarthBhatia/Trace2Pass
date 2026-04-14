@@ -197,10 +197,13 @@ seed_path = "$SEED_C"
 seeded = set()
 try:
     with open(seed_path) as f:
-        for m in re.finditer(r"SEEDED_BUGS_MANIFEST:\s*(\[.*\])", f.read(), re.S):
+        for m in re.finditer(r"SEEDED_BUGS_MANIFEST:\s*(\[.*?\])", f.read(), re.S):
             arr = json.loads(m.group(1))
             for e in arr:
-                seeded.add(e.get("function", ""))
+                # Manifest entries are {"pattern": "...", "idx": N}; the
+                # emitted function is named __seeded_bug_<pattern>_<idx>.
+                fn = f"__seeded_bug_{e.get('pattern','')}_{e.get('idx','')}"
+                seeded.add(fn)
 except Exception:
     pass
 detections = set()
