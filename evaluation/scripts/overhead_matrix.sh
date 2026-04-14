@@ -155,17 +155,18 @@ EOF
             continue
         fi
 
-        # Baseline n=40
+        # Helper: read last line of stdout, parse as float ms, fallback 0.
+        sample_bin() {
+            local ms
+            ms=$("$@" 2>/dev/null | tail -1)
+            if echo "$ms" | grep -qE '^[0-9]+\.?[0-9]*$'; then echo "$ms"; else echo "0"; fi
+        }
+
+        # Baseline n=40 (harness prints its own timing on stdout)
         "$BASE_BIN" >/dev/null 2>&1 || true  # warmup
         BASE_MS="["
         for i in $(seq 1 $RUNS); do
-            MS=$(python3 -c "
-import subprocess, time
-t0 = time.perf_counter_ns()
-subprocess.run(['$BASE_BIN'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-t1 = time.perf_counter_ns()
-print(round((t1 - t0) / 1e6, 3))
-")
+            MS=$(sample_bin "$BASE_BIN")
             BASE_MS="${BASE_MS}${MS},"
         done
         BASE_MS="${BASE_MS%,}]"
@@ -174,27 +175,19 @@ print(round((t1 - t0) / 1e6, 3))
         for SR in $SAMPLE_RATES; do
             REPORT="$WORKDIR/report_s${SR}.jsonl"
             rm -f "$REPORT"
-            # warmup
-            TRACE2PASS_OUTPUT="$REPORT" TRACE2PASS_JSON_OUTPUT=1 TRACE2PASS_SAMPLE_RATE="$SR" TRACE2PASS_QUIET=1 \
-                "$INST_BIN" >/dev/null 2>&1 || true
+            export TRACE2PASS_OUTPUT="$REPORT"
+            export TRACE2PASS_JSON_OUTPUT=1
+            export TRACE2PASS_SAMPLE_RATE="$SR"
+            export TRACE2PASS_QUIET=1
+            "$INST_BIN" >/dev/null 2>&1 || true  # warmup
 
             INST_MS="["
             for i in $(seq 1 $RUNS); do
-                MS=$(python3 -c "
-import subprocess, time, os
-env = os.environ.copy()
-env['TRACE2PASS_OUTPUT'] = '$REPORT'
-env['TRACE2PASS_JSON_OUTPUT'] = '1'
-env['TRACE2PASS_SAMPLE_RATE'] = '$SR'
-env['TRACE2PASS_QUIET'] = '1'
-t0 = time.perf_counter_ns()
-subprocess.run(['$INST_BIN'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)
-t1 = time.perf_counter_ns()
-print(round((t1 - t0) / 1e6, 3))
-")
+                MS=$(sample_bin "$INST_BIN")
                 INST_MS="${INST_MS}${MS},"
             done
             INST_MS="${INST_MS%,}]"
+            unset TRACE2PASS_OUTPUT TRACE2PASS_JSON_OUTPUT TRACE2PASS_SAMPLE_RATE TRACE2PASS_QUIET
 
             # Parse detections + false positives from report
             DETECT_JSON=$(python3 - <<PYEOF
