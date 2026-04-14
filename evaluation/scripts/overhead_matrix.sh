@@ -190,7 +190,7 @@ EOF
             unset TRACE2PASS_OUTPUT TRACE2PASS_JSON_OUTPUT TRACE2PASS_SAMPLE_RATE TRACE2PASS_QUIET
 
             # Parse detections + false positives from report
-            DETECT_JSON=$(python3 - <<PYEOF
+            DETECT_JSON=$(python3 - 2>/dev/null <<PYEOF
 import json, re
 report_path = "$REPORT"
 seed_path = "$SEED_C"
@@ -230,6 +230,10 @@ print(json.dumps({
 }))
 PYEOF
 )
+            # Fallback if detection parsing produced nothing
+            if [ -z "$DETECT_JSON" ]; then
+                DETECT_JSON='{"seeded":0,"detected":0,"detection_rate":0,"false_positives":0,"unique_detection_fns":[]}'
+            fi
 
             OUTFILE="$OUTDIR/${proj}_s${SR}_d${density}.json"
             python3 - <<PYEOF > "$OUTFILE"
