@@ -24,18 +24,33 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 NUM_RUNS=7
 SELECTED_PROJECTS=""
 JSON_OUT=""
+SELECTED_CONFIGS=""
+ALL_CHECKS=0
+SAMPLE_RATE_CLI=""
+OUTPUT_DIR_CLI=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --runs) NUM_RUNS="$2"; shift 2 ;;
         --projects) SELECTED_PROJECTS="$2"; shift 2 ;;
         --json) JSON_OUT="$2"; shift 2 ;;
-        --help) echo "Usage: $0 [--runs N] [--projects 'p1 p2'] [--json FILE]"; exit 0 ;;
+        --configs) SELECTED_CONFIGS="$2"; shift 2 ;;
+        --all-checks) ALL_CHECKS=1; shift ;;
+        --sample-rate) SAMPLE_RATE_CLI="$2"; shift 2 ;;
+        --output-dir) OUTPUT_DIR_CLI="$2"; shift 2 ;;
+        --help) echo "Usage: $0 [--runs N] [--projects 'p1 p2'] [--configs 'c1 c2'] [--all-checks] [--sample-rate R] [--output-dir DIR] [--json FILE]"; exit 0 ;;
         *) echo "Unknown: $1"; exit 1 ;;
     esac
 done
 
+if [ -n "$OUTPUT_DIR_CLI" ]; then
+    RESULTS_DIR="$OUTPUT_DIR_CLI"
+fi
+
 mkdir -p "$RESULTS_DIR"
+FAILED_LOG="$PROJECT_ROOT/evaluation/results/failed_projects.md"
+mkdir -p "$(dirname "$FAILED_LOG")"
+touch "$FAILED_LOG"
 WORKDIR=$(mktemp -d)
 trap 'rm -rf "$WORKDIR"' EXIT
 
@@ -68,7 +83,11 @@ done
 export TRACE2PASS_QUIET=1
 # Allow caller to override the runtime's sample rate (default 0.10 = 10%, range [0.0, 1.0]).
 # The nosample wrapper sets TRACE2PASS_SAMPLE_RATE=1.0 to sample every check.
-export TRACE2PASS_SAMPLE_RATE="${TRACE2PASS_SAMPLE_RATE:-0.10}"
+if [ -n "$SAMPLE_RATE_CLI" ]; then
+    export TRACE2PASS_SAMPLE_RATE="$SAMPLE_RATE_CLI"
+else
+    export TRACE2PASS_SAMPLE_RATE="${TRACE2PASS_SAMPLE_RATE:-0.10}"
+fi
 
 # Handle paths with spaces by symlinking to /tmp
 if [[ "$T2P_PLUGIN" == *" "* ]] || [[ "$T2P_RUNTIME" == *" "* ]]; then
@@ -216,6 +235,27 @@ CFGEOF
             git clone --depth 1 -q https://github.com/libexpat/libexpat.git "$dest/_top" 2>/dev/null
             mv "$dest/_top/expat" "$dest/expat" 2>/dev/null || true
             ;;
+        mongoose)
+            git clone --depth 1 -q https://github.com/cesanta/mongoose.git "$dest" 2>/dev/null
+            ;;
+        tomlc99)
+            git clone --depth 1 -q https://github.com/cktan/tomlc99.git "$dest" 2>/dev/null
+            ;;
+        inih)
+            git clone --depth 1 -q https://github.com/benhoyt/inih.git "$dest" 2>/dev/null
+            ;;
+        uthash)
+            git clone --depth 1 -q https://github.com/troydhanson/uthash.git "$dest" 2>/dev/null
+            ;;
+        md4c)
+            git clone --depth 1 -q https://github.com/mity/md4c.git "$dest" 2>/dev/null
+            ;;
+        sds)
+            git clone --depth 1 -q https://github.com/antirez/sds.git "$dest" 2>/dev/null
+            ;;
+        pdjson)
+            git clone --depth 1 -q https://github.com/skeeto/pdjson.git "$dest" 2>/dev/null
+            ;;
         libcbor)
             git clone --depth 1 -q https://github.com/PJK/libcbor.git "$dest" 2>/dev/null
             # libcbor needs CMake-generated configuration.h and cbor_export.h.
@@ -294,6 +334,14 @@ get_project_config() {
         libyaml)      echo "$(ls $d/src/*.c 2>/dev/null | tr '\n' ' ')|$d/include -I$d/src|-DHAVE_CONFIG_H|" ;;
         libexpat)     echo "$d/expat/lib/xmlparse.c $d/expat/lib/xmltok.c $d/expat/lib/xmlrole.c|$d/expat/lib|-DHAVE_EXPAT_CONFIG_H=0 -DXML_GE=1 -DXML_DTD -DXML_NS -DXML_CONTEXT_BYTES=1024 -DHAVE_MEMMOVE -DHAVE_GETRANDOM|" ;;
         libcbor)      echo "$(ls $d/src/cbor.c $d/src/allocators.c $d/src/cbor/*.c $d/src/cbor/internal/*.c 2>/dev/null | tr '\n' ' ')|$d/src -I$d|-DCBOR_CUSTOM_ALLOC=0|" ;;
+        # --- Tier 4: 7 new projects (Apr 2026 thesis final) ---
+        mongoose)     echo "$d/mongoose.c|$d||" ;;
+        tomlc99)      echo "$d/toml.c|$d||" ;;
+        inih)         echo "$d/ini.c|$d||" ;;
+        uthash)       echo "|$d/src||" ;;  # header-only
+        md4c)         echo "$d/src/md4c.c|$d/src||" ;;
+        sds)          echo "$d/sds.c|$d||" ;;
+        pdjson)       echo "$d/pdjson.c|$d||" ;;
     esac
 }
 
@@ -302,7 +350,9 @@ TIER1="sqlite lz4 zlib cjson lua xxhash utf8proc brotli zstd mbedtls yyjson http
 # Tier 2 projects (new harnesses for 25+ total)
 TIER2="tinyexpr monocypher dr_libs lodepng giflib libdeflate libsodium duktape quickjs pcre2 cmark jemalloc leveldb"
 # All projects with benchmark harnesses
-ALL_TIER1="$TIER1 $TIER2"
+TIER3="jsmn stb_image stb_sprintf miniaudio snappy libyaml libexpat libcbor http_parser"
+TIER4="mongoose tomlc99 inih uthash md4c sds pdjson"
+ALL_TIER1="$TIER1 $TIER2 $TIER3 $TIER4"
 
 if [ -n "$SELECTED_PROJECTS" ]; then
     PROJECTS="$SELECTED_PROJECTS"
@@ -310,7 +360,11 @@ else
     PROJECTS="$ALL_TIER1"
 fi
 
-CONFIGS="baseline asan ubsan trace2pass"
+if [ -n "$SELECTED_CONFIGS" ]; then
+    CONFIGS="$SELECTED_CONFIGS"
+else
+    CONFIGS="baseline asan ubsan trace2pass"
+fi
 TOTAL_PROJECTS=0
 TOTAL_BUILT=0
 TOTAL_FAILED=0
@@ -350,11 +404,20 @@ for proj in $PROJECTS; do
     PROJ_JSON="{\"project\": \"$proj\", \"timestamp\": \"$TIMESTAMP\", \"environment\": \"local_macos\", \"runs\": $NUM_RUNS, \"configs\": {"
 
     for label in $CONFIGS; do
+        # Reset per-config build env
+        BUILD_ENV=""
         case $label in
             baseline)    CF="-O2 -w $EXTRA_CFLAGS"; LF="$EXTRA_LDFLAGS" ;;
             asan)        CF="-O2 -w $EXTRA_CFLAGS -fsanitize=address"; LF="$EXTRA_LDFLAGS -fsanitize=address" ;;
             ubsan)       CF="-O2 -w $EXTRA_CFLAGS -fsanitize=undefined -fno-sanitize=unsigned-integer-overflow"; LF="$EXTRA_LDFLAGS -fsanitize=undefined" ;;
-            trace2pass)  CF="-O2 -w $EXTRA_CFLAGS -fpass-plugin=$T2P_PLUGIN"; LF="$EXTRA_LDFLAGS $T2P_RUNTIME -lstdc++" ;;
+            msan)        CF="-O2 -w $EXTRA_CFLAGS -fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer"; LF="$EXTRA_LDFLAGS -fsanitize=memory" ;;
+            tsan)        CF="-O2 -w $EXTRA_CFLAGS -fsanitize=thread"; LF="$EXTRA_LDFLAGS -fsanitize=thread" ;;
+            trace2pass)  CF="-O2 -w $EXTRA_CFLAGS -fpass-plugin=$T2P_PLUGIN"; LF="$EXTRA_LDFLAGS $T2P_RUNTIME -lstdc++"
+                         if [ "$ALL_CHECKS" = "1" ]; then BUILD_ENV="TRACE2PASS_ENABLE_ALL_CHECKS=1"; fi ;;
+            trace2pass_allchecks)
+                         CF="-O2 -w $EXTRA_CFLAGS -fpass-plugin=$T2P_PLUGIN"; LF="$EXTRA_LDFLAGS $T2P_RUNTIME -lstdc++"
+                         BUILD_ENV="TRACE2PASS_ENABLE_ALL_CHECKS=1" ;;
+            *) echo "    $label: UNKNOWN_CONFIG"; continue ;;
         esac
 
         BIN="$WORKDIR/${proj}_bench_${label}"
@@ -365,6 +428,9 @@ for proj in $PROJECTS; do
         # Measure build time
         BUILD_START=$(python3 -c "import time; print(time.perf_counter())")
 
+        # Compile wrapper that honors BUILD_ENV
+        run_cc() { if [ -n "$BUILD_ENV" ]; then env $BUILD_ENV $CLANG "$@"; else $CLANG "$@"; fi; }
+
         set +e
         if [ -n "$SRC_FILES" ]; then
             # Compile source files + harness
@@ -372,14 +438,14 @@ for proj in $PROJECTS; do
             ALL_OK=1
             for src in $SRC_FILES; do
                 obj="$WORKDIR/$(basename "$src" .c)_${label}.o"
-                if ! $CLANG $CF $INC_FLAGS -c "$src" -o "$obj" 2>/dev/null; then
+                if ! run_cc $CF $INC_FLAGS -c "$src" -o "$obj" 2>/dev/null; then
                     ALL_OK=0; break
                 fi
                 OBJ_FILES="$OBJ_FILES $obj"
             done
             if [ $ALL_OK -eq 1 ]; then
                 BENCH_OBJ="$WORKDIR/bench_${proj}_${label}.o"
-                if $CLANG $CF $INC_FLAGS -c "$HARNESS" -o "$BENCH_OBJ" 2>/dev/null; then
+                if run_cc $CF $INC_FLAGS -c "$HARNESS" -o "$BENCH_OBJ" 2>/dev/null; then
                     # Linux ld requires archives AFTER their consumers; put $LF at the end.
                     if $CLANG -O2 $OBJ_FILES "$BENCH_OBJ" $LF -o "$BIN" 2>/dev/null; then
                         BUILD_OK=1
@@ -388,7 +454,7 @@ for proj in $PROJECTS; do
             fi
         else
             # Header-only or self-contained: just compile harness
-            if $CLANG $CF $INC_FLAGS -c "$HARNESS" -o "$WORKDIR/bench_${proj}_${label}.o" 2>/dev/null; then
+            if run_cc $CF $INC_FLAGS -c "$HARNESS" -o "$WORKDIR/bench_${proj}_${label}.o" 2>/dev/null; then
                 if $CLANG -O2 "$WORKDIR/bench_${proj}_${label}.o" $LF -o "$BIN" 2>/dev/null; then
                     BUILD_OK=1
                 fi
@@ -405,6 +471,7 @@ for proj in $PROJECTS; do
         else
             echo "    $label: BUILD_FAIL"
             PROJ_JSON="$PROJ_JSON\"$label\": {\"build_ok\": false, \"build_time_ms\": $BUILD_TIME_MS},"
+            echo "- \`$proj/$label\` build failed ($(date -u +%Y-%m-%dT%H:%M:%SZ))" >> "$FAILED_LOG"
             continue
         fi
 
