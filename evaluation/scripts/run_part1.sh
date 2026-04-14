@@ -20,7 +20,7 @@ mkdir -p "$OUT"
 # All 42 projects with benchmark harnesses
 PROJECTS="sqlite lz4 zlib cjson lua xxhash utf8proc brotli zstd mbedtls yyjson http-parser picohttpparser qsort miniz stb tinyexpr monocypher dr_libs lodepng giflib libdeflate libsodium duktape quickjs pcre2 cmark jemalloc leveldb jsmn stb_image stb_sprintf miniaudio snappy libyaml libexpat libcbor http_parser mongoose tomlc99 inih uthash md4c sds pdjson"
 
-CONFIGS="baseline asan ubsan msan tsan trace2pass trace2pass_allchecks"
+CONFIGS="baseline asan ubsan msan tsan trace2pass"
 
 echo "[part1] ========================================================"
 echo "[part1] Starting $STAMP"

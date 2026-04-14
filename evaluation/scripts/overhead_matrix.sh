@@ -75,7 +75,7 @@ build_variant() {
     else
         cf="-O2 -w $xcf -fpass-plugin=$T2P_PLUGIN"
         lf="$xlf -Wl,--whole-archive $T2P_RUNTIME -Wl,--no-whole-archive -lstdc++"
-        env_pfx="TRACE2PASS_ENABLE_ALL_CHECKS=1"
+        env_pfx=""
     fi
 
     local OBJS=""
@@ -255,7 +255,7 @@ print(json.dumps({
     "baseline_ms": $BASE_MS,
     "instrumented_ms": $INST_MS,
     "detection": $DETECT_JSON,
-    "all_checks": True,
+    "all_checks": False,
     "runs": $RUNS
 }, indent=2))
 PYEOF
