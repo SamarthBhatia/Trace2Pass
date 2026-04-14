@@ -107,21 +107,31 @@ for proj in $SELECTED_PROJECTS; do
         continue
     fi
 
+    # Download the project ONCE into a shared per-project dir. All densities
+    # for this project will reuse the source tree and get_project_config.
+    SHARED_WORKDIR="$WORKBASE/shared_${proj}"
+    mkdir -p "$SHARED_WORKDIR"
+    WORKDIR="$SHARED_WORKDIR"
+    if ! download_project "$proj" 2>&1 | tail -3; then
+        echo "[matrix] $proj download failed" >> "$FAILED_LOG"
+        continue
+    fi
+    IFS='|' read -r SRC INC_DIRS XCF XLF <<< "$(get_project_config "$proj")"
+    INC=""; for d in $INC_DIRS; do INC="$INC -I$d"; done
+
     for density in $DENSITIES; do
+        # Per-density workdir holds only build artifacts (seed.c, shim, binaries).
+        # Project sources stay in $SHARED_WORKDIR so get_project_config paths still resolve.
         WORKDIR="$WORKBASE/${proj}_d${density}"
         mkdir -p "$WORKDIR"
         echo "=================================================================="
         echo "[matrix] $proj density=$density"
         echo "=================================================================="
 
-        # Download fresh (so WORKDIR layout matches get_project_config)
-        if ! download_project "$proj" 2>&1 | tail -3; then
-            echo "[matrix] $proj/d$density download failed" >> "$FAILED_LOG"
-            continue
-        fi
-
-        IFS='|' read -r SRC INC_DIRS XCF XLF <<< "$(get_project_config "$proj")"
-        INC=""; for d in $INC_DIRS; do INC="$INC -I$d"; done
+        # Re-run get_project_config against SHARED_WORKDIR so SRC/INC paths
+        # point at the shared download. We already parsed it above; SRC/INC/XCF/XLF
+        # are set to values relative to SHARED_WORKDIR which is fine.
+        :
 
         # Generate seeded source
         SEED_C="$WORKDIR/seeded_${proj}_d${density}.c"
