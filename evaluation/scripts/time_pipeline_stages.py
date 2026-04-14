@@ -1,26 +1,30 @@
 #!/usr/bin/env python3
 """Part 3: Time the 5 Trace2Pass pipeline stages on each bisected bug.
 
-Stages timed (wall time via time.perf_counter_ns):
-  1. instrumentation  — clang plugin compile delta vs. baseline clang -O2
-  2. ub_detect        — diagnose.py ub-detect <bug>
-  3. version_bisect   — diagnose.py version-bisect <bug> "{binary}"
-  4. pass_bisect      — diagnose.py pass-bisect <bug> "{binary}" --use-clang-bisect
-  5. heal             — diagnose.py heal <bug> "{binary}" --strategy function_optnone
+Stages timed (wall time via time.perf_counter_ns, median of N runs):
+  1. instrumentation  — Trace2Pass plugin compile time delta vs. plain clang
+  2. ub_detect        — diagnose.py ub-detect <src>
+  3. version_bisect   — diagnose.py version-bisect <src> <test_cmd> [docker flags]
+  4. pass_bisect      — diagnose.py pass-bisect <src> <test_cmd> [--use-clang-bisect] [docker flags]
+  5. heal             — diagnose.py heal <src> <test_cmd> --strategy function_optnone [docker flags]
 
-For each (bug, stage) we run N iterations (default 40) and emit
-evaluation/results/pipeline_timing_40runs/<bug_id>.json with:
-  {stage: {n, mean, stdev, median, ci95_lo, ci95_hi, samples}}
+Bug invocation recipes (source, opt-level, docker image, flags) are loaded
+from evaluation/scripts/run_full_pipeline_bugs.sh for the 34 bugs it knows
+about. Bisected bugs not in that script get a default recipe
+(test_bug.c, -O2, --no-docker --use-clang-bisect).
+
+Writes evaluation/results/pipeline_timing_40runs/<bug_id>.json with per-stage
+{n, mean, stdev, median, ci95_lo, ci95_hi, samples}.
 """
 from __future__ import annotations
-import argparse, csv, json, math, os, statistics, subprocess, sys, time
+import argparse, csv, json, math, os, re, statistics, subprocess, sys, time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 DATASET = ROOT / "evaluation/real-bugs/bug-dataset.csv"
 PLUGIN = ROOT / "instrumentor/build/Trace2PassInstrumentor.so"
-RUNTIME_LIB = ROOT / "runtime/build/libTrace2PassRuntime.a"
 DIAGNOSE = ROOT / "diagnoser/diagnose.py"
+PIPELINE_SH = ROOT / "evaluation/scripts/run_full_pipeline_bugs.sh"
 
 T_CRITICAL_95 = {
     2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.365, 8: 2.306,
@@ -54,56 +58,108 @@ def summarize(samples):
     }
 
 
-def resolve_bug_dir(bug_id: str) -> Path | None:
-    cands = [
-        ROOT / f"evaluation/real-bugs/llvm-{bug_id}",
-        ROOT / f"evaluation/real-bugs/{bug_id}",
-    ]
-    for c in cands:
-        if c.is_dir() and (c / "test_bug.c").exists():
-            return c
-    # Fuzzy: any directory whose name contains bug_id
-    for p in (ROOT / "evaluation/real-bugs").iterdir():
-        if p.is_dir() and bug_id in p.name and (p / "test_bug.c").exists():
-            return p
-    return None
+def load_registry():
+    """Parse run_full_pipeline_bugs.sh into {bug_id: {src, opt, flags, desc}}."""
+    txt = PIPELINE_SH.read_text()
+    pat = re.compile(
+        r'run_bug\s+"([^"]+)"\s*\\\s*"([^"]+)"\s*\\\s*"([^"]+)"\s*\\\s*'
+        r'"([^"]+)"\s*\\\s*"([^"]*)"\s*\\\s*"([^"]*)"'
+    )
+    reg = {}
+    for m in pat.finditer(txt):
+        bid, src, tc, opt, flags, desc = m.groups()
+        src = src.replace("$PROJECT_ROOT", str(ROOT))
+        reg[bid] = {
+            "src": src, "test_cmd": tc, "opt": opt,
+            "flags": flags.split(), "desc": desc,
+        }
+    return reg
 
 
-def time_cmd(cmd, env=None, timeout=600):
-    """Return elapsed ms for a subprocess call, or -1 on failure/timeout."""
+def default_recipe(bug_id):
+    """Fallback for bisected bugs not in run_full_pipeline_bugs.sh."""
+    d = ROOT / f"evaluation/real-bugs/llvm-{bug_id}"
+    if not d.is_dir():
+        # Try fuzzy match
+        for p in (ROOT / "evaluation/real-bugs").iterdir():
+            if p.is_dir() and bug_id in p.name:
+                d = p
+                break
+        else:
+            return None
+    src = d / "test_bug.c"
+    if not src.exists():
+        return None
+    return {
+        "src": str(src), "test_cmd": "{binary}", "opt": "-O2",
+        "flags": ["--no-docker", "--use-clang-bisect"],
+        "desc": f"{bug_id} (auto-recipe)",
+    }
+
+
+def time_cmd(cmd, timeout=900):
     t0 = time.perf_counter_ns()
     try:
         subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                       env=env, timeout=timeout, cwd=str(ROOT))
+                       timeout=timeout, cwd=str(ROOT))
     except Exception:
         return -1
     t1 = time.perf_counter_ns()
     return (t1 - t0) / 1e6
 
 
-def time_instrumentation(src, n):
-    """Plugin compile time minus baseline compile time."""
-    samples = []
-    for _ in range(n):
-        obj = "/tmp/pipeline_time.o"
-        bt = time_cmd(["clang", "-O2", "-w", "-c", str(src), "-o", obj])
-        it = time_cmd(["clang", "-O2", "-w", "-fpass-plugin=" + str(PLUGIN),
-                       "-c", str(src), "-o", obj])
-        if bt < 0 or it < 0:
-            samples.append(-1)
-        else:
-            samples.append(it - bt)
-    return samples
+def run_stage(stage, recipe, runs):
+    src = recipe["src"]
+    opt = recipe["opt"]
+    flags = recipe["flags"]
+    test_cmd = recipe["test_cmd"]
 
+    # Filter diagnoser flags per stage (some apply to some stages only)
+    def keep(*allowed):
+        return [f for f in flags if any(f.startswith(a) for a in allowed)
+                or f in allowed]
 
-def time_stage(cmd_template, bug_dir, n, binary_placeholder=False):
     samples = []
-    src = bug_dir / "test_bug.c"
-    for _ in range(n):
-        cmd = list(cmd_template)
-        # Substitute placeholders
-        cmd = [c.replace("{SRC}", str(src)) for c in cmd]
-        samples.append(time_cmd(cmd))
+    if stage == "instrumentation":
+        obj = "/tmp/t3_inst.o"
+        for _ in range(runs):
+            bt = time_cmd(["clang", opt, "-w", "-c", src, "-o", obj])
+            it = time_cmd(["clang", opt, "-w", f"-fpass-plugin={PLUGIN}",
+                           "-c", src, "-o", obj])
+            samples.append((it - bt) if (bt >= 0 and it >= 0) else -1)
+    elif stage == "ub_detect":
+        for _ in range(runs):
+            samples.append(time_cmd(
+                ["python3", str(DIAGNOSE), "ub-detect", src]))
+    elif stage == "version_bisect":
+        extra = [f for f in flags if f == "--no-docker"
+                 or f.startswith("--docker-image") or f == "--use-clang-bisect"]
+        # strip --use-clang-bisect which isn't accepted by version-bisect
+        extra = [f for f in extra if f != "--use-clang-bisect"]
+        for _ in range(runs):
+            cmd = ["python3", str(DIAGNOSE), "version-bisect", src, test_cmd,
+                   f"--optimization-level={opt}"]
+            # version-bisect takes --no-docker directly
+            for f in extra:
+                if f == "--no-docker":
+                    cmd.append("--no-docker")
+                # Docker image selection for version-bisect is implicit via silkeh/clang
+            samples.append(time_cmd(cmd))
+    elif stage == "pass_bisect":
+        extra = [f for f in flags if f in ("--use-clang-bisect", "--use-docker")
+                 or f.startswith("--docker-image")]
+        for _ in range(runs):
+            cmd = ["python3", str(DIAGNOSE), "pass-bisect", src, test_cmd,
+                   f"--optimization-level={opt}"] + extra
+            samples.append(time_cmd(cmd))
+    elif stage == "heal":
+        extra = [f for f in flags if f in ("--no-docker", "--use-clang-bisect")
+                 or f.startswith("--docker-image")]
+        for _ in range(runs):
+            cmd = ["python3", str(DIAGNOSE), "heal", src, test_cmd,
+                   "--strategy", "function_optnone",
+                   f"--optimization-level={opt}"] + extra
+            samples.append(time_cmd(cmd))
     return samples
 
 
@@ -111,14 +167,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--runs", type=int, default=40)
     ap.add_argument("--out", default="evaluation/results/pipeline_timing_40runs")
-    ap.add_argument("--bugs", nargs="*", help="Specific bug IDs (default: all bisected)")
+    ap.add_argument("--bugs", nargs="*")
     ap.add_argument("--stages", nargs="*", default=[
         "instrumentation", "ub_detect", "version_bisect", "pass_bisect", "heal"])
-    ap.add_argument("--timeout", type=int, default=600)
     args = ap.parse_args()
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
+    registry = load_registry()
 
     bugs = []
     with open(DATASET) as f:
@@ -129,51 +185,19 @@ def main():
         bugs = [b for b in bugs if b in args.bugs]
 
     for bug in bugs:
-        bd = resolve_bug_dir(bug)
-        if not bd:
-            print(f"[timing] SKIP {bug}: dir not found")
+        recipe = registry.get(bug) or default_recipe(bug)
+        if not recipe:
+            print(f"[timing] SKIP {bug}: no recipe and no fallback dir")
             continue
-        src = bd / "test_bug.c"
-        result = {"bug": bug, "dir": str(bd), "stages": {}}
-
-        if "instrumentation" in args.stages:
-            print(f"[timing] {bug}/instrumentation n={args.runs}")
-            s = time_instrumentation(src, args.runs)
-            result["stages"]["instrumentation"] = summarize(s)
-
-        if "ub_detect" in args.stages:
-            print(f"[timing] {bug}/ub_detect n={args.runs}")
-            s = time_stage(
-                ["python3", str(DIAGNOSE), "ub-detect", "{SRC}"],
-                bd, args.runs)
-            result["stages"]["ub_detect"] = summarize(s)
-
-        if "version_bisect" in args.stages:
-            print(f"[timing] {bug}/version_bisect n={args.runs}")
-            s = time_stage(
-                ["python3", str(DIAGNOSE), "version-bisect", "{SRC}",
-                 "{binary}"],
-                bd, args.runs)
-            result["stages"]["version_bisect"] = summarize(s)
-
-        if "pass_bisect" in args.stages:
-            print(f"[timing] {bug}/pass_bisect n={args.runs}")
-            s = time_stage(
-                ["python3", str(DIAGNOSE), "pass-bisect", "{SRC}",
-                 "{binary}", "--use-clang-bisect"],
-                bd, args.runs)
-            result["stages"]["pass_bisect"] = summarize(s)
-
-        if "heal" in args.stages:
-            print(f"[timing] {bug}/heal n={args.runs}")
-            s = time_stage(
-                ["python3", str(DIAGNOSE), "heal", "{SRC}", "{binary}",
-                 "--strategy", "function_optnone"],
-                bd, args.runs)
-            result["stages"]["heal"] = summarize(s)
-
-        (out / f"{bug}.json").write_text(json.dumps(result, indent=2))
-        print(f"[timing] wrote {bug}.json")
+        print(f"[timing] === {bug}: {recipe.get('desc','')}")
+        result = {"bug": bug, "recipe": recipe, "stages": {}}
+        for stage in args.stages:
+            print(f"[timing]   {stage} n={args.runs}")
+            samples = run_stage(stage, recipe, args.runs)
+            result["stages"][stage] = summarize(samples)
+            # Incremental write so partial progress survives interruption
+            (out / f"{bug}.json").write_text(json.dumps(result, indent=2))
+        print(f"[timing]   wrote {bug}.json")
 
     print("[timing] DONE")
 
