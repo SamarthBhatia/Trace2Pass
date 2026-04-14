@@ -1,13 +1,21 @@
 #!/bin/bash
-# Part 3: pipeline stage timing on 40 bisected bugs × 5 stages × n=40
+# Part 3: pipeline stage timing on 40 bisected bugs × 5 stages
+#
+# NOTE on --runs: the task spec asked for n=40, but several stages are
+# Docker-bound (each version-bisect / pass-bisect invocation spawns silkeh/clang
+# containers which each take 2-60s of startup + bisect time). 40 bugs × 40 runs
+# × 3 docker stages ≈ 13-80 hours just for that slice. The default below is
+# n=40 to match the spec; override with TIMING_RUNS env to cut wallclock:
+#   TIMING_RUNS=5 bash run_part3.sh    # quick pass, still gets a CI
 set -u
 cd "$(dirname "$0")/../.."
 ROOT=$(pwd)
 OUT="$ROOT/evaluation/results/pipeline_timing_40runs"
 mkdir -p "$OUT"
+RUNS="${TIMING_RUNS:-40}"
 
-echo "[part3] Starting $(date -u +%Y%m%dT%H%M%SZ)"
-python3 "$ROOT/evaluation/scripts/time_pipeline_stages.py" --runs 40 --out "$OUT" 2>&1
+echo "[part3] Starting $(date -u +%Y%m%dT%H%M%SZ) (runs=$RUNS per stage)"
+python3 "$ROOT/evaluation/scripts/time_pipeline_stages.py" --runs "$RUNS" --out "$OUT" 2>&1
 
 echo "[part3] Aggregating..."
 python3 "$ROOT/evaluation/scripts/aggregate_pipeline_timing.py" "$OUT" || true
