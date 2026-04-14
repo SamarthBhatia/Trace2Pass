@@ -185,7 +185,7 @@ The 28 bugs cover the following LLVM optimization passes:
 
 ## Runtime Overhead Evaluation (n=40)
 
-To support the thesis claim that Trace2Pass is production-viable, we measured runtime overhead on 11 open-source C projects using the same instrumentation plugin used in the bug-diagnosis pipeline above. Each benchmark was run **40 iterations plus 1 warmup** for each of four configurations (baseline `-O2`, ASan, UBSan, Trace2Pass with 1% sampling). We report mean ± standard deviation and 95% confidence intervals computed from the t-distribution (df=39, t₀.₀₂₅=2.0227). See `evaluation/OVERHEAD_BENCHMARK_40RUNS.md` for the full report and raw data.
+To support the thesis claim that Trace2Pass is production-viable, we measured runtime overhead on 11 open-source C projects using the same instrumentation plugin used in the bug-diagnosis pipeline above. Each benchmark was run **40 iterations plus 1 warmup** for each of four configurations (baseline `-O2`, ASan, UBSan, Trace2Pass with the runtime's default 10% sampling rate). A separate **no-sampling (100%) upper-bound** run on 12 projects gives a worst-case mean of **+2.30%** — see the *No-sampling baseline* section in `evaluation/OVERHEAD_BENCHMARK_40RUNS.md`. We report mean ± standard deviation and 95% confidence intervals computed from the t-distribution (df=39, t₀.₀₂₅=2.0227). See `evaluation/OVERHEAD_BENCHMARK_40RUNS.md` for the full report and raw data.
 
 **Hardware**: 16-core x86_64 Ubuntu 22.04, 31 GB RAM. Clang 18.1.3. **Reproduction**:
 ```bash

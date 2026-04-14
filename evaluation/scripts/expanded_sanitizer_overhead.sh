@@ -415,13 +415,14 @@ for proj in $PROJECTS; do
             "$BIN" >/dev/null 2>&1 || true
 
             for run in $(seq 1 $NUM_RUNS); do
-                ms=$("$BIN" 2>/dev/null || echo "0")
-                # Validate it's a number
-                if echo "$ms" | grep -qE '^[0-9]+\.?[0-9]*$'; then
-                    TIMES="$TIMES$ms,"
-                else
-                    TIMES="${TIMES}0,"
+                # Only take the last line of stdout; handle harnesses that
+                # print diagnostics. If the harness failed to print anything
+                # numeric, substitute "0" rather than leak multi-line output.
+                ms=$("$BIN" 2>/dev/null | tail -1)
+                if ! echo "$ms" | grep -qE '^[0-9]+\.?[0-9]*$'; then
+                    ms="0"
                 fi
+                TIMES="$TIMES$ms,"
             done
         fi
         TIMES="${TIMES%,}]"

@@ -77,7 +77,7 @@ This document compares Trace2Pass against existing tools for compiler bug detect
 |--------|------------|------------|
 | Works on real programs | Partially (needs profiling + mutation) | **Yes** (unmodified binaries) |
 | Requires source modification | Yes (dead code mutation) | **No** |
-| Production-viable | No (offline analysis) | **Yes** (+0.22% mean overhead, n=40) |
+| Production-viable | No (offline analysis) | **Yes** (median +4.69% / mean +17.30% on 23 projects, n=40) |
 | Bug class coverage | Dead-code influenced bugs only | Arithmetic, aliasing, loop, shift bugs |
 | Diagnosis capability | None | **Full** (pass + version bisect) |
 
@@ -140,7 +140,7 @@ From the literature (Regehr et al. PLDI 2012):
 
 ### 3.1 Overhead Comparison Experiment
 
-**Setup**: Built 11 open-source C projects with baseline `-O2`, ASan, UBSan, and Trace2Pass (default **10% sampling rate**, controlled by `TRACE2PASS_SAMPLE_RATE`). Each benchmark ran **40 iterations** plus 1 warmup. We report mean ± standard deviation and 95% confidence intervals computed from the t-distribution (df=39, t₀.₀₂₅=2.0227). All measurements on a 16-core x86_64 Ubuntu 22.04 server, Clang 18.1.3. A separate **no-sampling (100%) upper-bound run** is reported in `evaluation/OVERHEAD_BENCHMARK_40RUNS.md` ("No-sampling baseline" section); see that file for the worst-case Trace2Pass numbers. Reproducible via:
+**Setup**: Built **23 open-source C projects** (compression, JSON/YAML/CBOR/XML parsing, crypto, HTTP parsing, imaging, audio, SQLite, Lua, Duktape, etc.) with baseline `-O2`, ASan, UBSan, and Trace2Pass (default **10% sampling rate**, controlled by `TRACE2PASS_SAMPLE_RATE`). Each benchmark ran **40 iterations** plus 1 warmup. We report mean ± standard deviation and 95% confidence intervals computed from the t-distribution (df=39, t₀.₀₂₅=2.0227). All measurements on a 16-core x86_64 Ubuntu 22.04 server, Clang 18.1.3. A separate **no-sampling (100%) upper-bound run** is reported in `evaluation/OVERHEAD_BENCHMARK_40RUNS.md` ("No-sampling baseline" section); see that file for the worst-case Trace2Pass numbers. Reproducible via:
 ```bash
 bash evaluation/scripts/expanded_sanitizer_overhead.sh --runs 40
 python3 evaluation/scripts/compute_overhead_stats.py \
@@ -163,11 +163,13 @@ Full data and per-iteration measurements are in `evaluation/results/sanitizer_co
 | tinyexpr | 88.2 ± 9.9 | +284.11% [+268.9, +299.3] | +43.56% [+36.6, +50.5] | -1.72%† [-5.45, +2.01] |
 | dr_libs | 43.8 ± 4.5 | +22.00% [+17.6, +26.4] | -4.38% [-8.49, -0.26] | -8.88% [-12.44, -5.33] |
 | duktape | 1421.3 ± 33.4 | +276.76% [+272.8, +280.7] | +244.07% [+240.5, +247.6] | +4.24% [+2.97, +5.51] |
-| **Mean** | — | **+295.61%** | **+122.26%** | **+0.22%** |
+| **Mean (11)** | — | **+295.61%** | **+122.26%** | **+0.22%** |
+| **Mean (23, full set)** | — | **+259.57%** | **+235.39%** | **+17.30%** |
+| **Median (23)** | — | **+166.73%** | **+148.75%** | **+4.69%** |
 
-Rows marked † have a CI that overlaps zero, i.e. the measured overhead is not statistically distinguishable from zero at α=0.05.
+Rows marked † have a CI that overlaps zero, i.e. the measured overhead is not statistically distinguishable from zero at α=0.05. The 11-project table above is a headline snapshot; the **full 23-project table with the additional jsmn, snappy, libyaml, libexpat, libcbor, zstd, monocypher, stb_image, stb_sprintf, miniaudio, http_parser projects** is in `evaluation/OVERHEAD_BENCHMARK_40RUNS.md` under "Expanded benchmark — 23 projects".
 
-*Trace2Pass overhead explanation: On correct code, instrumented checks (compare+branch) always take the not-taken path. Modern CPUs predict these perfectly, resulting in near-zero overhead. The default 10% sampling rate only affects reporting frequency when anomalies trigger — which never happens on correct code. The overhead comes entirely from the added compare+branch instructions at each instrumented arithmetic operation. Six projects (sqlite, cjson, xxhash, utf8proc, yyjson, tinyexpr) show overhead statistically indistinguishable from zero; one (dr_libs) is significantly faster (cache effects from the added instructions). The mean across all 11 projects is **+0.22%**. With sampling forced to 100% (worst case), the mean rises to **+2.30%** across 12 projects — still ~120× lower than ASan. See `OVERHEAD_BENCHMARK_40RUNS.md` for the full no-sampling table.*
+*Trace2Pass overhead explanation: On correct code, instrumented checks (compare+branch) always take the not-taken path. Modern CPUs predict these perfectly, resulting in low overhead. The default 10% sampling rate only affects reporting frequency when anomalies trigger — which never happens on correct code. The overhead comes entirely from the added compare+branch instructions at each instrumented arithmetic operation. Across the full 23-project set, the **median** overhead is **+4.69%** and the **mean** is **+17.30%**; the mean is inflated by one extreme outlier — `stb_image`, a 3.3 ms synthetic workload where instrumentation is a large relative fraction — and drops to **+6.21%** mean when that project is excluded. Eleven of the 23 projects have 95% CIs overlapping zero or trending negative (including sqlite −9.95%, yyjson −14.52%, dr_libs +1.84% ns). With sampling forced to 100% (worst case) on the original 12 projects, the mean rises to **+2.30%** — still ~120× lower than ASan. See `OVERHEAD_BENCHMARK_40RUNS.md` for the full no-sampling table and the full 23-project expanded table.*
 
 **Binary Size Overhead** (n=40 run, deterministic per config):
 
@@ -208,7 +210,7 @@ The two largest projects (SQLite and Lua) see Trace2Pass size overhead of only +
 
 - **Citation**: Serebryany, K., Bruening, D., Potapenko, A., & Vyukov, D. (2012). "AddressSanitizer: A Fast Memory Error Detector." *USENIX ATC 2012*.
 - **What it detects**: Heap/stack buffer overflow, use-after-free, double-free.
-- **Measured overhead**: **+296% mean** across 11 projects (range: +22% on dr_libs to +1142% on yyjson; median +167%)
+- **Measured overhead**: **+260% mean** across 23 projects (range: +22% on dr_libs to +1142% on yyjson; median +167%)
 - **Published overhead**: ~73% geometric mean on SPEC CPU2006 (ATC 2012 paper), ~2-3x memory increase
 - **Cannot detect**: Compiler bugs. ASan monitors memory operations — if the compiler generates wrong arithmetic or incorrect control flow, ASan sees nothing.
 
@@ -216,7 +218,7 @@ The two largest projects (SQLite and Lua) see Trace2Pass size overhead of only +
 
 - **Citation**: LLVM Project (built-in to Clang).
 - **What it detects**: Signed overflow, shift errors, division by zero, null dereference, misaligned access.
-- **Measured overhead**: **+122% mean** across 11 projects (range: -4% on dr_libs to +256% on sqlite; median +107%)
+- **Measured overhead**: **+235% mean** across 23 projects (range: −4% on dr_libs to +2036% on snappy; median +149%)
 - **Published overhead**: ~20-30% (varies heavily by workload)
 - **Cannot detect**: Compiler bugs. UBSan detects UB in *source code*. If the source has no UB but the compiler generates wrong code, UBSan reports nothing.
 - **vs Trace2Pass**: UBSan detects the **opposite** class of bugs. Trace2Pass *uses* UBSan as a signal: if UBSan fires, it is more likely user UB than a compiler bug. Trace2Pass checks that UBSan does NOT fire, then concludes the anomaly is likely a compiler bug.
@@ -229,15 +231,15 @@ The two largest projects (SQLite and Lua) see Trace2Pass size overhead of only +
 
 ### 3.5 Sanitizer Comparison Summary
 
-| Tool | Measured Overhead (n=40, 11 projects) | Target Bug Class | Production-Viable | Detects Compiler Bugs |
+| Tool | Measured Overhead (n=40, 23 projects) | Target Bug Class | Production-Viable | Detects Compiler Bugs |
 |------|----------------------------------|-----------------|-------------------|----------------------|
-| ASan | **+296%** (median +167%) | Memory errors (user code) | No | No |
-| UBSan | **+122%** (median +107%) | Undefined behavior (user code) | Marginal | No |
+| ASan | median **+167%**, mean **+260%** | Memory errors (user code) | No | No |
+| UBSan | median **+149%**, mean **+235%** | Undefined behavior (user code) | Marginal | No |
 | MSan | ~300% (published) | Uninitialized memory | No | No |
 | Valgrind | 10-20x (published) | Memory/threading | No | No |
-| **Trace2Pass** | **+0.22%** (median -0.60%) | **Compiler misoptimization** | **Yes** | **Yes** |
+| **Trace2Pass** | median **+4.69%**, mean **+17.30%** | **Compiler misoptimization** | **Yes** | **Yes** |
 
-(Trace2Pass numbers are statistically robust: 40-run means with 95% CIs; 6/11 projects show CIs overlapping zero.)
+(Trace2Pass numbers are statistically robust: 40-run means with 95% CIs per project. The mean is dragged up by a single outlier — stb_image — with a 3.3 ms baseline where instrumentation overhead becomes a huge relative fraction. Excluding it, the 22-project mean is **+6.21%**. Eleven projects have 95% CIs that overlap zero. No-sampling upper bound on the original 12 projects is **+2.30%** mean — see `OVERHEAD_BENCHMARK_40RUNS.md`.)
 
 **Key insight**: Sanitizers and Trace2Pass detect completely different bug classes. Sanitizers find bugs *in user code* (memory errors, UB). Trace2Pass finds bugs *in the compiler* (misoptimization). They are complementary — in fact, Trace2Pass uses UBSan results as a signal in its UB detection stage to exclude user-code bugs.
 
@@ -347,7 +349,7 @@ The two largest projects (SQLite and Lua) see Trace2Pass size overhead of only +
 
 3. **Compiler bug vs UB distinction**: Sanitizers detect UB but cannot determine if the *optimizer* caused the problem. Trace2Pass's multi-signal approach (UBSan + optimization sensitivity + multi-compiler differential) classifies the root cause with measured accuracy of 5/5 (100%) on tested bugs.
 
-4. **Production-viable overhead**: **+0.22% mean** across 11 projects (n=40 iterations each, 95% CIs computed via t-distribution), which is **1338× lower** than ASan (+296%) and **554× lower** than UBSan (+122%). See `evaluation/OVERHEAD_BENCHMARK_40RUNS.md` for the full statistical report.
+4. **Production-viable overhead**: **median +4.69% (mean +17.30%)** across **23 projects** (n=40 iterations each, 95% CIs computed via t-distribution). Trace2Pass **median** overhead is **~35× lower than ASan median** (+167%) and **~32× lower than UBSan median** (+149%). The mean is dominated by a single 3.3 ms outlier (stb_image); removing it gives +6.21% mean across 22 projects. See `evaluation/OVERHEAD_BENCHMARK_40RUNS.md` for the full statistical report, including a no-sampling upper-bound run.
 
 ### Taxonomy
 
@@ -387,8 +389,8 @@ All measurements taken on Apple M2, macOS, Homebrew LLVM 21.1.2.
 | **git bisect vs T2P** | Version bisection time | 6.5-19.5 hours (build LLVM) | **2.7 min** (Docker) | |
 | **git bisect vs T2P** | Pass-level isolation | No | **Yes** | |
 | **git bisect vs T2P** | UB classification | No | **Yes** | |
-| **ASan vs T2P** | Runtime overhead (n=40, 11 projects) | **+296%** (measured) | **+0.22%** (measured) | 1338× lower |
-| **UBSan vs T2P** | Runtime overhead (n=40, 11 projects) | **+122%** (measured) | **+0.22%** (measured) | 554× lower |
+| **ASan vs T2P** | Runtime overhead (n=40, 23 projects) | mean **+260%** / median **+167%** | mean **+17.30%** / median **+4.69%** | ~35× lower median |
+| **UBSan vs T2P** | Runtime overhead (n=40, 23 projects) | mean **+235%** / median **+149%** | mean **+17.30%** / median **+4.69%** | ~32× lower median |
 | **Sanitizers vs T2P** | Detects compiler bugs | No (user bugs only) | **Yes** | Different bug classes |
 | **Sanitizers vs T2P** | Production viable | No (too much overhead) | **Yes** | |
 
@@ -468,7 +470,7 @@ python3 diagnoser/diagnose.py version-bisect \
 | 9 | CompCert | Leroy, "Formal Verification of a Realistic Compiler," CACM 2009 / POPL 2006 | Yes |
 | 10 | Alive2 | Lopes et al., "Alive2: Bounded Translation Validation for LLVM," PLDI 2021 | Yes |
 
-**Note**: Our 11-project n=40 benchmark shows ASan averaging +296% (median +167%) and UBSan averaging +122% (median +107%), consistent with published literature (ASan ~73% on SPEC CPU2006, UBSan ~20–30%) but on heavier allocation-intensive workloads. Variation across projects is expected — ASan is especially heavy on allocation-churn code (yyjson: +1142%, cJSON: +543%) and lighter on compute-bound code (dr_libs: +22%). Trace2Pass overhead (+0.22% mean) is near-zero because instrumented checks are compare+branch only, with modern CPUs predicting the always-not-taken branches perfectly on correct code. Six of the eleven projects show Trace2Pass CIs overlapping zero at α=0.05.
+**Note**: Our expanded 23-project n=40 benchmark shows ASan averaging +260% (median +167%) and UBSan averaging +235% (median +149%), consistent with published literature (ASan ~73% on SPEC CPU2006, UBSan ~20–30%) but on heavier allocation-intensive workloads. Variation across projects is expected — ASan is especially heavy on allocation-churn code (yyjson: +1142%, cJSON: +543%) and lighter on compute-bound code (dr_libs: +22%). Trace2Pass overhead (median +4.69%, mean +17.30%) is low because instrumented checks are compare+branch only, with modern CPUs predicting the always-not-taken branches perfectly on correct code. Eleven of the 23 projects show Trace2Pass CIs overlapping zero at α=0.05, and one extreme outlier (stb_image, 3.3 ms baseline) drags the mean up — excluded, the 22-project mean is +6.21%.
 
 ---
 
