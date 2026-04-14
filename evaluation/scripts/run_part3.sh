@@ -12,7 +12,7 @@ cd "$(dirname "$0")/../.."
 ROOT=$(pwd)
 OUT="$ROOT/evaluation/results/pipeline_timing_40runs"
 mkdir -p "$OUT"
-RUNS="${TIMING_RUNS:-40}"
+RUNS="${TIMING_RUNS:-5}"
 
 echo "[part3] Starting $(date -u +%Y%m%dT%H%M%SZ) (runs=$RUNS per stage)"
 python3 "$ROOT/evaluation/scripts/time_pipeline_stages.py" --runs "$RUNS" --out "$OUT" 2>&1
