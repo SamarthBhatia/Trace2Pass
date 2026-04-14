@@ -1,0 +1,9 @@
+{
+  "project": "zlib",
+  "density": 10,
+  "timestamp": "20260414_102137",
+  "status": "OK",
+  "runs_ms": [361.72,369.81],
+  "report_path": "/home/sbhatia/Trace2Pass/evaluation/results/seeded_bugs/zlib_d10_20260414_102137.jsonl",
+  "manifest_path": "/home/sbhatia/Trace2Pass/evaluation/results/seeded_bugs/zlib_d10_20260414_102137.seed.c"
+}

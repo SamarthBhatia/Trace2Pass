@@ -1,0 +1,9 @@
+{
+  "project": "lua",
+  "density": 0,
+  "timestamp": "20260414_102200",
+  "status": "OK",
+  "runs_ms": [6640.68,6795.47],
+  "report_path": "/home/sbhatia/Trace2Pass/evaluation/results/seeded_bugs/lua_d0_20260414_102200.jsonl",
+  "manifest_path": "/home/sbhatia/Trace2Pass/evaluation/results/seeded_bugs/lua_d0_20260414_102200.seed.c"
+}

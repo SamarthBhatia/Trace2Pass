@@ -1,0 +1,9 @@
+{
+  "project": "yyjson",
+  "density": 2,
+  "timestamp": "20260414_102541",
+  "status": "OK",
+  "runs_ms": [34.79,32.44],
+  "report_path": "/home/sbhatia/Trace2Pass/evaluation/results/seeded_bugs/yyjson_d2_20260414_102541.jsonl",
+  "manifest_path": "/home/sbhatia/Trace2Pass/evaluation/results/seeded_bugs/yyjson_d2_20260414_102541.seed.c"
+}
