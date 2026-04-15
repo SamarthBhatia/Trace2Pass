@@ -1,4 +1,4 @@
-# Seeded Bug Detection — Trace2Pass ALL_CHECKS, 42 projects, n=40
+# Overhead Matrix — Trace2Pass ALL_CHECKS, 42 projects, n=40
 
 Sampling × seeded-bug density matrix, all 17 Trace2Pass checks enabled.
 
