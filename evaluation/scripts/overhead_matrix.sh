@@ -220,12 +220,20 @@ detections = set()
 try:
     with open(report_path) as f:
         for line in f:
+            line = line.strip()
+            if not line.startswith("{"):
+                continue
             try:
                 obj = json.loads(line)
             except Exception:
                 continue
-            fn = obj.get("function", "")
-            detections.add(fn)
+            # Trace2Pass format: {"location": {"function": "...", ...}, ...}
+            loc = obj.get("location", {})
+            fn = loc.get("function", "") if isinstance(loc, dict) else ""
+            if not fn:
+                fn = obj.get("function", "")
+            if fn:
+                detections.add(fn)
 except Exception:
     pass
 hit = sum(1 for s in seeded if any(s in d for d in detections))
@@ -259,10 +267,18 @@ print(json.dumps({
     "runs": $RUNS
 }, indent=2))
 PYEOF
+            # Preserve the JSONL report alongside the Part 2 JSON so we can
+            # re-parse detection data later without re-running the whole matrix.
+            SAVED_REPORT="$OUTDIR/${proj}_s${SR}_d${density}.jsonl"
+            cp -f "$REPORT" "$SAVED_REPORT" 2>/dev/null || true
+            SAVED_SEED="$OUTDIR/${proj}_d${density}.seed.c"
+            cp -f "$SEED_C" "$SAVED_SEED" 2>/dev/null || true
+
             echo "[matrix]   s=$SR → $(basename $OUTFILE)"
         done
 
-        # Clean up per-density workdir to save disk
+        # Clean up per-density workdir binaries (keeps disk clean) but the
+        # JSONL reports have already been copied to $OUTDIR above.
         rm -rf "$WORKDIR"
     done
 done
