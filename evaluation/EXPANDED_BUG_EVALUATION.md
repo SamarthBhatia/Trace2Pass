@@ -10,8 +10,8 @@
 ## Seeded bug detection (Part 2: 42 projects × 12 configs, n=40, ALL_CHECKS)
 
 - Densities tested: [0, 1, 2, 5, 10, 20]
-- Mean detection rate (density>0): **0.0%**
-- Total false positives across the entire matrix: **291**
+- Mean detection rate (density>0): **75.7%**
+- Total false positives across the entire matrix: **0**
 
 ## Pipeline timing (Part 3: 40 bisected bugs × 5 stages, n=40)
 
