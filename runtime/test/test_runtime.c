@@ -26,7 +26,7 @@ void test_bounds_violation(void) {
 void test_sampling(void) {
     printf("Testing sampling...\n");
 
-    // With default sample rate (1%), most calls should be skipped
+    // With default sample rate (10%), ~100 out of 1000 calls should be sampled
     int sampled = 0;
     for (int i = 0; i < 1000; i++) {
         if (trace2pass_should_sample()) {
@@ -34,8 +34,8 @@ void test_sampling(void) {
         }
     }
 
-    printf("✓ Sampled %d out of 1000 calls (expected ~10 with 1%% rate)\n", sampled);
-    assert(sampled >= 0 && sampled <= 50);  // Reasonable range
+    printf("✓ Sampled %d out of 1000 calls (expected ~100 with 10%% rate)\n", sampled);
+    assert(sampled >= 50 && sampled <= 200);  // Reasonable range for 10%
 }
 
 void test_deduplication(void) {

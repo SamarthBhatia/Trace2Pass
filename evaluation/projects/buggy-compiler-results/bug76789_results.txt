@@ -1,0 +1,24 @@
+=== Bug #76789 — BasicAA/LICM wrong code (clang:16, -O1) ===
+
+--- Uninstrumented (bug present) ---
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Output: 0
+Expected: 1, Got: 0
+
+--- Instrumented (Trace2Pass active) ---
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: h
+Trace2Pass: Instrumented 2 arithmetic operations in h
+Trace2Pass: Instrumenting function: l
+Trace2Pass: Instrumenting function: n
+Trace2Pass: Instrumenting function: m
+Trace2Pass: Instrumented 2 arithmetic operations in m
+Trace2Pass: Instrumenting function: main
+Running instrumented binary...
+Output: Trace2Pass: Runtime initialized (sample_rate=1.000, opt_level=unknown)
+Trace2Pass: Runtime shutting down
+1
+
+--- Anomaly report ---
+Anomalies: 0
+(anomaly reports printed to stderr above)

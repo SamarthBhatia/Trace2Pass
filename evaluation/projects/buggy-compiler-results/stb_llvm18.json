@@ -1,0 +1,12 @@
+{
+    "project": "stb",
+    "docker_image": "trace2pass-eval:18",
+    "baseline_ms": 354.05,
+    "instrumented_ms": 587.93,
+    "overhead_percent": 66.06,
+    "anomalies": 0,
+    "warmup_runs": 5,
+    "measurement_runs": 10,
+    "method": "median",
+    "timestamp": "2026-02-17T16:02:56Z"
+}

@@ -1,0 +1,351 @@
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so -fPIC -D_LARGEFILE64_SOURCE=1 -I. -c -o example.o test/example.c
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so -fPIC -D_LARGEFILE64_SOURCE=1  -c -o adler32.o adler32.c
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so -fPIC -D_LARGEFILE64_SOURCE=1  -c -o crc32.o crc32.c
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so -fPIC -D_LARGEFILE64_SOURCE=1  -c -o deflate.o deflate.c
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so -fPIC -D_LARGEFILE64_SOURCE=1  -c -o infback.o infback.c
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so -fPIC -D_LARGEFILE64_SOURCE=1  -c -o inffast.o inffast.c
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so -fPIC -D_LARGEFILE64_SOURCE=1  -c -o inflate.o inflate.c
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so -fPIC -D_LARGEFILE64_SOURCE=1  -c -o inftrees.o inftrees.c
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: inflate_fast
+Trace2Pass: Instrumented 24 arithmetic operations in inflate_fast
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in main
+Trace2Pass: Instrumenting function: test_compress
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in test_compress
+Trace2Pass: Instrumenting function: test_gzio
+Trace2Pass: Instrumented 2 arithmetic operations, 11 unreachable blocks in test_gzio
+Trace2Pass: Instrumenting function: test_deflate
+Trace2Pass: Instrumented 0 arithmetic operations, 4 unreachable blocks in test_deflate
+Trace2Pass: Instrumenting function: test_inflate
+Trace2Pass: Instrumented 0 arithmetic operations, 4 unreachable blocks in test_inflate
+Trace2Pass: Instrumenting function: test_large_deflate
+Trace2Pass: Instrumented 0 arithmetic operations, 7 unreachable blocks, 1 division checks in test_large_deflate
+Trace2Pass: Instrumenting function: test_large_inflate
+Trace2Pass: Instrumented 0 arithmetic operations, 4 unreachable blocks, 1 division checks in test_large_inflate
+Trace2Pass: Instrumenting function: test_flush
+Trace2Pass: Instrumented 0 arithmetic operations, 4 unreachable blocks in test_flush
+Trace2Pass: Instrumenting function: test_sync
+Trace2Pass: Instrumented 0 arithmetic operations, 5 unreachable blocks in test_sync
+Trace2Pass: Instrumenting function: test_dict_deflate
+Trace2Pass: Instrumented 0 arithmetic operations, 4 unreachable blocks in test_dict_deflate
+Trace2Pass: Instrumenting function: test_dict_inflate
+Trace2Pass: Instrumented 0 arithmetic operations, 5 unreachable blocks in test_dict_inflate
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: deflateInit_
+Trace2Pass: Instrumenting function: deflateInit2_
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: adler32_z
+Trace2Pass: Instrumented 6 arithmetic operations, 1 division checks in deflateInit2_
+Trace2Pass: Instrumenting function: deflateEnd
+Trace2Pass: Instrumenting function: deflateReset
+Trace2Pass: Instrumenting function: deflateSetDictionary
+Trace2Pass: Instrumented 1 arithmetic operations in deflateSetDictionary
+Trace2Pass: Instrumenting function: deflateStateCheck
+Trace2Pass: Instrumenting function: fill_window
+Trace2Pass: Instrumented 3 arithmetic operations in fill_window
+Trace2Pass: Instrumenting function: deflateGetDictionary
+Trace2Pass: Instrumenting function: deflateResetKeep
+Trace2Pass: Instrumented 1 arithmetic operations in deflateResetKeep
+Trace2Pass: Instrumenting function: lm_init
+Trace2Pass: Instrumenting function: deflateSetHeader
+Trace2Pass: Instrumenting function: deflatePending
+Trace2Pass: Instrumenting function: deflateUsed
+Trace2Pass: Instrumenting function: deflatePrime
+Trace2Pass: Instrumented 7 arithmetic operations in deflatePrime
+Trace2Pass: Instrumenting function: deflateParams
+Trace2Pass: Instrumented 2 arithmetic operations in deflateParams
+Trace2Pass: Instrumenting function: deflate
+Trace2Pass: Instrumented 4 arithmetic operations, 5 division checks in adler32_z
+Trace2Pass: Instrumenting function: adler32
+Trace2Pass: Instrumented 25 arithmetic operations, 1 division checks in deflate
+Trace2Pass: Instrumenting function: slide_hash
+Trace2Pass: Instrumenting function: deflateTune
+Trace2Pass: Instrumenting function: deflateBound_z
+Trace2Pass: Instrumented 11 arithmetic operations in deflateBound_z
+Trace2Pass: Instrumenting function: deflateBound
+Trace2Pass: Instrumenting function: flush_pending
+Trace2Pass: Instrumenting function: adler32_combine
+Trace2Pass: Instrumenting function: adler32_combine_
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in flush_pending
+Trace2Pass: Instrumenting function: putShortMSB
+Trace2Pass: Instrumented 1 arithmetic operations in putShortMSB
+Trace2Pass: Instrumenting function: deflate_stored
+Trace2Pass: Instrumented 3 arithmetic operations, 2 division checks in adler32_combine_
+Trace2Pass: Instrumenting function: adler32_combine64
+Trace2Pass: Instrumented 9 arithmetic operations in deflate_stored
+Trace2Pass: Instrumenting function: deflate_huff
+Trace2Pass: Instrumented 3 arithmetic operations in deflate_huff
+Trace2Pass: Instrumenting function: deflate_rle
+Trace2Pass: Instrumented 8 arithmetic operations in deflate_rle
+Trace2Pass: Instrumenting function: deflateCopy
+Trace2Pass: Instrumenting function: read_buf
+Trace2Pass: Instrumenting function: deflate_fast
+Trace2Pass: Instrumented 11 arithmetic operations in deflate_fast
+Trace2Pass: Instrumenting function: deflate_slow
+Trace2Pass: Instrumented 11 arithmetic operations in deflate_slow
+Trace2Pass: Instrumenting function: longest_match
+Trace2Pass: Instrumented 5 arithmetic operations in longest_match
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: inflateResetKeep
+Trace2Pass: Instrumenting function: inflateStateCheck
+Trace2Pass: Instrumenting function: inflateReset
+Trace2Pass: Instrumenting function: inflateReset2
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: inflateBackInit_
+Trace2Pass: Instrumented Trace2Pass: Instrumented 3 arithmetic operations in inflateReset2
+1 arithmetic operations in inflateBackInit_
+Trace2Pass: Instrumenting function: inflateInit2_
+Trace2Pass: Instrumenting function: inflateInit_
+Trace2Pass: Instrumenting function: inflatePrime
+Trace2Pass: Instrumenting function: inflateBack
+Trace2Pass: Instrumented 3 arithmetic operations in inflatePrime
+Trace2Pass: Instrumenting function: inflate
+Trace2Pass: Instrumented 52 arithmetic operations in inflateBack
+Trace2Pass: Instrumenting function: inflateBackEnd
+Trace2Pass: Instrumented 91 arithmetic operations, 1 division checks in inflate
+Trace2Pass: Instrumenting function: updatewindow
+Trace2Pass: Instrumented 2 arithmetic operations in updatewindow
+Trace2Pass: Instrumenting function: inflateEnd
+Trace2Pass: Instrumenting function: inflateGetDictionary
+Trace2Pass: Instrumenting function: inflateSetDictionary
+Trace2Pass: Instrumenting function: inflateGetHeader
+Trace2Pass: Instrumenting function: inflateSync
+Trace2Pass: Instrumented 2 arithmetic operations in inflateSync
+Trace2Pass: Instrumenting function: syncsearch
+Trace2Pass: Instrumenting function: inflateSyncPoint
+Trace2Pass: Instrumenting function: inflateCopy
+Trace2Pass: Instrumented 1 arithmetic operations, 3 division checks in inflateCopy
+Trace2Pass: Instrumenting function: inflateUndermine
+Trace2Pass: Instrumenting function: inflateValidate
+Trace2Pass: Instrumenting function: inflateMark
+Trace2Pass: Instrumented 2 arithmetic operations in inflateMark
+Trace2Pass: Instrumenting function: inflateCodesUsed
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in inflateCodesUsed
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: get_crc_table
+Trace2Pass: Instrumenting function: crc32_z
+Trace2Pass: Instrumented 32 arithmetic operations, 1 division checks in crc32_z
+Trace2Pass: Instrumenting function: crc_word
+Trace2Pass: Instrumented 2 arithmetic operations in crc_word
+Trace2Pass: Instrumenting function: byte_swap
+Trace2Pass: Instrumented 8 arithmetic operations in byte_swap
+Trace2Pass: Instrumenting function: crc_word_big
+Trace2Pass: Instrumented 3 arithmetic operations in crc_word_big
+Trace2Pass: Instrumenting function: crc32
+Trace2Pass: Instrumenting function: crc32_combine_gen64
+Trace2Pass: Instrumenting function: x2nmodp
+Trace2Pass: Instrumented 1 arithmetic operations in x2nmodp
+Trace2Pass: Instrumenting function: crc32_combine_gen
+Trace2Pass: Instrumenting function: crc32_combine_op
+Trace2Pass: Instrumenting function: multmodp
+Trace2Pass: Instrumented 3 arithmetic operations in multmodp
+Trace2Pass: Instrumenting function: crc32_combine64
+Trace2Pass: Instrumenting function: crc32_combine
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: inflate_table
+Trace2Pass: Instrumented 13 arithmetic operations, 1 division checks in inflate_table
+Trace2Pass: Instrumenting function: inflate_fixed
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so -fPIC -D_LARGEFILE64_SOURCE=1  -c -o trees.o trees.c
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so -fPIC -D_LARGEFILE64_SOURCE=1  -c -o zutil.o zutil.c
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so -fPIC -D_LARGEFILE64_SOURCE=1  -c -o compress.o compress.c
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so -fPIC -D_LARGEFILE64_SOURCE=1  -c -o uncompr.o uncompr.c
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so -fPIC -D_LARGEFILE64_SOURCE=1  -c -o gzclose.o gzclose.c
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so -fPIC -D_LARGEFILE64_SOURCE=1  -c -o gzlib.o gzlib.c
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: compress2_z
+Trace2Pass: Instrumenting function: compress2
+Trace2Pass: Instrumenting function: compress_z
+Trace2Pass: Instrumenting function: compress
+Trace2Pass: Instrumenting function: compressBound_z
+Trace2Pass: Instrumented 3 arithmetic operations in compressBound_z
+Trace2Pass: Instrumenting function: compressBound
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: zlibVersion
+Trace2Pass: Instrumenting function: zlibCompileFlags
+Trace2Pass: Instrumenting function: zError
+Trace2Pass: Instrumented 1 arithmetic operations in zError
+Trace2Pass: Instrumenting function: zcalloc
+Trace2Pass: Instrumenting function: zcfree
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so -fPIC -D_LARGEFILE64_SOURCE=1  -c -o gzread.o gzread.c
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so -fPIC -D_LARGEFILE64_SOURCE=1  -c -o gzwrite.o gzwrite.c
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: uncompress2_z
+Trace2Pass: Instrumenting function: uncompress2
+Trace2Pass: Instrumenting function: uncompress_z
+Trace2Pass: Instrumenting function: uncompress
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: _tr_init
+Trace2Pass: Instrumenting function: tr_static_init
+Trace2Pass: Instrumenting function: init_block
+Trace2Pass: Instrumented 3 arithmetic operations in init_block
+Trace2Pass: Instrumenting function: _tr_stored_block
+Trace2Pass: Instrumented 13 arithmetic operations in _tr_stored_block
+Trace2Pass: Instrumenting function: bi_windup
+Trace2Pass: Instrumented 3 arithmetic operations in bi_windup
+Trace2Pass: Instrumenting function: _tr_flush_bits
+Trace2Pass: Instrumenting function: bi_flush
+Trace2Pass: Instrumented 3 arithmetic operations in bi_flush
+Trace2Pass: Instrumenting function: _tr_align
+Trace2Pass: Instrumented 18 arithmetic operations in _tr_align
+Trace2Pass: Instrumenting function: _tr_flush_block
+Trace2Pass: Instrumented 27 arithmetic operations in _tr_flush_block
+Trace2Pass: Instrumenting function: detect_data_type
+Trace2Pass: Instrumented 3 arithmetic operations in detect_data_type
+Trace2Pass: Instrumenting function: build_tree
+Trace2Pass: Instrumented 12 arithmetic operations, 1 division checks in build_tree
+Trace2Pass: Instrumenting function: build_bl_tree
+Trace2Pass: Instrumented 1 arithmetic operations in build_bl_tree
+Trace2Pass: Instrumenting function: compress_block
+Trace2Pass: Instrumented 57 arithmetic operations in compress_block
+Trace2Pass: Instrumenting function: send_all_trees
+Trace2Pass: Instrumented 45 arithmetic operations in send_all_trees
+Trace2Pass: Instrumenting function: _tr_tally
+Trace2Pass: Instrumented 4 arithmetic operations in _tr_tally
+Trace2Pass: Instrumenting function: pqdownheap
+Trace2Pass: Instrumented 6 arithmetic operations in pqdownheap
+Trace2Pass: Instrumenting function: gen_bitlen
+Trace2Pass: Instrumented 16 arithmetic operations, 1 unreachable blocks in gen_bitlen
+Trace2Pass: Instrumenting function: gen_codes
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks in gen_codes
+Trace2Pass: Instrumenting function: bi_reverse
+Trace2Pass: Instrumented 4 arithmetic operations in bi_reverse
+Trace2Pass: Instrumenting function: scan_tree
+Trace2Pass: Instrumented 5 arithmetic operations in scan_tree
+Trace2Pass: Instrumenting function: send_tree
+Trace2Pass: Instrumented 83 arithmetic operations in send_tree
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: gzclose
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: gzopen
+Trace2Pass: Instrumenting function: gz_open
+Trace2Pass: Instrumented 1 arithmetic operations in gz_open
+Trace2Pass: Instrumenting function: gzopen64
+Trace2Pass: Instrumenting function: gzdopen
+Trace2Pass: Instrumenting function: gzbuffer
+Trace2Pass: Instrumented 1 arithmetic operations in gzbuffer
+Trace2Pass: Instrumenting function: gzrewind
+Trace2Pass: Instrumenting function: gz_reset
+Trace2Pass: Instrumenting function: gzseek64
+Trace2Pass: Instrumented 9 arithmetic operations in gzseek64
+Trace2Pass: Instrumenting function: gz_error
+Trace2Pass: Instrumenting function: gzseek
+Trace2Pass: Instrumenting function: gztell64
+Trace2Pass: Instrumented 1 arithmetic operations in gztell64
+Trace2Pass: Instrumenting function: gztell
+Trace2Pass: Instrumenting function: gzoffset64
+Trace2Pass: Instrumented 1 arithmetic operations in gzoffset64
+Trace2Pass: Instrumenting function: gzoffset
+Trace2Pass: Instrumenting function: gzeof
+Trace2Pass: Instrumenting function: gzerror
+Trace2Pass: Instrumenting function: gzclearerr
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in gzclearerr
+Trace2Pass: Instrumenting function: gz_intmax
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so -fPIC -D_LARGEFILE64_SOURCE=1 -I. -c -o minigzip.o test/minigzip.c
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: gzwrite
+Trace2Pass: Instrumenting function: gz_write
+Trace2Pass: Instrumented 2 arithmetic operations in gz_write
+Trace2Pass: Instrumenting function: gzfwrite
+Trace2Pass: Instrumented 0 arithmetic operations, 2 division checks in gzfwrite
+Trace2Pass: Instrumenting function: gzputc
+Trace2Pass: Instrumented 1 arithmetic operations in gzputc
+Trace2Pass: Instrumenting function: gz_zero
+Trace2Pass: Instrumented 2 arithmetic operations in gz_zero
+Trace2Pass: Instrumenting function: gzputs
+Trace2Pass: Instrumenting function: gzvprintf
+Trace2Pass: Instrumented 1 arithmetic operations in gzvprintf
+Trace2Pass: Instrumenting function: gz_init
+Trace2Pass: Instrumented 1 arithmetic operations in gz_init
+Trace2Pass: Instrumenting function: gz_vacate
+Trace2Pass: Instrumenting function: gzprintf
+Trace2Pass: Instrumenting function: gzflush
+Trace2Pass: Instrumenting function: gz_comp
+Trace2Pass: Instrumenting function: gzsetparams
+Trace2Pass: Instrumenting function: gzclose_w
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so -fPIC -D_LARGEFILE64_SOURCE=1 -I. -D_FILE_OFFSET_BITS=64 -c -o example64.o test/example.c
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so -fPIC -D_LARGEFILE64_SOURCE=1 -I. -D_FILE_OFFSET_BITS=64 -c -o minigzip64.o test/minigzip.c
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: gzread
+Trace2Pass: Instrumenting function: gz_read
+Trace2Pass: Instrumented 2 arithmetic operations in gz_read
+Trace2Pass: Instrumenting function: gzfread
+Trace2Pass: Instrumented 0 arithmetic operations, 2 division checks in gzfread
+Trace2Pass: Instrumenting function: gzgetc
+Trace2Pass: Instrumented 1 arithmetic operations in gzgetc
+Trace2Pass: Instrumenting function: gzgetc_
+Trace2Pass: Instrumenting function: gzungetc
+Trace2Pass: Instrumented 5 arithmetic operations in gzungetc
+Trace2Pass: Instrumenting function: gz_look
+Trace2Pass: Instrumented 1 arithmetic operations in gz_look
+Trace2Pass: Instrumenting function: gz_skip
+Trace2Pass: Instrumented 2 arithmetic operations in gz_skip
+Trace2Pass: Instrumenting function: gzgets
+Trace2Pass: Instrumented 1 arithmetic operations in gzgets
+Trace2Pass: Instrumenting function: gz_fetch
+Trace2Pass: Instrumented 2 arithmetic operations in gz_fetch
+Trace2Pass: Instrumenting function: gzdirect
+Trace2Pass: Instrumenting function: gzclose_r
+Trace2Pass: Instrumenting function: gz_load
+Trace2Pass: Instrumenting function: gz_decomp
+Trace2Pass: Instrumenting function: gz_avail
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 3 arithmetic operations in main
+Trace2Pass: Instrumenting function: string_copy
+Trace2Pass: Instrumenting function: error
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in error
+Trace2Pass: Instrumenting function: gz_uncompress
+Trace2Pass: Instrumenting function: gz_compress
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in gz_compress
+Trace2Pass: Instrumenting function: file_uncompress
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in file_uncompress
+Trace2Pass: Instrumenting function: file_compress
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in file_compress
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in main
+Trace2Pass: Instrumenting function: test_compress
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in test_compress
+Trace2Pass: Instrumenting function: test_gzio
+Trace2Pass: Instrumented 2 arithmetic operations, 11 unreachable blocks in test_gzio
+Trace2Pass: Instrumenting function: test_deflate
+Trace2Pass: Instrumented 0 arithmetic operations, 4 unreachable blocks in test_deflate
+Trace2Pass: Instrumenting function: test_inflate
+Trace2Pass: Instrumented 0 arithmetic operations, 4 unreachable blocks in test_inflate
+Trace2Pass: Instrumenting function: test_large_deflate
+Trace2Pass: Instrumented 0 arithmetic operations, 7 unreachable blocks, 1 division checks in test_large_deflate
+Trace2Pass: Instrumenting function: test_large_inflate
+Trace2Pass: Instrumented 0 arithmetic operations, 4 unreachable blocks, 1 division checks in test_large_inflate
+Trace2Pass: Instrumenting function: test_flush
+Trace2Pass: Instrumented 0 arithmetic operations, 4 unreachable blocks in test_flush
+Trace2Pass: Instrumenting function: test_sync
+Trace2Pass: Instrumented 0 arithmetic operations, 5 unreachable blocks in test_sync
+Trace2Pass: Instrumenting function: test_dict_deflate
+Trace2Pass: Instrumented 0 arithmetic operations, 4 unreachable blocks in test_dict_deflate
+Trace2Pass: Instrumenting function: test_dict_inflate
+Trace2Pass: Instrumented 0 arithmetic operations, 5 unreachable blocks in test_dict_inflate
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 3 arithmetic operations in main
+Trace2Pass: Instrumenting function: string_copy
+Trace2Pass: Instrumenting function: error
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in error
+Trace2Pass: Instrumenting function: gz_uncompress
+Trace2Pass: Instrumenting function: gz_compress
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in gz_compress
+Trace2Pass: Instrumenting function: file_uncompress
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in file_uncompress
+Trace2Pass: Instrumenting function: file_compress
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in file_compress
+ar rc libz.a adler32.o crc32.o deflate.o infback.o inffast.o inflate.o inftrees.o trees.o zutil.o compress.o uncompr.o gzclose.o gzlib.o gzread.o gzwrite.o 
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so -fPIC -D_LARGEFILE64_SOURCE=1  -o example example.o -L. libz.a
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so -fPIC -D_LARGEFILE64_SOURCE=1  -o minigzip minigzip.o -L. libz.a
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so -fPIC -D_LARGEFILE64_SOURCE=1  -o example64 example64.o -L. libz.a
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so -fPIC -D_LARGEFILE64_SOURCE=1  -o minigzip64 minigzip64.o -L. libz.a
+/usr/bin/ld: example.o: in function `main':
+example.c:(.text+0x156): undefined reference to `trace2pass_should_sample'
+/usr/bin/ld: example.c:(.text+0x189): undefined reference to `trace2pass_report_overflow'
+/usr/bin/ld: example.c:(.text+0x2b6): undefined reference to `trace2pass_should_sample'
+/usr/bin/ld: example.c:(.text+0x2e9): undefined reference to `trace2pass_report_overflow'

@@ -132,6 +132,51 @@ class WorkaroundGenerator:
             f"See: https://llvm.org/docs/Passes.html for pass pipeline customization."
         )
 
+    def generate_healing_recipe(self, diagnosis: Dict[str, Any],
+                               source_file: str) -> Optional[Dict[str, Any]]:
+        """
+        Convert diagnosis into machine-actionable healing recipe dict.
+
+        Returns None if verdict != compiler_bug.
+        """
+        if diagnosis.get("verdict") != "compiler_bug":
+            return None
+
+        pass_bisection = diagnosis.get("pass_bisection", {})
+        culprit_pass = pass_bisection.get("culprit_pass")
+        if not culprit_pass:
+            return None
+
+        recipe: Dict[str, Any] = {
+            "source_file": source_file,
+            "culprit_pass": culprit_pass,
+            "optimization_level": diagnosis.get("optimization_level", "-O2"),
+        }
+
+        # Determine best strategy
+        culprit_lower = culprit_pass.lower()
+        has_disable_flag = any(k in culprit_lower for k in self.PASS_DISABLE_FLAGS)
+
+        if has_disable_flag:
+            recipe["strategy"] = "pass_bypass"
+            for pass_key, flag in self.PASS_DISABLE_FLAGS.items():
+                if pass_key in culprit_lower:
+                    recipe["disable_flag"] = flag
+                    break
+        else:
+            recipe["strategy"] = "function_optnone"
+
+        # Include location info if available
+        anomaly = diagnosis.get("anomaly", {})
+        location = anomaly.get("location", {})
+        if location.get("function"):
+            recipe["function_name"] = location["function"]
+
+        recipe["pass_pipeline"] = pass_bisection.get("pass_pipeline")
+        recipe["culprit_index"] = pass_bisection.get("culprit_index")
+
+        return recipe
+
     def format_workarounds(self, workarounds: Dict[str, str], format: str = "text") -> str:
         """
         Format workarounds for display.

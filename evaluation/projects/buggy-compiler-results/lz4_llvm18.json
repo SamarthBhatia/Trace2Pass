@@ -1,0 +1,12 @@
+{
+    "project": "lz4",
+    "docker_image": "trace2pass-eval:18",
+    "baseline_ms": 5.31,
+    "instrumented_ms": 6.72,
+    "overhead_percent": 26.62,
+    "anomalies": 0,
+    "warmup_runs": 5,
+    "measurement_runs": 10,
+    "method": "median",
+    "timestamp": "2026-02-17T15:58:36Z"
+}

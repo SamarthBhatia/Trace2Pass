@@ -21,7 +21,7 @@ ARG LLVM_VERSION
 RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake make wget xz-utils ca-certificates \
     binutils gcc libc6-dev libstdc++-12-dev libz-dev \
-    libtinfo5 libxml2 \
+    libtinfo5 libxml2 git bc \
     && rm -rf /var/lib/apt/lists/*
 
 # Download pre-built LLVM from GitHub Releases

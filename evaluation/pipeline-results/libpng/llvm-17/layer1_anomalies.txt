@@ -1,0 +1,2525 @@
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 9 arithmetic operations, 1 unreachable blocks in main
+Trace2Pass: Instrumenting function: getchar
+Trace2Pass: Instrumenting function: putchar
+[ 13%] Generating pnglibconf.h
+[ 14%] Generating scripts/pnglibconf/prefix.out
+[ 16%] Generating scripts/pnglibconf/intprefix.out
+[ 18%] Generating scripts/pnglibconf/vers.out
+[ 19%] Generating scripts/pnglibconf/sym.out
+--
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_error
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_error
+Trace2Pass: Instrumenting function: png_default_error
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_default_error
+Trace2Pass: Instrumenting function: png_safecat
+Trace2Pass: Instrumenting function: png_format_number
+Trace2Pass: Instrumented 2 arithmetic operations, 5 division checks in png_format_number
+Trace2Pass: Instrumenting function: png_warning
+Trace2Pass: Instrumenting function: png_default_warning
+Trace2Pass: Instrumenting function: png_warning_parameter
+Trace2Pass: Instrumented 1 arithmetic operations in png_warning_parameter
+Trace2Pass: Instrumenting function: png_warning_parameter_unsigned
+Trace2Pass: Instrumenting function: png_warning_parameter_signed
+Trace2Pass: Instrumenting function: png_formatted_warning
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in png_formatted_warning
+Trace2Pass: Instrumenting function: png_benign_error
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_benign_error
+Trace2Pass: Instrumenting function: png_chunk_warning
+Trace2Pass: Instrumenting function: png_chunk_error
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_chunk_error
+Trace2Pass: Instrumenting function: png_app_warning
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_app_warning
+Trace2Pass: Instrumenting function: png_app_error
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_app_error
+Trace2Pass: Instrumenting function: png_format_buffer
+Trace2Pass: Instrumented 12 arithmetic operations in png_format_buffer
+Trace2Pass: Instrumenting function: png_chunk_benign_error
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_chunk_benign_error
+Trace2Pass: Instrumenting function: png_chunk_report
+Trace2Pass: Instrumenting function: png_fixed_error
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_fixed_error
+Trace2Pass: Instrumenting function: png_set_longjmp_fn
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_set_longjmp_fn
+Trace2Pass: Instrumenting function: png_free_jmpbuf
+Trace2Pass: Instrumenting function: png_longjmp
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_longjmp
+Trace2Pass: Instrumenting function: png_set_error_fn
+Trace2Pass: Instrumenting function: png_get_error_ptr
+Trace2Pass: Instrumenting function: png_safe_error
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_safe_error
+Trace2Pass: Instrumenting function: png_safe_warning
+Trace2Pass: Instrumenting function: png_safe_execute
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_get_valid
+Trace2Pass: Instrumenting function: png_get_rowbytes
+Trace2Pass: Instrumenting function: png_get_rows
+Trace2Pass: Instrumenting function: png_get_image_width
+Trace2Pass: Instrumenting function: png_get_image_height
+Trace2Pass: Instrumenting function: png_get_bit_depth
+Trace2Pass: Instrumenting function: png_get_color_type
+Trace2Pass: Instrumenting function: png_get_filter_type
+Trace2Pass: Instrumenting function: png_get_interlace_type
+Trace2Pass: Instrumenting function: png_get_compression_type
+Trace2Pass: Instrumenting function: png_get_x_pixels_per_meter
+Trace2Pass: Instrumenting function: png_get_y_pixels_per_meter
+Trace2Pass: Instrumenting function: png_get_pixels_per_meter
+Trace2Pass: Instrumenting function: png_get_pixel_aspect_ratio
+Trace2Pass: Instrumenting function: png_get_pixel_aspect_ratio_fixed
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_get_pixel_aspect_ratio_fixed
+Trace2Pass: Instrumenting function: png_get_x_offset_microns
+Trace2Pass: Instrumenting function: png_get_y_offset_microns
+Trace2Pass: Instrumenting function: png_get_x_offset_pixels
+Trace2Pass: Instrumenting function: png_get_y_offset_pixels
+Trace2Pass: Instrumenting function: png_get_pixels_per_inch
+Trace2Pass: Instrumenting function: ppi_from_ppm
+Trace2Pass: Instrumenting function: png_get_x_pixels_per_inch
+Trace2Pass: Instrumenting function: png_get_y_pixels_per_inch
+Trace2Pass: Instrumenting function: png_get_x_offset_inches_fixed
+Trace2Pass: Instrumenting function: png_fixed_inches_from_microns
+Trace2Pass: Instrumenting function: png_get_y_offset_inches_fixed
+Trace2Pass: Instrumenting function: png_get_x_offset_inches
+Trace2Pass: Instrumenting function: png_get_y_offset_inches
+Trace2Pass: Instrumenting function: png_get_pHYs_dpi
+Trace2Pass: Instrumenting function: png_get_channels
+Trace2Pass: Instrumenting function: png_get_signature
+Trace2Pass: Instrumenting function: png_get_bKGD
+Trace2Pass: Instrumenting function: png_get_cHRM
+Trace2Pass: Instrumenting function: png_get_cHRM_XYZ
+Trace2Pass: Instrumenting function: png_get_cHRM_XYZ_fixed
+Trace2Pass: Instrumenting function: png_get_cHRM_fixed
+Trace2Pass: Instrumenting function: png_get_gAMA_fixed
+Trace2Pass: Instrumenting function: png_get_gAMA
+Trace2Pass: Instrumenting function: png_get_sRGB
+Trace2Pass: Instrumenting function: png_get_iCCP
+Trace2Pass: Instrumented 3 arithmetic operations in png_get_iCCP
+Trace2Pass: Instrumenting function: png_get_sPLT
+Trace2Pass: Instrumenting function: png_get_cICP
+Trace2Pass: Instrumenting function: png_get_cLLI_fixed
+Trace2Pass: Instrumenting function: png_get_cLLI
+Trace2Pass: Instrumenting function: png_get_mDCV_fixed
+Trace2Pass: Instrumented 8 arithmetic operations in png_get_mDCV_fixed
+Trace2Pass: Instrumenting function: png_get_mDCV
+Trace2Pass: Instrumenting function: png_get_eXIf_1
+Trace2Pass: Instrumenting function: png_get_hIST
+Trace2Pass: Instrumenting function: png_get_IHDR
+Trace2Pass: Instrumenting function: png_get_oFFs
+Trace2Pass: Instrumenting function: png_get_pCAL
+Trace2Pass: Instrumenting function: png_get_sCAL_fixed
+Trace2Pass: Instrumenting function: atof
+Trace2Pass: Instrumenting function: png_get_sCAL
+Trace2Pass: Instrumenting function: png_get_sCAL_s
+Trace2Pass: Instrumenting function: png_get_pHYs
+Trace2Pass: Instrumenting function: png_get_PLTE
+Trace2Pass: Instrumenting function: png_get_sBIT
+Trace2Pass: Instrumenting function: png_get_text
+Trace2Pass: Instrumenting function: png_get_tIME
+Trace2Pass: Instrumenting function: png_get_tRNS
+Trace2Pass: Instrumenting function: png_get_unknown_chunks
+Trace2Pass: Instrumenting function: png_get_rgb_to_gray_status
+Trace2Pass: Instrumenting function: png_get_user_chunk_ptr
+Trace2Pass: Instrumenting function: png_get_compression_buffer_size
+Trace2Pass: Instrumenting function: png_get_user_width_max
+Trace2Pass: Instrumenting function: png_get_user_height_max
+Trace2Pass: Instrumenting function: png_get_chunk_cache_max
+Trace2Pass: Instrumenting function: png_get_chunk_malloc_max
+Trace2Pass: Instrumenting function: png_get_io_state
+Trace2Pass: Instrumenting function: png_get_io_chunk_type
+Trace2Pass: Instrumenting function: png_get_palette_max
+Trace2Pass: Instrumenting function: png_get_acTL
+Trace2Pass: Instrumenting function: png_get_num_frames
+Trace2Pass: Instrumenting function: png_get_num_plays
+Trace2Pass: Instrumenting function: png_get_next_frame_fcTL
+Trace2Pass: Instrumenting function: png_get_next_frame_width
+Trace2Pass: Instrumenting function: png_get_next_frame_height
+Trace2Pass: Instrumenting function: png_get_next_frame_x_offset
+Trace2Pass: Instrumenting function: png_get_next_frame_y_offset
+Trace2Pass: Instrumenting function: png_get_next_frame_delay_num
+Trace2Pass: Instrumenting function: png_get_next_frame_delay_den
+Trace2Pass: Instrumenting function: png_get_next_frame_dispose_op
+Trace2Pass: Instrumenting function: png_get_next_frame_blend_op
+Trace2Pass: Instrumenting function: png_get_first_frame_is_hidden
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_process_data
+Trace2Pass: Instrumenting function: png_push_restore_buffer
+Trace2Pass: Instrumenting function: png_process_some_data
+Trace2Pass: Instrumenting function: png_process_data_pause
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_process_data_pause
+Trace2Pass: Instrumenting function: png_push_save_buffer
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in png_push_save_buffer
+Trace2Pass: Instrumenting function: png_process_data_skip
+Trace2Pass: Instrumenting function: png_push_read_sig
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_push_read_sig
+Trace2Pass: Instrumenting function: png_push_read_chunk
+Trace2Pass: Instrumented 2 arithmetic operations, 7 unreachable blocks in png_push_read_chunk
+Trace2Pass: Instrumenting function: png_push_read_IDAT
+Trace2Pass: Instrumented 4 arithmetic operations, 3 unreachable blocks in png_push_read_IDAT
+Trace2Pass: Instrumenting function: png_push_fill_buffer
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_push_fill_buffer
+Trace2Pass: Instrumenting function: png_push_have_end
+Trace2Pass: Instrumenting function: png_push_have_info
+Trace2Pass: Instrumenting function: png_process_IDAT_data
+Trace2Pass: Instrumented 2 arithmetic operations, 3 unreachable blocks in png_process_IDAT_data
+Trace2Pass: Instrumenting function: png_push_process_row
+Trace2Pass: Instrumented 15 arithmetic operations, 3 unreachable blocks in png_push_process_row
+Trace2Pass: Instrumenting function: png_push_have_row
+Trace2Pass: Instrumenting function: png_read_push_finish_row
+Trace2Pass: Instrumented 0 arithmetic operations, 2 division checks in png_read_push_finish_row
+Trace2Pass: Instrumenting function: png_progressive_combine_row
+Trace2Pass: Instrumenting function: png_set_progressive_read_fn
+Trace2Pass: Instrumenting function: png_set_progressive_frame_fn
+Trace2Pass: Instrumenting function: png_get_progressive_ptr
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_set_sig_bytes
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_set_sig_bytes
+Trace2Pass: Instrumenting function: png_sig_cmp
+Trace2Pass: Instrumenting function: png_zalloc
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in png_zalloc
+Trace2Pass: Instrumenting function: png_zfree
+Trace2Pass: Instrumenting function: png_reset_crc
+Trace2Pass: Instrumenting function: png_calculate_crc
+Trace2Pass: Instrumented 1 arithmetic operations in png_calculate_crc
+Trace2Pass: Instrumenting function: png_user_version_check
+Trace2Pass: Instrumented 2 arithmetic operations in png_user_version_check
+Trace2Pass: Instrumenting function: png_create_png_struct
+Trace2Pass: Instrumenting function: png_create_info_struct
+Trace2Pass: Instrumenting function: png_destroy_info_struct
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_destroy_info_struct
+Trace2Pass: Instrumenting function: png_free_data
+Trace2Pass: Instrumented 4 arithmetic operations in png_free_data
+Trace2Pass: Instrumenting function: png_info_init_3
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_info_init_3
+Trace2Pass: Instrumenting function: png_data_freer
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_data_freer
+Trace2Pass: Instrumenting function: png_get_io_ptr
+Trace2Pass: Instrumenting function: png_init_io
+Trace2Pass: Instrumenting function: png_save_int_32
+Trace2Pass: Instrumenting function: png_convert_to_rfc1123_buffer
+Trace2Pass: Instrumented 1 arithmetic operations in png_convert_to_rfc1123_buffer
+Trace2Pass: Instrumenting function: png_get_copyright
+Trace2Pass: Instrumenting function: png_get_libpng_ver
+Trace2Pass: Instrumenting function: png_get_header_ver
+Trace2Pass: Instrumenting function: png_get_header_version
+Trace2Pass: Instrumenting function: png_build_grayscale_palette
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in png_build_grayscale_palette
+Trace2Pass: Instrumenting function: png_handle_as_unknown
+Trace2Pass: Instrumenting function: png_chunk_unknown_handling
+Trace2Pass: Instrumented 3 arithmetic operations in png_chunk_unknown_handling
+Trace2Pass: Instrumenting function: png_reset_zstream
+Trace2Pass: Instrumenting function: png_access_version_number
+Trace2Pass: Instrumenting function: png_zstream_error
+Trace2Pass: Instrumenting function: png_xy_from_XYZ
+Trace2Pass: Instrumenting function: png_safe_add
+Trace2Pass: Instrumenting function: png_muldiv
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_muldiv
+Trace2Pass: Instrumenting function: png_XYZ_from_xy
+Trace2Pass: Instrumented 22 arithmetic operations in png_XYZ_from_xy
+Trace2Pass: Instrumenting function: png_fp_sub
+Trace2Pass: Instrumented 4 arithmetic operations in png_fp_sub
+Trace2Pass: Instrumenting function: png_reciprocal
+Trace2Pass: Instrumenting function: png_icc_check_length
+Trace2Pass: Instrumenting function: icc_check_length
+Trace2Pass: Instrumenting function: png_icc_profile_error
+Trace2Pass: Instrumenting function: png_icc_check_header
+Trace2Pass: Instrumented 21 arithmetic operations in png_icc_check_header
+Trace2Pass: Instrumenting function: png_icc_check_tag_table
+Trace2Pass: Instrumented 12 arithmetic operations in png_icc_check_tag_table
+Trace2Pass: Instrumenting function: png_set_rgb_coefficients
+Trace2Pass: Instrumented 13 arithmetic operations, 1 unreachable blocks in png_set_rgb_coefficients
+Trace2Pass: Instrumenting function: have_chromaticities
+Trace2Pass: Instrumenting function: png_check_IHDR
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_check_IHDR
+Trace2Pass: Instrumenting function: png_check_fp_number
+Trace2Pass: Instrumented 1 arithmetic operations in png_check_fp_number
+Trace2Pass: Instrumenting function: png_check_fp_string
+Trace2Pass: Instrumenting function: png_ascii_from_fp
+Trace2Pass: Instrumented 12 arithmetic operations, 2 unreachable blocks, 2 division checks in png_ascii_from_fp
+Trace2Pass: Instrumenting function: png_pow10
+Trace2Pass: Instrumented 2 arithmetic operations in png_pow10
+Trace2Pass: Instrumenting function: png_ascii_from_fixed
+Trace2Pass: Instrumented 1 arithmetic operations, 2 unreachable blocks, 1 division checks in png_ascii_from_fixed
+Trace2Pass: Instrumenting function: png_fixed
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_fixed
+Trace2Pass: Instrumenting function: png_fixed_ITU
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_fixed_ITU
+Trace2Pass: Instrumenting function: png_gamma_significant
+Trace2Pass: Instrumenting function: png_reciprocal2
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_reciprocal2
+Trace2Pass: Instrumenting function: png_gamma_8bit_correct
+Trace2Pass: Instrumenting function: png_gamma_16bit_correct
+Trace2Pass: Instrumenting function: png_gamma_correct
+Trace2Pass: Instrumenting function: png_destroy_gamma_table
+Trace2Pass: Instrumented 9 arithmetic operations in png_destroy_gamma_table
+Trace2Pass: Instrumenting function: png_build_gamma_table
+Trace2Pass: Instrumenting function: png_build_8bit_table
+Trace2Pass: Instrumenting function: png_build_16to8_table
+Trace2Pass: Instrumented 7 arithmetic operations, 1 division checks in png_build_16to8_table
+Trace2Pass: Instrumenting function: png_build_16bit_table
+Trace2Pass: Instrumented 7 arithmetic operations, 1 division checks in png_build_16bit_table
+Trace2Pass: Instrumenting function: png_set_option
+Trace2Pass: Instrumented 3 arithmetic operations in png_set_option
+Trace2Pass: Instrumenting function: png_image_free
+Trace2Pass: Instrumenting function: png_image_free_function
+Trace2Pass: Instrumented 1 arithmetic operations in png_image_free_function
+Trace2Pass: Instrumenting function: png_image_error
+Trace2Pass: Instrumenting function: png_fp_add
+Trace2Pass: Instrumented 4 arithmetic operations in png_fp_add
+Trace2Pass: Instrumenting function: is_ICC_signature
+Trace2Pass: Instrumented 3 arithmetic operations in is_ICC_signature
+Trace2Pass: Instrumenting function: png_icc_tag_name
+Trace2Pass: Instrumented 3 arithmetic operations in png_icc_tag_name
+Trace2Pass: Instrumenting function: is_ICC_signature_char
+Trace2Pass: Instrumenting function: png_icc_tag_char
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_destroy_png_struct
+Trace2Pass: Instrumenting function: png_free
+Trace2Pass: Instrumenting function: png_calloc
+Trace2Pass: Instrumenting function: png_malloc
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_error
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_malloc
+Trace2Pass: Instrumenting function: png_malloc_base
+Trace2Pass: Instrumenting function: png_malloc_array
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_malloc_array
+Trace2Pass: Instrumenting function: png_malloc_array_checked
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in png_malloc_array_checked
+Trace2Pass: Instrumenting function: png_realloc_array
+Trace2Pass: Instrumented 2 arithmetic operations, 2 unreachable blocks in png_realloc_array
+Trace2Pass: Instrumenting function: png_malloc_default
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_malloc_default
+Trace2Pass: Instrumenting function: png_malloc_warn
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_malloc_warn
+Trace2Pass: Instrumenting function: png_free_default
+Trace2Pass: Instrumenting function: png_set_mem_fn
+Trace2Pass: Instrumenting function: png_get_mem_ptr
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_error
+Trace2Pass: Instrumenting function: png_default_error
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_default_error
+Trace2Pass: Instrumenting function: png_safecat
+Trace2Pass: Instrumenting function: png_format_number
+Trace2Pass: Instrumented 2 arithmetic operations, 5 division checks in png_format_number
+Trace2Pass: Instrumenting function: png_warning
+Trace2Pass: Instrumenting function: png_default_warning
+Trace2Pass: Instrumenting function: png_warning_parameter
+Trace2Pass: Instrumented 1 arithmetic operations in png_warning_parameter
+Trace2Pass: Instrumenting function: png_warning_parameter_unsigned
+Trace2Pass: Instrumenting function: png_warning_parameter_signed
+Trace2Pass: Instrumenting function: png_formatted_warning
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in png_formatted_warning
+Trace2Pass: Instrumenting function: png_benign_error
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_benign_error
+Trace2Pass: Instrumenting function: png_chunk_warning
+Trace2Pass: Instrumenting function: png_chunk_error
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_chunk_error
+Trace2Pass: Instrumenting function: png_app_warning
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_app_warning
+Trace2Pass: Instrumenting function: png_app_error
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_app_error
+Trace2Pass: Instrumenting function: png_format_buffer
+Trace2Pass: Instrumented 12 arithmetic operations in png_format_buffer
+Trace2Pass: Instrumenting function: png_chunk_benign_error
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_chunk_benign_error
+Trace2Pass: Instrumenting function: png_chunk_report
+Trace2Pass: Instrumenting function: png_fixed_error
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_fixed_error
+Trace2Pass: Instrumenting function: png_set_longjmp_fn
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_set_longjmp_fn
+Trace2Pass: Instrumenting function: png_free_jmpbuf
+Trace2Pass: Instrumenting function: png_longjmp
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_longjmp
+Trace2Pass: Instrumenting function: png_set_error_fn
+Trace2Pass: Instrumenting function: png_get_error_ptr
+Trace2Pass: Instrumenting function: png_safe_error
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_safe_error
+Trace2Pass: Instrumenting function: png_safe_warning
+Trace2Pass: Instrumenting function: png_safe_execute
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_set_sig_bytes
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_set_sig_bytes
+Trace2Pass: Instrumenting function: png_sig_cmp
+Trace2Pass: Instrumenting function: png_zalloc
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in png_zalloc
+Trace2Pass: Instrumenting function: png_zfree
+Trace2Pass: Instrumenting function: png_reset_crc
+Trace2Pass: Instrumenting function: png_calculate_crc
+Trace2Pass: Instrumented 1 arithmetic operations in png_calculate_crc
+Trace2Pass: Instrumenting function: png_user_version_check
+Trace2Pass: Instrumented 2 arithmetic operations in png_user_version_check
+Trace2Pass: Instrumenting function: png_create_png_struct
+Trace2Pass: Instrumenting function: png_create_info_struct
+Trace2Pass: Instrumenting function: png_destroy_info_struct
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_destroy_info_struct
+Trace2Pass: Instrumenting function: png_free_data
+Trace2Pass: Instrumented 4 arithmetic operations in png_free_data
+Trace2Pass: Instrumenting function: png_info_init_3
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_info_init_3
+Trace2Pass: Instrumenting function: png_data_freer
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_data_freer
+Trace2Pass: Instrumenting function: png_get_io_ptr
+Trace2Pass: Instrumenting function: png_init_io
+Trace2Pass: Instrumenting function: png_save_int_32
+Trace2Pass: Instrumenting function: png_convert_to_rfc1123_buffer
+Trace2Pass: Instrumented 1 arithmetic operations in png_convert_to_rfc1123_buffer
+Trace2Pass: Instrumenting function: png_get_copyright
+Trace2Pass: Instrumenting function: png_get_libpng_ver
+Trace2Pass: Instrumenting function: png_get_header_ver
+Trace2Pass: Instrumenting function: png_get_header_version
+Trace2Pass: Instrumenting function: png_build_grayscale_palette
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in png_build_grayscale_palette
+Trace2Pass: Instrumenting function: png_handle_as_unknown
+Trace2Pass: Instrumenting function: png_chunk_unknown_handling
+Trace2Pass: Instrumented 3 arithmetic operations in png_chunk_unknown_handling
+Trace2Pass: Instrumenting function: png_reset_zstream
+Trace2Pass: Instrumenting function: png_access_version_number
+Trace2Pass: Instrumenting function: png_zstream_error
+Trace2Pass: Instrumenting function: png_xy_from_XYZ
+Trace2Pass: Instrumenting function: png_safe_add
+Trace2Pass: Instrumenting function: png_muldiv
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_muldiv
+Trace2Pass: Instrumenting function: png_XYZ_from_xy
+Trace2Pass: Instrumented 22 arithmetic operations in png_XYZ_from_xy
+Trace2Pass: Instrumenting function: png_fp_sub
+Trace2Pass: Instrumented 4 arithmetic operations in png_fp_sub
+Trace2Pass: Instrumenting function: png_reciprocal
+Trace2Pass: Instrumenting function: png_icc_check_length
+Trace2Pass: Instrumenting function: icc_check_length
+Trace2Pass: Instrumenting function: png_icc_profile_error
+Trace2Pass: Instrumenting function: png_icc_check_header
+Trace2Pass: Instrumented 21 arithmetic operations in png_icc_check_header
+Trace2Pass: Instrumenting function: png_icc_check_tag_table
+Trace2Pass: Instrumented 12 arithmetic operations in png_icc_check_tag_table
+Trace2Pass: Instrumenting function: png_set_rgb_coefficients
+Trace2Pass: Instrumented 13 arithmetic operations, 1 unreachable blocks in png_set_rgb_coefficients
+Trace2Pass: Instrumenting function: have_chromaticities
+Trace2Pass: Instrumenting function: png_check_IHDR
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_check_IHDR
+Trace2Pass: Instrumenting function: png_check_fp_number
+Trace2Pass: Instrumented 1 arithmetic operations in png_check_fp_number
+Trace2Pass: Instrumenting function: png_check_fp_string
+Trace2Pass: Instrumenting function: png_ascii_from_fp
+Trace2Pass: Instrumented 12 arithmetic operations, 2 unreachable blocks, 2 division checks in png_ascii_from_fp
+Trace2Pass: Instrumenting function: png_pow10
+Trace2Pass: Instrumented 2 arithmetic operations in png_pow10
+Trace2Pass: Instrumenting function: png_ascii_from_fixed
+Trace2Pass: Instrumented 1 arithmetic operations, 2 unreachable blocks, 1 division checks in png_ascii_from_fixed
+Trace2Pass: Instrumenting function: png_fixed
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_fixed
+Trace2Pass: Instrumenting function: png_fixed_ITU
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_fixed_ITU
+Trace2Pass: Instrumenting function: png_gamma_significant
+Trace2Pass: Instrumenting function: png_reciprocal2
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_reciprocal2
+Trace2Pass: Instrumenting function: png_gamma_8bit_correct
+Trace2Pass: Instrumenting function: png_gamma_16bit_correct
+Trace2Pass: Instrumenting function: png_gamma_correct
+Trace2Pass: Instrumenting function: png_destroy_gamma_table
+Trace2Pass: Instrumented 9 arithmetic operations in png_destroy_gamma_table
+Trace2Pass: Instrumenting function: png_build_gamma_table
+Trace2Pass: Instrumenting function: png_build_8bit_table
+Trace2Pass: Instrumenting function: png_build_16to8_table
+Trace2Pass: Instrumented 7 arithmetic operations, 1 division checks in png_build_16to8_table
+Trace2Pass: Instrumenting function: png_build_16bit_table
+Trace2Pass: Instrumented 7 arithmetic operations, 1 division checks in png_build_16bit_table
+Trace2Pass: Instrumenting function: png_set_option
+Trace2Pass: Instrumented 3 arithmetic operations in png_set_option
+Trace2Pass: Instrumenting function: png_image_free
+Trace2Pass: Instrumenting function: png_image_free_function
+Trace2Pass: Instrumented 1 arithmetic operations in png_image_free_function
+Trace2Pass: Instrumenting function: png_image_error
+Trace2Pass: Instrumenting function: png_fp_add
+Trace2Pass: Instrumented 4 arithmetic operations in png_fp_add
+Trace2Pass: Instrumenting function: is_ICC_signature
+Trace2Pass: Instrumented 3 arithmetic operations in is_ICC_signature
+Trace2Pass: Instrumenting function: png_icc_tag_name
+Trace2Pass: Instrumented 3 arithmetic operations in png_icc_tag_name
+Trace2Pass: Instrumenting function: is_ICC_signature_char
+Trace2Pass: Instrumenting function: png_icc_tag_char
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_create_read_struct
+Trace2Pass: Instrumenting function: png_create_read_struct_2
+Trace2Pass: Instrumenting function: png_read_info
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in png_read_info
+Trace2Pass: Instrumenting function: png_read_frame_head
+Trace2Pass: Instrumented 0 arithmetic operations, 4 unreachable blocks in png_read_frame_head
+Trace2Pass: Instrumenting function: png_read_update_info
+Trace2Pass: Instrumenting function: png_start_read_image
+Trace2Pass: Instrumenting function: png_read_row
+Trace2Pass: Instrumented 2 arithmetic operations, 5 unreachable blocks in png_read_row
+Trace2Pass: Instrumenting function: png_do_read_intrapixel
+Trace2Pass: Instrumented 9 arithmetic operations, 1 unreachable blocks in png_do_read_intrapixel
+Trace2Pass: Instrumenting function: png_read_rows
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_read_rows
+Trace2Pass: Instrumenting function: png_read_image
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in png_read_image
+Trace2Pass: Instrumenting function: png_read_end
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_read_end
+Trace2Pass: Instrumenting function: png_destroy_read_struct
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_destroy_read_struct
+Trace2Pass: Instrumenting function: png_read_destroy
+Trace2Pass: Instrumenting function: png_set_read_status_fn
+Trace2Pass: Instrumenting function: png_read_png
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_read_png
+Trace2Pass: Instrumenting function: png_image_begin_read_from_stdio
+Trace2Pass: Instrumenting function: png_image_read_init
+Trace2Pass: Instrumenting function: png_image_read_header
+Trace2Pass: Instrumented 1 arithmetic operations in png_image_read_header
+Trace2Pass: Instrumenting function: png_image_begin_read_from_file
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_image_begin_read_from_file
+Trace2Pass: Instrumenting function: png_image_begin_read_from_memory
+Trace2Pass: Instrumenting function: png_image_memory_read
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_image_memory_read
+Trace2Pass: Instrumenting function: png_image_finish_read
+Trace2Pass: Instrumented 2 arithmetic operations, 3 division checks in png_image_finish_read
+Trace2Pass: Instrumenting function: png_image_read_colormap
+Trace2Pass: Instrumented 48 arithmetic operations, 18 unreachable blocks, 2 division checks in png_image_read_colormap
+Trace2Pass: Instrumenting function: png_image_read_colormapped
+Trace2Pass: Instrumented 3 arithmetic operations, 1 unreachable blocks in png_image_read_colormapped
+Trace2Pass: Instrumenting function: png_image_read_direct
+Trace2Pass: Instrumented 4 arithmetic operations, 4 unreachable blocks in png_image_read_direct
+Trace2Pass: Instrumenting function: png_image_format
+Trace2Pass: Instrumenting function: png_image_is_not_sRGB
+Trace2Pass: Instrumenting function: chromaticities_match_sRGB
+Trace2Pass: Instrumenting function: png_create_colormap_entry
+Trace2Pass: Instrumented 41 arithmetic operations, 2 unreachable blocks, 4 division checks in png_create_colormap_entry
+Trace2Pass: Instrumenting function: make_gray_colormap
+Trace2Pass: Instrumenting function: make_ga_colormap
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in make_ga_colormap
+Trace2Pass: Instrumenting function: png_gamma_not_sRGB
+Trace2Pass: Instrumented 2 arithmetic operations, 1 division checks in png_gamma_not_sRGB
+Trace2Pass: Instrumenting function: make_gray_file_colormap
+Trace2Pass: Instrumenting function: make_rgb_colormap
+Trace2Pass: Instrumenting function: png_colormap_compose
+Trace2Pass: Instrumented 6 arithmetic operations in png_colormap_compose
+Trace2Pass: Instrumenting function: set_file_encoding
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in set_file_encoding
+Trace2Pass: Instrumenting function: decode_gamma
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in decode_gamma
+Trace2Pass: Instrumenting function: png_image_skip_unused_chunks
+Trace2Pass: Instrumenting function: png_image_read_and_map
+Trace2Pass: Instrumented 56 arithmetic operations, 2 unreachable blocks in png_image_read_and_map
+Trace2Pass: Instrumenting function: png_image_read_composite
+Trace2Pass: Instrumented 34 arithmetic operations, 2 unreachable blocks, 1 division checks in png_image_read_composite
+Trace2Pass: Instrumenting function: png_image_read_background
+Trace2Pass: Instrumented 69 arithmetic operations, 7 unreachable blocks, 2 division checks in png_image_read_background
+Trace2Pass: Instrumenting function: png_image_read_direct_scaled
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in png_image_read_direct_scaled
+[ 39%] Building C object CMakeFiles/png_static.dir/pngget.c.o
+[ 40%] Building C object CMakeFiles/png_shared.dir/pngrio.c.o
+[ 42%] Building C object CMakeFiles/png_shared.dir/pngrtran.c.o
+[ 44%] Building C object CMakeFiles/png_shared.dir/pngrutil.c.o
+[ 45%] Building C object CMakeFiles/png_static.dir/pngmem.c.o
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_get_valid
+Trace2Pass: Instrumenting function: png_get_rowbytes
+Trace2Pass: Instrumenting function: png_get_rows
+Trace2Pass: Instrumenting function: png_get_image_width
+Trace2Pass: Instrumenting function: png_get_image_height
+Trace2Pass: Instrumenting function: png_get_bit_depth
+Trace2Pass: Instrumenting function: png_get_color_type
+Trace2Pass: Instrumenting function: png_get_filter_type
+Trace2Pass: Instrumenting function: png_get_interlace_type
+Trace2Pass: Instrumenting function: png_get_compression_type
+Trace2Pass: Instrumenting function: png_get_x_pixels_per_meter
+Trace2Pass: Instrumenting function: png_get_y_pixels_per_meter
+Trace2Pass: Instrumenting function: png_get_pixels_per_meter
+Trace2Pass: Instrumenting function: png_get_pixel_aspect_ratio
+Trace2Pass: Instrumenting function: png_get_pixel_aspect_ratio_fixed
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_get_pixel_aspect_ratio_fixed
+Trace2Pass: Instrumenting function: png_get_x_offset_microns
+Trace2Pass: Instrumenting function: png_get_y_offset_microns
+Trace2Pass: Instrumenting function: png_get_x_offset_pixels
+Trace2Pass: Instrumenting function: png_get_y_offset_pixels
+Trace2Pass: Instrumenting function: png_get_pixels_per_inch
+Trace2Pass: Instrumenting function: ppi_from_ppm
+Trace2Pass: Instrumenting function: png_get_x_pixels_per_inch
+Trace2Pass: Instrumenting function: png_get_y_pixels_per_inch
+Trace2Pass: Instrumenting function: png_get_x_offset_inches_fixed
+Trace2Pass: Instrumenting function: png_fixed_inches_from_microns
+Trace2Pass: Instrumenting function: png_get_y_offset_inches_fixed
+Trace2Pass: Instrumenting function: png_get_x_offset_inches
+Trace2Pass: Instrumenting function: png_get_y_offset_inches
+Trace2Pass: Instrumenting function: png_get_pHYs_dpi
+Trace2Pass: Instrumenting function: png_get_channels
+Trace2Pass: Instrumenting function: png_get_signature
+Trace2Pass: Instrumenting function: png_get_bKGD
+Trace2Pass: Instrumenting function: png_get_cHRM
+Trace2Pass: Instrumenting function: png_get_cHRM_XYZ
+Trace2Pass: Instrumenting function: png_get_cHRM_XYZ_fixed
+Trace2Pass: Instrumenting function: png_get_cHRM_fixed
+Trace2Pass: Instrumenting function: png_get_gAMA_fixed
+Trace2Pass: Instrumenting function: png_get_gAMA
+Trace2Pass: Instrumenting function: png_get_sRGB
+Trace2Pass: Instrumenting function: png_get_iCCP
+Trace2Pass: Instrumented 3 arithmetic operations in png_get_iCCP
+Trace2Pass: Instrumenting function: png_get_sPLT
+Trace2Pass: Instrumenting function: png_get_cICP
+Trace2Pass: Instrumenting function: png_get_cLLI_fixed
+Trace2Pass: Instrumenting function: png_get_cLLI
+Trace2Pass: Instrumenting function: png_get_mDCV_fixed
+Trace2Pass: Instrumented 8 arithmetic operations in png_get_mDCV_fixed
+Trace2Pass: Instrumenting function: png_get_mDCV
+Trace2Pass: Instrumenting function: png_get_eXIf_1
+Trace2Pass: Instrumenting function: png_get_hIST
+Trace2Pass: Instrumenting function: png_get_IHDR
+Trace2Pass: Instrumenting function: png_get_oFFs
+Trace2Pass: Instrumenting function: png_get_pCAL
+Trace2Pass: Instrumenting function: png_get_sCAL_fixed
+Trace2Pass: Instrumenting function: atof
+Trace2Pass: Instrumenting function: png_get_sCAL
+Trace2Pass: Instrumenting function: png_get_sCAL_s
+Trace2Pass: Instrumenting function: png_get_pHYs
+Trace2Pass: Instrumenting function: png_get_PLTE
+Trace2Pass: Instrumenting function: png_get_sBIT
+Trace2Pass: Instrumenting function: png_get_text
+Trace2Pass: Instrumenting function: png_get_tIME
+Trace2Pass: Instrumenting function: png_get_tRNS
+Trace2Pass: Instrumenting function: png_get_unknown_chunks
+Trace2Pass: Instrumenting function: png_get_rgb_to_gray_status
+Trace2Pass: Instrumenting function: png_get_user_chunk_ptr
+Trace2Pass: Instrumenting function: png_get_compression_buffer_size
+Trace2Pass: Instrumenting function: png_get_user_width_max
+Trace2Pass: Instrumenting function: png_get_user_height_max
+Trace2Pass: Instrumenting function: png_get_chunk_cache_max
+Trace2Pass: Instrumenting function: png_get_chunk_malloc_max
+Trace2Pass: Instrumenting function: png_get_io_state
+Trace2Pass: Instrumenting function: png_get_io_chunk_type
+Trace2Pass: Instrumenting function: png_get_palette_max
+Trace2Pass: Instrumenting function: png_get_acTL
+Trace2Pass: Instrumenting function: png_get_num_frames
+Trace2Pass: Instrumenting function: png_get_num_plays
+Trace2Pass: Instrumenting function: png_get_next_frame_fcTL
+Trace2Pass: Instrumenting function: png_get_next_frame_width
+Trace2Pass: Instrumenting function: png_get_next_frame_height
+Trace2Pass: Instrumenting function: png_get_next_frame_x_offset
+Trace2Pass: Instrumenting function: png_get_next_frame_y_offset
+Trace2Pass: Instrumenting function: png_get_next_frame_delay_num
+Trace2Pass: Instrumenting function: png_get_next_frame_delay_den
+Trace2Pass: Instrumenting function: png_get_next_frame_dispose_op
+Trace2Pass: Instrumenting function: png_get_next_frame_blend_op
+Trace2Pass: Instrumenting function: png_get_first_frame_is_hidden
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_read_data
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_read_data
+Trace2Pass: Instrumenting function: png_default_read_data
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_default_read_data
+Trace2Pass: Instrumenting function: png_set_read_fn
+[ 47%] Building C object CMakeFiles/png_shared.dir/pngset.c.o
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_destroy_png_struct
+Trace2Pass: Instrumenting function: png_free
+Trace2Pass: Instrumenting function: png_calloc
+Trace2Pass: Instrumenting function: png_malloc
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_malloc
+Trace2Pass: Instrumenting function: png_malloc_base
+Trace2Pass: Instrumenting function: png_malloc_array
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_malloc_array
+Trace2Pass: Instrumenting function: png_malloc_array_checked
+[ 49%] Building C object CMakeFiles/png_static.dir/pngpread.c.o
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in png_malloc_array_checked
+Trace2Pass: Instrumenting function: png_realloc_array
+Trace2Pass: Instrumented 2 arithmetic operations, 2 unreachable blocks in png_realloc_array
+Trace2Pass: Instrumenting function: png_malloc_default
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_malloc_default
+Trace2Pass: Instrumenting function: png_malloc_warn
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_malloc_warn
+Trace2Pass: Instrumenting function: png_free_default
+Trace2Pass: Instrumenting function: png_set_mem_fn
+Trace2Pass: Instrumenting function: png_get_mem_ptr
+[ 50%] Building C object CMakeFiles/png_static.dir/pngread.c.o
+[ 52%] Building C object CMakeFiles/png_static.dir/pngrio.c.o
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_set_crc_action
+Trace2Pass: Instrumenting function: png_set_background_fixed
+Trace2Pass: Instrumenting function: png_rtran_ok
+Trace2Pass: Instrumenting function: png_set_background
+Trace2Pass: Instrumenting function: png_set_scale_16
+Trace2Pass: Instrumenting function: png_set_strip_16
+Trace2Pass: Instrumenting function: png_set_strip_alpha
+Trace2Pass: Instrumenting function: png_set_alpha_mode_fixed
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in png_set_alpha_mode_fixed
+Trace2Pass: Instrumenting function: translate_gamma_flags
+Trace2Pass: Instrumenting function: unsupported_gamma
+Trace2Pass: Instrumenting function: png_set_alpha_mode
+Trace2Pass: Instrumenting function: convert_gamma_value
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in convert_gamma_value
+Trace2Pass: Instrumenting function: png_set_quantize
+Trace2Pass: Instrumented 58 arithmetic operations, 1 unreachable blocks, 9 pure function calls in png_set_quantize
+Trace2Pass: Instrumenting function: png_set_gamma_fixed
+Trace2Pass: Instrumenting function: png_set_gamma
+Trace2Pass: Instrumenting function: png_set_expand
+Trace2Pass: Instrumenting function: png_set_palette_to_rgb
+Trace2Pass: Instrumenting function: png_set_expand_gray_1_2_4_to_8
+Trace2Pass: Instrumenting function: png_set_tRNS_to_alpha
+Trace2Pass: Instrumenting function: png_set_expand_16
+Trace2Pass: Instrumenting function: png_set_gray_to_rgb
+Trace2Pass: Instrumenting function: png_set_rgb_to_gray_fixed
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks, 2 division checks in png_set_rgb_to_gray_fixed
+Trace2Pass: Instrumenting function: png_set_rgb_to_gray
+Trace2Pass: Instrumenting function: png_set_read_user_transform_fn
+Trace2Pass: Instrumenting function: png_resolve_file_gamma
+Trace2Pass: Instrumenting function: png_init_read_transformations
+Trace2Pass: Instrumented 68 arithmetic operations, 1 unreachable blocks, 3 division checks in png_init_read_transformations
+Trace2Pass: Instrumenting function: png_init_gamma_values
+Trace2Pass: Instrumenting function: png_init_palette_transformations
+Trace2Pass: Instrumented 3 arithmetic operations in png_init_palette_transformations
+Trace2Pass: Instrumenting function: png_init_rgb_transformations
+Trace2Pass: Instrumented 6 arithmetic operations in png_init_rgb_transformations
+Trace2Pass: Instrumenting function: png_read_transform_info
+Trace2Pass: Instrumented 3 arithmetic operations, 1 unreachable blocks in png_read_transform_info
+Trace2Pass: Instrumenting function: png_do_read_transformations
+Trace2Pass: Instrumented 3 arithmetic operations, 3 unreachable blocks in png_do_read_transformations
+Trace2Pass: Instrumenting function: png_do_expand_palette
+Trace2Pass: Instrumented 13 arithmetic operations in png_do_expand_palette
+Trace2Pass: Instrumenting function: png_do_expand
+Trace2Pass: Instrumented 29 arithmetic operations in png_do_expand
+Trace2Pass: Instrumenting function: png_do_rgb_to_gray
+Trace2Pass: Instrumented 26 arithmetic operations in png_do_rgb_to_gray
+Trace2Pass: Instrumenting function: png_do_gray_to_rgb
+Trace2Pass: Instrumented 4 arithmetic operations in png_do_gray_to_rgb
+Trace2Pass: Instrumenting function: png_do_compose
+Trace2Pass: Instrumented 203 arithmetic operations in png_do_compose
+Trace2Pass: Instrumenting function: png_do_gamma
+Trace2Pass: Instrumented 34 arithmetic operations in png_do_gamma
+Trace2Pass: Instrumenting function: png_do_encode_alpha
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks in png_do_encode_alpha
+Trace2Pass: Instrumenting function: png_do_scale_16_to_8
+Trace2Pass: Instrumented 6 arithmetic operations in png_do_scale_16_to_8
+Trace2Pass: Instrumenting function: png_do_chop
+Trace2Pass: Instrumented 1 arithmetic operations in png_do_chop
+Trace2Pass: Instrumenting function: png_do_quantize
+Trace2Pass: Instrumented 14 arithmetic operations in png_do_quantize
+Trace2Pass: Instrumenting function: png_do_expand_16
+Trace2Pass: Instrumented 1 arithmetic operations in png_do_expand_16
+Trace2Pass: Instrumenting function: png_do_read_invert_alpha
+Trace2Pass: Instrumented 6 arithmetic operations in png_do_read_invert_alpha
+Trace2Pass: Instrumenting function: png_do_unshift
+Trace2Pass: Instrumented 22 arithmetic operations, 1 unreachable blocks in png_do_unshift
+Trace2Pass: Instrumenting function: png_do_unpack
+Trace2Pass: Instrumented 9 arithmetic operations in png_do_unpack
+Trace2Pass: Instrumenting function: png_do_read_filler
+Trace2Pass: Instrumented 1 arithmetic operations in png_do_read_filler
+Trace2Pass: Instrumenting function: png_do_read_swap_alpha
+Trace2Pass: Instrumenting function: png_gamma_threshold
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_get_uint_31
+Trace2Pass: Instrumented 3 arithmetic operations, 1 unreachable blocks in png_get_uint_31
+Trace2Pass: Instrumenting function: png_get_uint_32
+Trace2Pass: Instrumented 3 arithmetic operations in png_get_uint_32
+Trace2Pass: Instrumenting function: png_get_int_32
+Trace2Pass: Instrumented 4 arithmetic operations in png_get_int_32
+Trace2Pass: Instrumenting function: png_get_uint_16
+Trace2Pass: Instrumented 1 arithmetic operations in png_get_uint_16
+Trace2Pass: Instrumenting function: png_read_sig
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in png_read_sig
+Trace2Pass: Instrumenting function: png_read_chunk_header
+Trace2Pass: Instrumented 4 arithmetic operations, 2 unreachable blocks in png_read_chunk_header
+Trace2Pass: Instrumenting function: check_chunk_name
+Trace2Pass: Instrumenting function: png_crc_read
+Trace2Pass: Instrumenting function: png_crc_finish
+Trace2Pass: Instrumenting function: png_crc_finish_critical
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in png_crc_finish_critical
+Trace2Pass: Instrumenting function: png_zlib_inflate
+Trace2Pass: Instrumented 1 arithmetic operations in png_zlib_inflate
+Trace2Pass: Instrumenting function: png_handle_acTL
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_handle_acTL
+Trace2Pass: Instrumenting function: png_handle_fcTL
+Trace2Pass: Instrumented 2 arithmetic operations, 2 unreachable blocks in png_handle_fcTL
+Trace2Pass: Instrumenting function: png_ensure_sequence_number
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_ensure_sequence_number
+Trace2Pass: Instrumenting function: png_read_reinit
+Trace2Pass: Instrumented 4 arithmetic operations in png_read_reinit
+Trace2Pass: Instrumenting function: png_have_info
+Trace2Pass: Instrumenting function: png_handle_fdAT
+Trace2Pass: Instrumenting function: png_handle_unknown
+Trace2Pass: Instrumented 3 arithmetic operations, 2 unreachable blocks in png_handle_unknown
+Trace2Pass: Instrumenting function: png_cache_unknown_chunk
+Trace2Pass: Instrumented 3 arithmetic operations in png_cache_unknown_chunk
+Trace2Pass: Instrumenting function: png_handle_chunk
+Trace2Pass: Instrumented 8 arithmetic operations, 2 unreachable blocks in png_handle_chunk
+Trace2Pass: Instrumenting function: png_chunk_index_from_name
+Trace2Pass: Instrumenting function: png_combine_row
+Trace2Pass: Instrumented 21 arithmetic operations, 5 unreachable blocks, 7 division checks in png_combine_row
+Trace2Pass: Instrumenting function: png_do_read_interlace
+Trace2Pass: Instrumented 36 arithmetic operations in png_do_read_interlace
+Trace2Pass: Instrumenting function: png_read_filter_row
+Trace2Pass: Instrumented 1 arithmetic operations in png_read_filter_row
+Trace2Pass: Instrumenting function: png_init_filter_functions
+Trace2Pass: Instrumented 2 arithmetic operations in png_init_filter_functions
+Trace2Pass: Instrumenting function: png_read_IDAT_data
+Trace2Pass: Instrumented 0 arithmetic operations, 6 unreachable blocks in png_read_IDAT_data
+Trace2Pass: Instrumenting function: png_read_buffer
+Trace2Pass: Instrumenting function: png_read_finish_IDAT
+Trace2Pass: Instrumenting function: png_read_finish_row
+Trace2Pass: Instrumented 0 arithmetic operations, 2 division checks in png_read_finish_row
+Trace2Pass: Instrumenting function: png_read_start_row
+Trace2Pass: Instrumented 4 arithmetic operations, 2 unreachable blocks, 3 division checks in png_read_start_row
+Trace2Pass: Instrumenting function: png_inflate_claim
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks in png_inflate_claim
+Trace2Pass: Instrumenting function: png_read_reset
+Trace2Pass: Instrumenting function: png_progressive_read_reset
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks, 2 division checks in png_progressive_read_reset
+Trace2Pass: Instrumenting function: png_crc_error
+Trace2Pass: Instrumented 4 arithmetic operations in png_crc_error
+Trace2Pass: Instrumenting function: png_handle_IHDR
+Trace2Pass: Instrumented 3 arithmetic operations in png_handle_IHDR
+Trace2Pass: Instrumenting function: png_handle_PLTE
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks, 2 division checks in png_handle_PLTE
+Trace2Pass: Instrumenting function: png_handle_IEND
+Trace2Pass: Instrumenting function: png_handle_bKGD
+Trace2Pass: Instrumented 5 arithmetic operations in png_handle_bKGD
+Trace2Pass: Instrumenting function: png_handle_cHRM
+Trace2Pass: Instrumenting function: png_handle_cICP
+Trace2Pass: Instrumenting function: png_handle_cLLI
+Trace2Pass: Instrumented 6 arithmetic operations in png_handle_cLLI
+Trace2Pass: Instrumenting function: png_handle_eXIf
+Trace2Pass: Instrumented 3 arithmetic operations in png_handle_eXIf
+Trace2Pass: Instrumenting function: png_handle_gAMA
+Trace2Pass: Instrumented 3 arithmetic operations in png_handle_gAMA
+Trace2Pass: Instrumenting function: png_handle_hIST
+Trace2Pass: Instrumented 1 arithmetic operations, 1 division checks in png_handle_hIST
+Trace2Pass: Instrumenting function: png_handle_iCCP
+Trace2Pass: Instrumented 6 arithmetic operations in png_handle_iCCP
+Trace2Pass: Instrumenting function: png_handle_iTXt
+Trace2Pass: Instrumenting function: png_handle_mDCV
+Trace2Pass: Instrumented 22 arithmetic operations in png_handle_mDCV
+Trace2Pass: Instrumenting function: png_handle_oFFs
+Trace2Pass: Instrumented 14 arithmetic operations in png_handle_oFFs
+Trace2Pass: Instrumenting function: png_handle_pCAL
+Trace2Pass: Instrumented 15 arithmetic operations in png_handle_pCAL
+Trace2Pass: Instrumenting function: png_handle_pHYs
+Trace2Pass: Instrumented 6 arithmetic operations in png_handle_pHYs
+Trace2Pass: Instrumenting function: png_handle_sBIT
+Trace2Pass: Instrumenting function: png_handle_sCAL
+Trace2Pass: Instrumenting function: png_handle_sPLT
+Trace2Pass: Instrumented 6 arithmetic operations, 3 division checks in png_handle_sPLT
+Trace2Pass: Instrumenting function: png_handle_sRGB
+Trace2Pass: Instrumenting function: png_handle_tEXt
+Trace2Pass: Instrumenting function: png_handle_tIME
+Trace2Pass: Instrumented 1 arithmetic operations in png_handle_tIME
+Trace2Pass: Instrumenting function: png_handle_tRNS
+Trace2Pass: Instrumented 4 arithmetic operations in png_handle_tRNS
+Trace2Pass: Instrumenting function: png_handle_zTXt
+Trace2Pass: Instrumenting function: png_get_int_32_checked
+Trace2Pass: Instrumented 4 arithmetic operations in png_get_int_32_checked
+Trace2Pass: Instrumenting function: png_inflate_read
+Trace2Pass: Instrumenting function: png_decompress_chunk
+Trace2Pass: Instrumenting function: png_inflate
+Trace2Pass: Instrumenting function: png_read_filter_row_sub
+Trace2Pass: Instrumented 3 arithmetic operations in png_read_filter_row_sub
+Trace2Pass: Instrumenting function: png_read_filter_row_up
+Trace2Pass: Instrumented 1 arithmetic operations in png_read_filter_row_up
+Trace2Pass: Instrumenting function: png_read_filter_row_avg
+Trace2Pass: Instrumented 5 arithmetic operations, 2 division checks in png_read_filter_row_avg
+Trace2Pass: Instrumenting function: png_read_filter_row_paeth_1byte_pixel
+Trace2Pass: Instrumented 10 arithmetic operations in png_read_filter_row_paeth_1byte_pixel
+Trace2Pass: Instrumenting function: png_read_filter_row_paeth_multibyte_pixel
+Trace2Pass: Instrumented 12 arithmetic operations in png_read_filter_row_paeth_multibyte_pixel
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_set_bKGD
+Trace2Pass: Instrumenting function: png_set_cHRM_fixed
+Trace2Pass: Instrumenting function: png_set_cHRM_XYZ_fixed
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_set_cHRM_XYZ_fixed
+Trace2Pass: Instrumenting function: png_set_cHRM
+Trace2Pass: Instrumenting function: png_set_cHRM_XYZ
+Trace2Pass: Instrumenting function: png_set_cICP
+Trace2Pass: Instrumenting function: png_set_cLLI_fixed
+Trace2Pass: Instrumenting function: png_set_cLLI
+Trace2Pass: Instrumenting function: png_set_mDCV_fixed
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_set_mDCV_fixed
+Trace2Pass: Instrumenting function: png_ITU_fixed_16
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in png_ITU_fixed_16
+Trace2Pass: Instrumenting function: png_set_mDCV
+Trace2Pass: Instrumenting function: png_set_eXIf_1
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_set_eXIf_1
+Trace2Pass: Instrumenting function: png_set_gAMA_fixed
+Trace2Pass: Instrumenting function: png_set_gAMA
+Trace2Pass: Instrumenting function: png_set_hIST
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in png_set_hIST
+Trace2Pass: Instrumenting function: png_set_IHDR
+Trace2Pass: Instrumented 3 arithmetic operations in png_set_IHDR
+Trace2Pass: Instrumenting function: png_set_oFFs
+Trace2Pass: Instrumenting function: png_set_pCAL
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in png_set_pCAL
+Trace2Pass: Instrumenting function: png_set_sCAL_s
+Trace2Pass: Instrumented 0 arithmetic operations, 4 unreachable blocks in png_set_sCAL_s
+Trace2Pass: Instrumenting function: png_set_sCAL
+Trace2Pass: Instrumenting function: png_set_sCAL_fixed
+Trace2Pass: Instrumenting function: png_set_pHYs
+Trace2Pass: Instrumenting function: png_set_PLTE
+Trace2Pass: Instrumented 1 arithmetic operations, 3 unreachable blocks in png_set_PLTE
+Trace2Pass: Instrumenting function: png_set_sBIT
+Trace2Pass: Instrumenting function: png_set_sRGB
+Trace2Pass: Instrumenting function: png_set_sRGB_gAMA_and_cHRM
+Trace2Pass: Instrumenting function: png_set_iCCP
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_set_iCCP
+Trace2Pass: Instrumenting function: png_set_text
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_set_text
+Trace2Pass: Instrumenting function: png_set_text_2
+Trace2Pass: Instrumented 7 arithmetic operations in png_set_text_2
+Trace2Pass: Instrumenting function: png_set_tIME
+Trace2Pass: Instrumenting function: png_set_tRNS
+Trace2Pass: Instrumented 2 arithmetic operations in png_set_tRNS
+Trace2Pass: Instrumenting function: png_set_sPLT
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in png_set_sPLT
+Trace2Pass: Instrumenting function: png_set_acTL
+Trace2Pass: Instrumenting function: png_set_next_frame_fcTL
+Trace2Pass: Instrumenting function: png_ensure_fcTL_is_valid
+Trace2Pass: Instrumented 0 arithmetic operations, 6 unreachable blocks in png_ensure_fcTL_is_valid
+Trace2Pass: Instrumenting function: png_set_first_frame_is_hidden
+Trace2Pass: Instrumenting function: png_set_unknown_chunks
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in png_set_unknown_chunks
+Trace2Pass: Instrumenting function: check_location
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in check_location
+Trace2Pass: Instrumenting function: png_set_unknown_chunk_location
+Trace2Pass: Instrumenting function: png_permit_mng_features
+Trace2Pass: Instrumenting function: png_set_keep_unknown_chunks
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_set_keep_unknown_chunks
+Trace2Pass: Instrumenting function: add_one_chunk
+Trace2Pass: Instrumenting function: png_set_read_user_chunk_fn
+Trace2Pass: Instrumenting function: png_set_rows
+Trace2Pass: Instrumenting function: png_set_compression_buffer_size
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_set_compression_buffer_size
+Trace2Pass: Instrumenting function: png_set_invalid
+Trace2Pass: Instrumenting function: png_set_user_limits
+Trace2Pass: Instrumenting function: png_set_chunk_cache_max
+Trace2Pass: Instrumenting function: png_set_chunk_malloc_max
+Trace2Pass: Instrumenting function: png_set_benign_errors
+Trace2Pass: Instrumenting function: png_set_check_for_invalid_index
+Trace2Pass: Instrumenting function: png_check_keyword
+[ 54%] Building C object CMakeFiles/png_shared.dir/pngtrans.c.o
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_process_data
+Trace2Pass: Instrumenting function: png_push_restore_buffer
+Trace2Pass: Instrumenting function: png_process_some_data
+Trace2Pass: Instrumenting function: png_process_data_pause
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_process_data_pause
+Trace2Pass: Instrumenting function: png_push_save_buffer
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in png_push_save_buffer
+Trace2Pass: Instrumenting function: png_process_data_skip
+Trace2Pass: Instrumenting function: png_push_read_sig
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_push_read_sig
+Trace2Pass: Instrumenting function: png_push_read_chunk
+Trace2Pass: Instrumented 2 arithmetic operations, 7 unreachable blocks in png_push_read_chunk
+Trace2Pass: Instrumenting function: png_push_read_IDAT
+Trace2Pass: Instrumented 4 arithmetic operations, 3 unreachable blocks in png_push_read_IDAT
+Trace2Pass: Instrumenting function: png_push_fill_buffer
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_push_fill_buffer
+Trace2Pass: Instrumenting function: png_push_have_end
+Trace2Pass: Instrumenting function: png_push_have_info
+Trace2Pass: Instrumenting function: png_process_IDAT_data
+Trace2Pass: Instrumented 2 arithmetic operations, 3 unreachable blocks in png_process_IDAT_data
+Trace2Pass: Instrumenting function: png_push_process_row
+Trace2Pass: Instrumented 15 arithmetic operations, 3 unreachable blocks in png_push_process_row
+Trace2Pass: Instrumenting function: png_push_have_row
+Trace2Pass: Instrumenting function: png_read_push_finish_row
+Trace2Pass: Instrumented 0 arithmetic operations, 2 division checks in png_read_push_finish_row
+Trace2Pass: Instrumenting function: png_progressive_combine_row
+Trace2Pass: Instrumenting function: png_set_progressive_read_fn
+Trace2Pass: Instrumenting function: png_set_progressive_frame_fn
+Trace2Pass: Instrumenting function: png_get_progressive_ptr
+[ 55%] Building C object CMakeFiles/png_static.dir/pngrtran.c.o
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_read_data
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_read_data
+Trace2Pass: Instrumenting function: png_default_read_data
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_default_read_data
+Trace2Pass: Instrumenting function: png_set_read_fn
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_set_bgr
+Trace2Pass: Instrumenting function: png_set_swap
+Trace2Pass: Instrumenting function: png_set_packing
+Trace2Pass: Instrumenting function: png_set_packswap
+Trace2Pass: Instrumenting function: png_set_shift
+Trace2Pass: Instrumenting function: png_set_interlace_handling
+Trace2Pass: Instrumenting function: png_set_filler
+Trace2Pass: Instrumenting function: png_set_add_alpha
+Trace2Pass: Instrumenting function: png_set_swap_alpha
+Trace2Pass: Instrumenting function: png_set_invert_alpha
+Trace2Pass: Instrumenting function: png_set_invert_mono
+Trace2Pass: Instrumenting function: png_do_invert
+Trace2Pass: Instrumenting function: png_do_swap
+Trace2Pass: Instrumenting function: png_do_packswap
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_do_packswap
+Trace2Pass: Instrumenting function: png_do_strip_channel
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_do_strip_channel
+Trace2Pass: Instrumenting function: png_do_bgr
+Trace2Pass: Instrumenting function: png_do_check_palette_indexes
+Trace2Pass: Instrumented 12 arithmetic operations, 3 division checks in png_do_check_palette_indexes
+Trace2Pass: Instrumenting function: png_set_user_transform_info
+Trace2Pass: Instrumenting function: png_get_user_transform_ptr
+Trace2Pass: Instrumenting function: png_get_current_row_number
+Trace2Pass: Instrumenting function: png_get_current_pass_number
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_create_read_struct
+Trace2Pass: Instrumenting function: png_create_read_struct_2
+Trace2Pass: Instrumenting function: png_read_info
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in png_read_info
+Trace2Pass: Instrumenting function: png_read_frame_head
+Trace2Pass: Instrumented 0 arithmetic operations, 4 unreachable blocks in png_read_frame_head
+Trace2Pass: Instrumenting function: png_read_update_info
+Trace2Pass: Instrumenting function: png_start_read_image
+Trace2Pass: Instrumenting function: png_read_row
+Trace2Pass: Instrumented 2 arithmetic operations, 5 unreachable blocks in png_read_row
+Trace2Pass: Instrumenting function: png_do_read_intrapixel
+Trace2Pass: Instrumented 9 arithmetic operations, 1 unreachable blocks in png_do_read_intrapixel
+Trace2Pass: Instrumenting function: png_read_rows
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_read_rows
+Trace2Pass: Instrumenting function: png_read_image
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in png_read_image
+Trace2Pass: Instrumenting function: png_read_end
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_read_end
+Trace2Pass: Instrumenting function: png_destroy_read_struct
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_destroy_read_struct
+Trace2Pass: Instrumenting function: png_read_destroy
+Trace2Pass: Instrumenting function: png_set_read_status_fn
+Trace2Pass: Instrumenting function: png_read_png
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_read_png
+Trace2Pass: Instrumenting function: png_image_begin_read_from_stdio
+Trace2Pass: Instrumenting function: png_image_read_init
+Trace2Pass: Instrumenting function: png_image_read_header
+Trace2Pass: Instrumented 1 arithmetic operations in png_image_read_header
+Trace2Pass: Instrumenting function: png_image_begin_read_from_file
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_image_begin_read_from_file
+Trace2Pass: Instrumenting function: png_image_begin_read_from_memory
+Trace2Pass: Instrumenting function: png_image_memory_read
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_image_memory_read
+Trace2Pass: Instrumenting function: png_image_finish_read
+Trace2Pass: Instrumented 2 arithmetic operations, 3 division checks in png_image_finish_read
+Trace2Pass: Instrumenting function: png_image_read_colormap
+[ 57%] Building C object CMakeFiles/png_shared.dir/pngwio.c.o
+Trace2Pass: Instrumented 48 arithmetic operations, 18 unreachable blocks, 2 division checks in png_image_read_colormap
+Trace2Pass: Instrumenting function: png_image_read_colormapped
+Trace2Pass: Instrumented 3 arithmetic operations, 1 unreachable blocks in png_image_read_colormapped
+Trace2Pass: Instrumenting function: png_image_read_direct
+Trace2Pass: Instrumented 4 arithmetic operations, 4 unreachable blocks in png_image_read_direct
+Trace2Pass: Instrumenting function: png_image_format
+Trace2Pass: Instrumenting function: png_image_is_not_sRGB
+Trace2Pass: Instrumenting function: chromaticities_match_sRGB
+Trace2Pass: Instrumenting function: png_create_colormap_entry
+Trace2Pass: Instrumented 41 arithmetic operations, 2 unreachable blocks, 4 division checks in png_create_colormap_entry
+Trace2Pass: Instrumenting function: make_gray_colormap
+Trace2Pass: Instrumenting function: make_ga_colormap
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in make_ga_colormap
+Trace2Pass: Instrumenting function: png_gamma_not_sRGB
+Trace2Pass: Instrumented 2 arithmetic operations, 1 division checks in png_gamma_not_sRGB
+Trace2Pass: Instrumenting function: make_gray_file_colormap
+Trace2Pass: Instrumenting function: make_rgb_colormap
+Trace2Pass: Instrumenting function: png_colormap_compose
+Trace2Pass: Instrumented 6 arithmetic operations in png_colormap_compose
+Trace2Pass: Instrumenting function: set_file_encoding
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in set_file_encoding
+Trace2Pass: Instrumenting function: decode_gamma
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in decode_gamma
+Trace2Pass: Instrumenting function: png_image_skip_unused_chunks
+Trace2Pass: Instrumenting function: png_image_read_and_map
+Trace2Pass: Instrumented 56 arithmetic operations, 2 unreachable blocks in png_image_read_and_map
+Trace2Pass: Instrumenting function: png_image_read_composite
+Trace2Pass: Instrumented 34 arithmetic operations, 2 unreachable blocks, 1 division checks in png_image_read_composite
+Trace2Pass: Instrumenting function: png_image_read_background
+Trace2Pass: Instrumented 69 arithmetic operations, 7 unreachable blocks, 2 division checks in png_image_read_background
+Trace2Pass: Instrumenting function: png_image_read_direct_scaled
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in png_image_read_direct_scaled
+[ 59%] Building C object CMakeFiles/png_shared.dir/pngwrite.c.o
+[ 60%] Building C object CMakeFiles/png_static.dir/pngrutil.c.o
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_set_crc_action
+Trace2Pass: Instrumenting function: png_set_background_fixed
+Trace2Pass: Instrumenting function: png_rtran_ok
+Trace2Pass: Instrumenting function: png_set_background
+Trace2Pass: Instrumenting function: png_set_scale_16
+Trace2Pass: Instrumenting function: png_set_strip_16
+Trace2Pass: Instrumenting function: png_set_strip_alpha
+Trace2Pass: Instrumenting function: png_set_alpha_mode_fixed
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in png_set_alpha_mode_fixed
+Trace2Pass: Instrumenting function: translate_gamma_flags
+Trace2Pass: Instrumenting function: unsupported_gamma
+Trace2Pass: Instrumenting function: png_set_alpha_mode
+Trace2Pass: Instrumenting function: convert_gamma_value
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in convert_gamma_value
+Trace2Pass: Instrumenting function: png_set_quantize
+Trace2Pass: Instrumented 58 arithmetic operations, 1 unreachable blocks, 9 pure function calls in png_set_quantize
+Trace2Pass: Instrumenting function: png_set_gamma_fixed
+Trace2Pass: Instrumenting function: png_set_gamma
+Trace2Pass: Instrumenting function: png_set_expand
+Trace2Pass: Instrumenting function: png_set_palette_to_rgb
+Trace2Pass: Instrumenting function: png_set_expand_gray_1_2_4_to_8
+Trace2Pass: Instrumenting function: png_set_tRNS_to_alpha
+Trace2Pass: Instrumenting function: png_set_expand_16
+Trace2Pass: Instrumenting function: png_set_gray_to_rgb
+Trace2Pass: Instrumenting function: png_set_rgb_to_gray_fixed
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks, 2 division checks in png_set_rgb_to_gray_fixed
+Trace2Pass: Instrumenting function: png_set_rgb_to_gray
+Trace2Pass: Instrumenting function: png_set_read_user_transform_fn
+Trace2Pass: Instrumenting function: png_resolve_file_gamma
+Trace2Pass: Instrumenting function: png_init_read_transformations
+Trace2Pass: Instrumented 68 arithmetic operations, 1 unreachable blocks, 3 division checks in png_init_read_transformations
+Trace2Pass: Instrumenting function: png_init_gamma_values
+Trace2Pass: Instrumenting function: png_init_palette_transformations
+Trace2Pass: Instrumented 3 arithmetic operations in png_init_palette_transformations
+Trace2Pass: Instrumenting function: png_init_rgb_transformations
+Trace2Pass: Instrumented 6 arithmetic operations in png_init_rgb_transformations
+Trace2Pass: Instrumenting function: png_read_transform_info
+Trace2Pass: Instrumented 3 arithmetic operations, 1 unreachable blocks in png_read_transform_info
+Trace2Pass: Instrumenting function: png_do_read_transformations
+Trace2Pass: Instrumented 3 arithmetic operations, 3 unreachable blocks in png_do_read_transformations
+Trace2Pass: Instrumenting function: png_do_expand_palette
+Trace2Pass: Instrumented 13 arithmetic operations in png_do_expand_palette
+Trace2Pass: Instrumenting function: png_do_expand
+Trace2Pass: Instrumented 29 arithmetic operations in png_do_expand
+Trace2Pass: Instrumenting function: png_do_rgb_to_gray
+Trace2Pass: Instrumented 26 arithmetic operations in png_do_rgb_to_gray
+Trace2Pass: Instrumenting function: png_do_gray_to_rgb
+Trace2Pass: Instrumented 4 arithmetic operations in png_do_gray_to_rgb
+Trace2Pass: Instrumenting function: png_do_compose
+Trace2Pass: Instrumented 203 arithmetic operations in png_do_compose
+Trace2Pass: Instrumenting function: png_do_gamma
+Trace2Pass: Instrumented 34 arithmetic operations in png_do_gamma
+Trace2Pass: Instrumenting function: png_do_encode_alpha
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks in png_do_encode_alpha
+Trace2Pass: Instrumenting function: png_do_scale_16_to_8
+Trace2Pass: Instrumented 6 arithmetic operations in png_do_scale_16_to_8
+Trace2Pass: Instrumenting function: png_do_chop
+Trace2Pass: Instrumented 1 arithmetic operations in png_do_chop
+Trace2Pass: Instrumenting function: png_do_quantize
+Trace2Pass: Instrumented 14 arithmetic operations in png_do_quantize
+Trace2Pass: Instrumenting function: png_do_expand_16
+Trace2Pass: Instrumented 1 arithmetic operations in png_do_expand_16
+Trace2Pass: Instrumenting function: png_do_read_invert_alpha
+Trace2Pass: Instrumented 6 arithmetic operations in png_do_read_invert_alpha
+Trace2Pass: Instrumenting function: png_do_unshift
+Trace2Pass: Instrumented 22 arithmetic operations, 1 unreachable blocks in png_do_unshift
+Trace2Pass: Instrumenting function: png_do_unpack
+Trace2Pass: Instrumented 9 arithmetic operations in png_do_unpack
+Trace2Pass: Instrumenting function: png_do_read_filler
+Trace2Pass: Instrumented 1 arithmetic operations in png_do_read_filler
+Trace2Pass: Instrumenting function: png_do_read_swap_alpha
+Trace2Pass: Instrumenting function: png_gamma_threshold
+[ 62%] Building C object CMakeFiles/png_shared.dir/pngwtran.c.o
+[ 63%] Building C object CMakeFiles/png_shared.dir/pngwutil.c.o
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_write_info_before_PLTE
+Trace2Pass: Instrumenting function: write_unknown_chunks
+Trace2Pass: Instrumenting function: png_write_info
+Trace2Pass: Instrumented 4 arithmetic operations, 2 unreachable blocks in png_write_info
+Trace2Pass: Instrumenting function: png_write_end
+Trace2Pass: Instrumented 1 arithmetic operations, 2 unreachable blocks in png_write_end
+Trace2Pass: Instrumenting function: png_convert_from_struct_tm
+Trace2Pass: Instrumented 2 arithmetic operations in png_convert_from_struct_tm
+Trace2Pass: Instrumenting function: png_convert_from_time_t
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_convert_from_time_t
+Trace2Pass: Instrumenting function: png_create_write_struct
+Trace2Pass: Instrumenting function: png_create_write_struct_2
+Trace2Pass: Instrumenting function: png_write_rows
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_write_rows
+Trace2Pass: Instrumenting function: png_write_row
+Trace2Pass: Instrumented 3 arithmetic operations, 3 unreachable blocks in png_write_row
+Trace2Pass: Instrumenting function: png_write_image
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in png_write_image
+Trace2Pass: Instrumenting function: png_do_write_intrapixel
+Trace2Pass: Instrumented 7 arithmetic operations, 1 unreachable blocks in png_do_write_intrapixel
+Trace2Pass: Instrumenting function: png_set_flush
+Trace2Pass: Instrumenting function: png_write_flush
+Trace2Pass: Instrumenting function: png_destroy_write_struct
+Trace2Pass: Instrumenting function: png_write_destroy
+Trace2Pass: Instrumenting function: png_set_filter
+Trace2Pass: Instrumented 9 arithmetic operations, 1 unreachable blocks in png_set_filter
+Trace2Pass: Instrumenting function: png_set_compression_level
+Trace2Pass: Instrumenting function: png_set_compression_mem_level
+Trace2Pass: Instrumenting function: png_set_compression_strategy
+Trace2Pass: Instrumenting function: png_set_compression_window_bits
+Trace2Pass: Instrumenting function: png_set_compression_method
+Trace2Pass: Instrumenting function: png_set_text_compression_level
+Trace2Pass: Instrumenting function: png_set_text_compression_mem_level
+Trace2Pass: Instrumenting function: png_set_text_compression_strategy
+Trace2Pass: Instrumenting function: png_set_text_compression_window_bits
+Trace2Pass: Instrumenting function: png_set_text_compression_method
+Trace2Pass: Instrumenting function: png_set_write_status_fn
+Trace2Pass: Instrumenting function: png_set_write_user_transform_fn
+Trace2Pass: Instrumenting function: png_write_png
+Trace2Pass: Instrumenting function: png_write_frame_head
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_write_frame_head
+Trace2Pass: Instrumenting function: png_write_frame_tail
+Trace2Pass: Instrumenting function: png_image_write_to_memory
+Trace2Pass: Instrumenting function: png_image_write_init
+Trace2Pass: Instrumenting function: png_image_write_memory
+Trace2Pass: Instrumenting function: png_image_write_to_stdio
+Trace2Pass: Instrumenting function: png_image_write_main
+Trace2Pass: Instrumented 5 arithmetic operations, 5 unreachable blocks, 2 division checks in png_image_write_main
+Trace2Pass: Instrumenting function: png_image_write_to_file
+Trace2Pass: Instrumenting function: image_memory_write
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in image_memory_write
+Trace2Pass: Instrumenting function: image_memory_flush
+Trace2Pass: Instrumenting function: png_image_set_PLTE
+Trace2Pass: Instrumented 49 arithmetic operations, 1 division checks in png_image_set_PLTE
+Trace2Pass: Instrumenting function: png_write_image_16bit
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 2 division checks in png_write_image_16bit
+Trace2Pass: Instrumenting function: png_write_image_8bit
+Trace2Pass: Instrumented 8 arithmetic operations, 3 division checks in png_write_image_8bit
+Trace2Pass: Instrumenting function: png_unpremultiply
+Trace2Pass: Instrumented 5 arithmetic operations in png_unpremultiply
+[ 65%] Building C object CMakeFiles/png_static.dir/pngset.c.o
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+
+Trace2Pass: Instrumenting function: png_write_data
+Trace2Pass: Instrumenting function: png_get_uint_31
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_write_data
+Trace2Pass: Instrumenting function: png_default_write_data
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_default_write_data
+Trace2Pass: Instrumenting function: png_flush
+Trace2Pass: Instrumenting function: png_default_flush
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_default_flush
+Trace2Pass: Instrumenting function: png_set_write_fn
+Trace2Pass: Instrumented 3 arithmetic operations, 1 unreachable blocks in png_get_uint_31
+Trace2Pass: Instrumenting function: png_get_uint_32
+Trace2Pass: Instrumented 3 arithmetic operations in png_get_uint_32
+Trace2Pass: Instrumenting function: png_get_int_32
+Trace2Pass: Instrumented 4 arithmetic operations in png_get_int_32
+Trace2Pass: Instrumenting function: png_get_uint_16
+Trace2Pass: Instrumented 1 arithmetic operations in png_get_uint_16
+Trace2Pass: Instrumenting function: png_read_sig
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in png_read_sig
+Trace2Pass: Instrumenting function: png_read_chunk_header
+Trace2Pass: Instrumented 4 arithmetic operations, 2 unreachable blocks in png_read_chunk_header
+Trace2Pass: Instrumenting function: check_chunk_name
+Trace2Pass: Instrumenting function: png_crc_read
+Trace2Pass: Instrumenting function: png_crc_finish
+Trace2Pass: Instrumenting function: png_crc_finish_critical
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in png_crc_finish_critical
+Trace2Pass: Instrumenting function: png_zlib_inflate
+Trace2Pass: Instrumented 1 arithmetic operations in png_zlib_inflate
+Trace2Pass: Instrumenting function: png_handle_acTL
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_handle_acTL
+Trace2Pass: Instrumenting function: png_handle_fcTL
+Trace2Pass: Instrumented 2 arithmetic operations, 2 unreachable blocks in png_handle_fcTL
+Trace2Pass: Instrumenting function: png_ensure_sequence_number
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_ensure_sequence_number
+Trace2Pass: Instrumenting function: png_read_reinit
+Trace2Pass: Instrumented 4 arithmetic operations in png_read_reinit
+Trace2Pass: Instrumenting function: png_have_info
+Trace2Pass: Instrumenting function: png_handle_fdAT
+Trace2Pass: Instrumenting function: png_handle_unknown
+Trace2Pass: Instrumented 3 arithmetic operations, 2 unreachable blocks in png_handle_unknown
+Trace2Pass: Instrumenting function: png_cache_unknown_chunk
+Trace2Pass: Instrumented 3 arithmetic operations in png_cache_unknown_chunk
+Trace2Pass: Instrumenting function: png_handle_chunk
+Trace2Pass: Instrumented 8 arithmetic operations, 2 unreachable blocks in png_handle_chunk
+Trace2Pass: Instrumenting function: png_chunk_index_from_name
+Trace2Pass: Instrumenting function: png_combine_row
+Trace2Pass: Instrumented 21 arithmetic operations, 5 unreachable blocks, 7 division checks in png_combine_row
+Trace2Pass: Instrumenting function: png_do_read_interlace
+Trace2Pass: Instrumented 36 arithmetic operations in png_do_read_interlace
+Trace2Pass: Instrumenting function: png_read_filter_row
+Trace2Pass: Instrumented 1 arithmetic operations in png_read_filter_row
+Trace2Pass: Instrumenting function: png_init_filter_functions
+Trace2Pass: Instrumented 2 arithmetic operations in png_init_filter_functions
+Trace2Pass: Instrumenting function: png_read_IDAT_data
+Trace2Pass: Instrumented 0 arithmetic operations, 6 unreachable blocks in png_read_IDAT_data
+Trace2Pass: Instrumenting function: png_read_buffer
+Trace2Pass: Instrumenting function: png_read_finish_IDAT
+Trace2Pass: Instrumenting function: png_read_finish_row
+Trace2Pass: Instrumented 0 arithmetic operations, 2 division checks in png_read_finish_row
+Trace2Pass: Instrumenting function: png_read_start_row
+Trace2Pass: Instrumented 4 arithmetic operations, 2 unreachable blocks, 3 division checks in png_read_start_row
+Trace2Pass: Instrumenting function: png_inflate_claim
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks in png_inflate_claim
+Trace2Pass: Instrumenting function: png_read_reset
+Trace2Pass: Instrumenting function: png_progressive_read_reset
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks, 2 division checks in png_progressive_read_reset
+Trace2Pass: Instrumenting function: png_crc_error
+Trace2Pass: Instrumented 4 arithmetic operations in png_crc_error
+Trace2Pass: Instrumenting function: png_handle_IHDR
+Trace2Pass: Instrumented 3 arithmetic operations in png_handle_IHDR
+Trace2Pass: Instrumenting function: png_handle_PLTE
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks, 2 division checks in png_handle_PLTE
+Trace2Pass: Instrumenting function: png_handle_IEND
+Trace2Pass: Instrumenting function: png_handle_bKGD
+Trace2Pass: Instrumented 5 arithmetic operations in png_handle_bKGD
+Trace2Pass: Instrumenting function: png_handle_cHRM
+Trace2Pass: Instrumenting function: png_handle_cICP
+Trace2Pass: Instrumenting function: png_handle_cLLI
+Trace2Pass: Instrumented 6 arithmetic operations in png_handle_cLLI
+Trace2Pass: Instrumenting function: png_handle_eXIf
+Trace2Pass: Instrumented 3 arithmetic operations in png_handle_eXIf
+Trace2Pass: Instrumenting function: png_handle_gAMA
+Trace2Pass: Instrumented 3 arithmetic operations in png_handle_gAMA
+Trace2Pass: Instrumenting function: png_handle_hIST
+Trace2Pass: Instrumented 1 arithmetic operations, 1 division checks in png_handle_hIST
+Trace2Pass: Instrumenting function: png_handle_iCCP
+Trace2Pass: Instrumented 6 arithmetic operations in png_handle_iCCP
+Trace2Pass: Instrumenting function: png_handle_iTXt
+Trace2Pass: Instrumenting function: png_handle_mDCV
+Trace2Pass: Instrumented 22 arithmetic operations in png_handle_mDCV
+Trace2Pass: Instrumenting function: png_handle_oFFs
+Trace2Pass: Instrumented 14 arithmetic operations in png_handle_oFFs
+Trace2Pass: Instrumenting function: png_handle_pCAL
+Trace2Pass: Instrumented 15 arithmetic operations in png_handle_pCAL
+Trace2Pass: Instrumenting function: png_handle_pHYs
+Trace2Pass: Instrumented 6 arithmetic operations in png_handle_pHYs
+Trace2Pass: Instrumenting function: png_handle_sBIT
+Trace2Pass: Instrumenting function: png_handle_sCAL
+Trace2Pass: Instrumenting function: png_handle_sPLT
+Trace2Pass: Instrumented 6 arithmetic operations, 3 division checks in png_handle_sPLT
+Trace2Pass: Instrumenting function: png_handle_sRGB
+Trace2Pass: Instrumenting function: png_handle_tEXt
+Trace2Pass: Instrumenting function: png_handle_tIME
+Trace2Pass: Instrumented 1 arithmetic operations in png_handle_tIME
+Trace2Pass: Instrumenting function: png_handle_tRNS
+Trace2Pass: Instrumented 4 arithmetic operations in png_handle_tRNS
+Trace2Pass: Instrumenting function: png_handle_zTXt
+Trace2Pass: Instrumenting function: png_get_int_32_checked
+Trace2Pass: Instrumented 4 arithmetic operations in png_get_int_32_checked
+Trace2Pass: Instrumenting function: png_inflate_read
+Trace2Pass: Instrumenting function: png_decompress_chunk
+Trace2Pass: Instrumenting function: png_inflate
+Trace2Pass: Instrumenting function: png_read_filter_row_sub
+Trace2Pass: Instrumented 3 arithmetic operations in png_read_filter_row_sub
+Trace2Pass: Instrumenting function: png_read_filter_row_up
+Trace2Pass: Instrumented 1 arithmetic operations in png_read_filter_row_up
+Trace2Pass: Instrumenting function: png_read_filter_row_avg
+Trace2Pass: Instrumented 5 arithmetic operations, 2 division checks in png_read_filter_row_avg
+Trace2Pass: Instrumenting function: png_read_filter_row_paeth_1byte_pixel
+Trace2Pass: Instrumented 10 arithmetic operations in png_read_filter_row_paeth_1byte_pixel
+Trace2Pass: Instrumenting function: png_read_filter_row_paeth_multibyte_pixel
+Trace2Pass: Instrumented 12 arithmetic operations in png_read_filter_row_paeth_multibyte_pixel
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_do_write_transformations
+Trace2Pass: Instrumenting function: png_do_pack
+Trace2Pass: Instrumented 5 arithmetic operations in png_do_pack
+Trace2Pass: Instrumenting function: png_do_shift
+Trace2Pass: Instrumented 22 arithmetic operations, 2 division checks in png_do_shift
+Trace2Pass: Instrumenting function: png_do_write_swap_alpha
+Trace2Pass: Instrumenting function: png_do_write_invert_alpha
+Trace2Pass: Instrumented 6 arithmetic operations in png_do_write_invert_alpha
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_save_uint_32
+Trace2Pass: Instrumented 3 arithmetic operations in png_save_uint_32
+Trace2Pass: Instrumenting function: png_save_uint_16
+Trace2Pass: Instrumented 1 arithmetic operations in png_save_uint_16
+Trace2Pass: Instrumenting function: png_write_sig
+Trace2Pass: Instrumented 1 arithmetic operations in png_write_sig
+Trace2Pass: Instrumenting function: png_write_chunk_start
+Trace2Pass: Instrumented 4 arithmetic operations in png_write_chunk_start
+Trace2Pass: Instrumenting function: png_write_chunk_header
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_write_chunk_header
+Trace2Pass: Instrumenting function: png_write_chunk_data
+Trace2Pass: Instrumenting function: png_write_chunk_end
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_write_chunk_end
+Trace2Pass: Instrumenting function: png_write_chunk
+Trace2Pass: Instrumented 4 arithmetic operations in png_write_chunk
+Trace2Pass: Instrumenting function: png_write_complete_chunk
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_write_complete_chunk
+Trace2Pass: Instrumenting function: png_free_buffer_list
+Trace2Pass: Instrumenting function: png_write_IHDR
+Trace2Pass: Instrumented 3 arithmetic operations, 6 unreachable blocks in png_write_IHDR
+Trace2Pass: Instrumenting function: png_write_PLTE
+Trace2Pass: Instrumented 1 arithmetic operations, 2 unreachable blocks in png_write_PLTE
+Trace2Pass: Instrumenting function: png_compress_IDAT
+Trace2Pass: Instrumented 0 arithmetic operations, 4 unreachable blocks in png_compress_IDAT
+Trace2Pass: Instrumenting function: png_deflate_claim
+Trace2Pass: Instrumented 10 arithmetic operations, 1 unreachable blocks in png_deflate_claim
+Trace2Pass: Instrumenting function: png_image_size
+Trace2Pass: Instrumented 26 arithmetic operations in png_image_size
+Trace2Pass: Instrumenting function: optimize_cmf
+Trace2Pass: Instrumented 5 arithmetic operations, 1 division checks in optimize_cmf
+Trace2Pass: Instrumenting function: png_write_fdAT
+Trace2Pass: Instrumenting function: png_write_IEND
+Trace2Pass: Instrumenting function: png_write_gAMA_fixed
+Trace2Pass: Instrumenting function: png_write_sRGB
+Trace2Pass: Instrumenting function: png_write_iCCP
+Trace2Pass: Instrumented 6 arithmetic operations, 7 unreachable blocks in png_write_iCCP
+Trace2Pass: Instrumenting function: png_text_compress_init
+Trace2Pass: Instrumenting function: png_text_compress
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_text_compress
+Trace2Pass: Instrumenting function: png_write_compressed_data_out
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_write_compressed_data_out
+Trace2Pass: Instrumenting function: png_write_sPLT
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_write_sPLT
+Trace2Pass: Instrumenting function: png_write_sBIT
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_write_sBIT
+Trace2Pass: Instrumenting function: png_write_cHRM_fixed
+Trace2Pass: Instrumenting function: png_write_tRNS
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in png_write_tRNS
+Trace2Pass: Instrumenting function: png_write_bKGD
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in png_write_bKGD
+Trace2Pass: Instrumenting function: png_write_cICP
+Trace2Pass: Instrumenting function: png_write_cLLI_fixed
+Trace2Pass: Instrumenting function: png_write_mDCV_fixed
+Trace2Pass: Instrumenting function: png_write_eXIf
+Trace2Pass: Instrumented 1 arithmetic operations in png_write_eXIf
+Trace2Pass: Instrumenting function: png_write_hIST
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in png_write_hIST
+Trace2Pass: Instrumenting function: png_write_tEXt
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_write_tEXt
+Trace2Pass: Instrumenting function: png_write_zTXt
+Trace2Pass: Instrumented 0 arithmetic operations, 4 unreachable blocks in png_write_zTXt
+Trace2Pass: Instrumenting function: png_write_iTXt
+Trace2Pass: Instrumented 0 arithmetic operations, 4 unreachable blocks in png_write_iTXt
+Trace2Pass: Instrumenting function: png_write_oFFs
+Trace2Pass: Instrumenting function: png_write_pCAL
+Trace2Pass: Instrumented 3 arithmetic operations, 2 unreachable blocks in png_write_pCAL
+Trace2Pass: Instrumenting function: png_write_sCAL_s
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_write_sCAL_s
+Trace2Pass: Instrumenting function: png_write_pHYs
+Trace2Pass: Instrumenting function: png_write_tIME
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_write_tIME
+Trace2Pass: Instrumenting function: png_write_acTL
+Trace2Pass: Instrumenting function: png_write_fcTL
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_write_fcTL
+Trace2Pass: Instrumenting function: png_write_start_row
+Trace2Pass: Instrumented 7 arithmetic operations, 2 division checks in png_write_start_row
+Trace2Pass: Instrumenting function: png_write_finish_row
+Trace2Pass: Instrumented 5 arithmetic operations, 2 division checks in png_write_finish_row
+Trace2Pass: Instrumenting function: png_do_write_interlace
+Trace2Pass: Instrumented 17 arithmetic operations, 1 division checks in png_do_write_interlace
+Trace2Pass: Instrumenting function: png_write_find_filter
+Trace2Pass: Instrumented 2 arithmetic operations in png_write_find_filter
+Trace2Pass: Instrumenting function: png_setup_sub_row_only
+Trace2Pass: Instrumented 1 arithmetic operations in png_setup_sub_row_only
+Trace2Pass: Instrumenting function: png_setup_sub_row
+Trace2Pass: Instrumented 1 arithmetic operations in png_setup_sub_row
+Trace2Pass: Instrumenting function: png_setup_up_row_only
+Trace2Pass: Instrumented 1 arithmetic operations in png_setup_up_row_only
+Trace2Pass: Instrumenting function: png_setup_up_row
+Trace2Pass: Instrumented 1 arithmetic operations in png_setup_up_row
+Trace2Pass: Instrumenting function: png_setup_avg_row_only
+Trace2Pass: Instrumented 3 arithmetic operations, 2 division checks in png_setup_avg_row_only
+Trace2Pass: Instrumenting function: png_setup_avg_row
+Trace2Pass: Instrumented 3 arithmetic operations, 2 division checks in png_setup_avg_row
+Trace2Pass: Instrumenting function: png_setup_paeth_row_only
+Trace2Pass: Instrumented 10 arithmetic operations in png_setup_paeth_row_only
+Trace2Pass: Instrumenting function: png_setup_paeth_row
+Trace2Pass: Instrumented 10 arithmetic operations, 1 unreachable blocks in png_setup_paeth_row
+Trace2Pass: Instrumenting function: png_write_filtered_row
+Trace2Pass: Instrumenting function: png_write_reset
+Trace2Pass: Instrumenting function: png_write_reinit
+Trace2Pass: Instrumented 2 arithmetic operations, 2 unreachable blocks in png_write_reinit
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_set_bKGD
+[ 67%] Building C object CMakeFiles/png_static.dir/pngtrans.c.o
+Trace2Pass: Instrumenting function: png_set_cHRM_fixed
+Trace2Pass: Instrumenting function: png_set_cHRM_XYZ_fixed
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_set_cHRM_XYZ_fixed
+Trace2Pass: Instrumenting function: png_set_cHRM
+Trace2Pass: Instrumenting function: png_set_cHRM_XYZ
+Trace2Pass: Instrumenting function: png_set_cICP
+Trace2Pass: Instrumenting function: png_set_cLLI_fixed
+Trace2Pass: Instrumenting function: png_set_cLLI
+Trace2Pass: Instrumenting function: png_set_mDCV_fixed
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_set_mDCV_fixed
+Trace2Pass: Instrumenting function: png_ITU_fixed_16
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in png_ITU_fixed_16
+Trace2Pass: Instrumenting function: png_set_mDCV
+Trace2Pass: Instrumenting function: png_set_eXIf_1
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_set_eXIf_1
+Trace2Pass: Instrumenting function: png_set_gAMA_fixed
+Trace2Pass: Instrumenting function: png_set_gAMA
+Trace2Pass: Instrumenting function: png_set_hIST
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in png_set_hIST
+Trace2Pass: Instrumenting function: png_set_IHDR
+Trace2Pass: Instrumented 3 arithmetic operations in png_set_IHDR
+Trace2Pass: Instrumenting function: png_set_oFFs
+Trace2Pass: Instrumenting function: png_set_pCAL
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in png_set_pCAL
+Trace2Pass: Instrumenting function: png_set_sCAL_s
+Trace2Pass: Instrumented 0 arithmetic operations, 4 unreachable blocks in png_set_sCAL_s
+Trace2Pass: Instrumenting function: png_set_sCAL
+Trace2Pass: Instrumenting function: png_set_sCAL_fixed
+Trace2Pass: Instrumenting function: png_set_pHYs
+Trace2Pass: Instrumenting function: png_set_PLTE
+Trace2Pass: Instrumented 1 arithmetic operations, 3 unreachable blocks in png_set_PLTE
+Trace2Pass: Instrumenting function: png_set_sBIT
+Trace2Pass: Instrumenting function: png_set_sRGB
+Trace2Pass: Instrumenting function: png_set_sRGB_gAMA_and_cHRM
+Trace2Pass: Instrumenting function: png_set_iCCP
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_set_iCCP
+Trace2Pass: Instrumenting function: png_set_text
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_set_text
+Trace2Pass: Instrumenting function: png_set_text_2
+Trace2Pass: Instrumented 7 arithmetic operations in png_set_text_2
+Trace2Pass: Instrumenting function: png_set_tIME
+Trace2Pass: Instrumenting function: png_set_tRNS
+Trace2Pass: Instrumented 2 arithmetic operations in png_set_tRNS
+Trace2Pass: Instrumenting function: png_set_sPLT
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in png_set_sPLT
+Trace2Pass: Instrumenting function: png_set_acTL
+Trace2Pass: Instrumenting function: png_set_next_frame_fcTL
+Trace2Pass: Instrumenting function: png_ensure_fcTL_is_valid
+Trace2Pass: Instrumented 0 arithmetic operations, 6 unreachable blocks in png_ensure_fcTL_is_valid
+Trace2Pass: Instrumenting function: png_set_first_frame_is_hidden
+Trace2Pass: Instrumenting function: png_set_unknown_chunks
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in png_set_unknown_chunks
+Trace2Pass: Instrumenting function: check_location
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in check_location
+Trace2Pass: Instrumenting function: png_set_unknown_chunk_location
+Trace2Pass: Instrumenting function: png_permit_mng_features
+Trace2Pass: Instrumenting function: png_set_keep_unknown_chunks
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_set_keep_unknown_chunks
+Trace2Pass: Instrumenting function: add_one_chunk
+Trace2Pass: Instrumenting function: png_set_read_user_chunk_fn
+Trace2Pass: Instrumenting function: png_set_rows
+Trace2Pass: Instrumenting function: png_set_compression_buffer_size
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_set_compression_buffer_size
+Trace2Pass: Instrumenting function: png_set_invalid
+Trace2Pass: Instrumenting function: png_set_user_limits
+Trace2Pass: Instrumenting function: png_set_chunk_cache_max
+Trace2Pass: Instrumenting function: png_set_chunk_malloc_max
+Trace2Pass: Instrumenting function: png_set_benign_errors
+Trace2Pass: Instrumenting function: png_set_check_for_invalid_index
+Trace2Pass: Instrumenting function: png_check_keyword
+[ 68%] Building C object CMakeFiles/png_static.dir/pngwio.c.o
+[ 70%] Building C object CMakeFiles/png_shared.dir/pngsimd.c.o
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_set_bgr
+Trace2Pass: Instrumenting function: png_set_swap
+Trace2Pass: Instrumenting function: png_set_packing
+Trace2Pass: Instrumenting function: png_set_packswap
+Trace2Pass: Instrumenting function: png_set_shift
+Trace2Pass: Instrumenting function: png_set_interlace_handling
+Trace2Pass: Instrumenting function: png_set_filler
+Trace2Pass: Instrumenting function: png_set_add_alpha
+Trace2Pass: Instrumenting function: png_set_swap_alpha
+Trace2Pass: Instrumenting function: png_set_invert_alpha
+Trace2Pass: Instrumenting function: png_set_invert_mono
+Trace2Pass: Instrumenting function: png_do_invert
+Trace2Pass: Instrumenting function: png_do_swap
+Trace2Pass: Instrumenting function: png_do_packswap
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_do_packswap
+Trace2Pass: Instrumenting function: png_do_strip_channel
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_do_strip_channel
+Trace2Pass: Instrumenting function: png_do_bgr
+Trace2Pass: Instrumenting function: png_do_check_palette_indexes
+Trace2Pass: Instrumented 12 arithmetic operations, 3 division checks in png_do_check_palette_indexes
+Trace2Pass: Instrumenting function: png_set_user_transform_info
+Trace2Pass: Instrumenting function: png_get_user_transform_ptr
+Trace2Pass: Instrumenting function: png_get_current_row_number
+Trace2Pass: Instrumenting function: png_get_current_pass_number
+[ 72%] Building C object CMakeFiles/png_static.dir/pngwrite.c.o
+[ 73%] Building C object CMakeFiles/png_static.dir/pngwtran.c.o
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_write_data
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_write_data
+Trace2Pass: Instrumenting function: png_default_write_data
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_default_write_data
+Trace2Pass: Instrumenting function: png_flush
+Trace2Pass: Instrumenting function: png_default_flush
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_default_flush
+Trace2Pass: Instrumenting function: png_set_write_fn
+[ 75%] Building C object CMakeFiles/png_static.dir/pngwutil.c.o
+[ 77%] Building C object CMakeFiles/png_static.dir/pngsimd.c.o
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_target_init
+Trace2Pass: Instrumenting function: png_target_init_filter_functions
+Trace2Pass: Instrumented 1 arithmetic operations in png_target_init_filter_functions
+Trace2Pass: Instrumenting function: png_init_filter_functions_sse2
+Trace2Pass: Instrumenting function: png_read_filter_row_sub3_sse2
+Trace2Pass: Instrumenting function: png_read_filter_row_avg3_sse2
+Trace2Pass: Instrumenting function: png_read_filter_row_paeth3_sse2
+Trace2Pass: Instrumenting function: png_read_filter_row_sub4_sse2
+Trace2Pass: Instrumenting function: png_read_filter_row_avg4_sse2
+Trace2Pass: Instrumenting function: png_read_filter_row_paeth4_sse2
+Trace2Pass: Instrumenting function: _mm_setzero_si128
+Trace2Pass: Instrumenting function: load4
+Trace2Pass: Instrumenting function: _mm_add_epi8
+Trace2Pass: Instrumenting function: store3
+Trace2Pass: Instrumenting function: load3
+Trace2Pass: Instrumenting function: _mm_cvtsi32_si128
+Trace2Pass: Instrumenting function: _mm_cvtsi128_si32
+Trace2Pass: Instrumenting function: _mm_avg_epu8
+Trace2Pass: Instrumenting function: _mm_sub_epi8
+Trace2Pass: Instrumenting function: _mm_and_si128
+Trace2Pass: Instrumenting function: _mm_xor_si128
+Trace2Pass: Instrumenting function: _mm_set1_epi8
+Trace2Pass: Instrumenting function: _mm_set_epi8
+Trace2Pass: Instrumenting function: _mm_unpacklo_epi8
+Trace2Pass: Instrumenting function: _mm_sub_epi16
+Trace2Pass: Instrumenting function: _mm_add_epi16
+Trace2Pass: Instrumenting function: abs_i16
+Trace2Pass: Instrumenting function: _mm_min_epi16
+Trace2Pass: Instrumenting function: if_then_else
+Trace2Pass: Instrumenting function: _mm_cmpeq_epi16
+Trace2Pass: Instrumenting function: _mm_packus_epi16
+Trace2Pass: Instrumenting function: _mm_cmplt_epi16
+Trace2Pass: Instrumenting function: _mm_cmpgt_epi16
+Trace2Pass: Instrumenting function: _mm_or_si128
+Trace2Pass: Instrumenting function: _mm_andnot_si128
+Trace2Pass: Instrumenting function: store4
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_write_info_before_PLTE
+Trace2Pass: Instrumenting function: write_unknown_chunks
+Trace2Pass: Instrumenting function: png_write_info
+Trace2Pass: Instrumented 4 arithmetic operations, 2 unreachable blocks in png_write_info
+Trace2Pass: Instrumenting function: png_write_end
+Trace2Pass: Instrumented 1 arithmetic operations, 2 unreachable blocks in png_write_end
+Trace2Pass: Instrumenting function: png_convert_from_struct_tm
+Trace2Pass: Instrumented 2 arithmetic operations in png_convert_from_struct_tm
+Trace2Pass: Instrumenting function: png_convert_from_time_t
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_convert_from_time_t
+Trace2Pass: Instrumenting function: png_create_write_struct
+Trace2Pass: Instrumenting function: png_create_write_struct_2
+Trace2Pass: Instrumenting function: png_write_rows
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_write_rows
+Trace2Pass: Instrumenting function: png_write_row
+Trace2Pass: Instrumented 3 arithmetic operations, 3 unreachable blocks in png_write_row
+Trace2Pass: Instrumenting function: png_write_image
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in png_write_image
+Trace2Pass: Instrumenting function: png_do_write_intrapixel
+Trace2Pass: Instrumented 7 arithmetic operations, 1 unreachable blocks in png_do_write_intrapixel
+Trace2Pass: Instrumenting function: png_set_flush
+Trace2Pass: Instrumenting function: png_write_flush
+Trace2Pass: Instrumenting function: png_destroy_write_struct
+Trace2Pass: Instrumenting function: png_write_destroy
+Trace2Pass: Instrumenting function: png_set_filter
+Trace2Pass: Instrumented 9 arithmetic operations, 1 unreachable blocks in png_set_filter
+Trace2Pass: Instrumenting function: png_set_compression_level
+Trace2Pass: Instrumenting function: png_set_compression_mem_level
+Trace2Pass: Instrumenting function: png_set_compression_strategy
+Trace2Pass: Instrumenting function: png_set_compression_window_bits
+Trace2Pass: Instrumenting function: png_set_compression_method
+Trace2Pass: Instrumenting function: png_set_text_compression_level
+Trace2Pass: Instrumenting function: png_set_text_compression_mem_level
+Trace2Pass: Instrumenting function: png_set_text_compression_strategy
+Trace2Pass: Instrumenting function: png_set_text_compression_window_bits
+Trace2Pass: Instrumenting function: png_set_text_compression_method
+Trace2Pass: Instrumenting function: png_set_write_status_fn
+Trace2Pass: Instrumenting function: png_set_write_user_transform_fn
+Trace2Pass: Instrumenting function: png_write_png
+Trace2Pass: Instrumenting function: png_write_frame_head
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_write_frame_head
+Trace2Pass: Instrumenting function: png_write_frame_tail
+Trace2Pass: Instrumenting function: png_image_write_to_memory
+Trace2Pass: Instrumenting function: png_image_write_init
+Trace2Pass: Instrumenting function: png_image_write_memory
+Trace2Pass: Instrumenting function: png_image_write_to_stdio
+Trace2Pass: Instrumenting function: png_image_write_main
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_do_write_transformations
+Trace2Pass: Instrumenting function: png_do_pack
+Trace2Pass: Instrumented 5 arithmetic operations, 5 unreachable blocks, 2 division checks in png_image_write_main
+Trace2Pass: Instrumenting function: png_image_write_to_file
+Trace2Pass: Instrumenting function: image_memory_write
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in image_memory_write
+Trace2Pass: Instrumenting function: image_memory_flush
+Trace2Pass: Instrumenting function: png_image_set_PLTE
+Trace2Pass: Instrumented 5 arithmetic operations in png_do_pack
+Trace2Pass: Instrumenting function: png_do_shift
+Trace2Pass: Instrumented 22 arithmetic operations, 2 division checks in png_do_shift
+Trace2Pass: Instrumenting function: png_do_write_swap_alpha
+Trace2Pass: Instrumenting function: png_do_write_invert_alpha
+Trace2Pass: Instrumented 49 arithmetic operations, 1 division checks in png_image_set_PLTE
+Trace2Pass: Instrumenting function: png_write_image_16bit
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks, 2 division checks in png_write_image_16bit
+Trace2Pass: Instrumenting function: png_write_image_8bit
+Trace2Pass: Instrumented 6 arithmetic operations in png_do_write_invert_alpha
+Trace2Pass: Instrumented 8 arithmetic operations, 3 division checks in png_write_image_8bit
+Trace2Pass: Instrumenting function: png_unpremultiply
+Trace2Pass: Instrumented 5 arithmetic operations in png_unpremultiply
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_save_uint_32
+Trace2Pass: Instrumented 3 arithmetic operations in png_save_uint_32
+Trace2Pass: Instrumenting function: png_save_uint_16
+Trace2Pass: Instrumented 1 arithmetic operations in png_save_uint_16
+Trace2Pass: Instrumenting function: png_write_sig
+Trace2Pass: Instrumented 1 arithmetic operations in png_write_sig
+Trace2Pass: Instrumenting function: png_write_chunk_start
+Trace2Pass: Instrumented 4 arithmetic operations in png_write_chunk_start
+Trace2Pass: Instrumenting function: png_write_chunk_header
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_write_chunk_header
+Trace2Pass: Instrumenting function: png_write_chunk_data
+Trace2Pass: Instrumenting function: png_write_chunk_end
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_write_chunk_end
+Trace2Pass: Instrumenting function: png_write_chunk
+Trace2Pass: Instrumented 4 arithmetic operations in png_write_chunk
+Trace2Pass: Instrumenting function: png_write_complete_chunk
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_write_complete_chunk
+Trace2Pass: Instrumenting function: png_free_buffer_list
+Trace2Pass: Instrumenting function: png_write_IHDR
+Trace2Pass: Instrumented 3 arithmetic operations, 6 unreachable blocks in png_write_IHDR
+Trace2Pass: Instrumenting function: png_write_PLTE
+Trace2Pass: Instrumented 1 arithmetic operations, 2 unreachable blocks in png_write_PLTE
+Trace2Pass: Instrumenting function: png_compress_IDAT
+Trace2Pass: Instrumented 0 arithmetic operations, 4 unreachable blocks in png_compress_IDAT
+Trace2Pass: Instrumenting function: png_deflate_claim
+Trace2Pass: Instrumented 10 arithmetic operations, 1 unreachable blocks in png_deflate_claim
+Trace2Pass: Instrumenting function: png_image_size
+Trace2Pass: Instrumented 26 arithmetic operations in png_image_size
+Trace2Pass: Instrumenting function: optimize_cmf
+Trace2Pass: Instrumented 5 arithmetic operations, 1 division checks in optimize_cmf
+Trace2Pass: Instrumenting function: png_write_fdAT
+Trace2Pass: Instrumenting function: png_write_IEND
+Trace2Pass: Instrumenting function: png_write_gAMA_fixed
+Trace2Pass: Instrumenting function: png_write_sRGB
+Trace2Pass: Instrumenting function: png_write_iCCP
+Trace2Pass: Instrumented 6 arithmetic operations, 7 unreachable blocks in png_write_iCCP
+Trace2Pass: Instrumenting function: png_text_compress_init
+Trace2Pass: Instrumenting function: png_text_compress
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_text_compress
+Trace2Pass: Instrumenting function: png_write_compressed_data_out
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_write_compressed_data_out
+Trace2Pass: Instrumenting function: png_write_sPLT
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_write_sPLT
+Trace2Pass: Instrumenting function: png_write_sBIT
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_write_sBIT
+Trace2Pass: Instrumenting function: png_write_cHRM_fixed
+Trace2Pass: Instrumenting function: png_write_tRNS
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in png_write_tRNS
+Trace2Pass: Instrumenting function: png_write_bKGD
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in png_write_bKGD
+Trace2Pass: Instrumenting function: png_write_cICP
+Trace2Pass: Instrumenting function: png_write_cLLI_fixed
+Trace2Pass: Instrumenting function: png_write_mDCV_fixed
+Trace2Pass: Instrumenting function: png_write_eXIf
+Trace2Pass: Instrumented 1 arithmetic operations in png_write_eXIf
+Trace2Pass: Instrumenting function: png_write_hIST
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in png_write_hIST
+Trace2Pass: Instrumenting function: png_write_tEXt
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_write_tEXt
+Trace2Pass: Instrumenting function: png_write_zTXt
+Trace2Pass: Instrumented 0 arithmetic operations, 4 unreachable blocks in png_write_zTXt
+Trace2Pass: Instrumenting function: png_write_iTXt
+Trace2Pass: Instrumented 0 arithmetic operations, 4 unreachable blocks in png_write_iTXt
+Trace2Pass: Instrumenting function: png_write_oFFs
+Trace2Pass: Instrumenting function: png_write_pCAL
+Trace2Pass: Instrumented 3 arithmetic operations, 2 unreachable blocks in png_write_pCAL
+Trace2Pass: Instrumenting function: png_write_sCAL_s
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_write_sCAL_s
+Trace2Pass: Instrumenting function: png_write_pHYs
+Trace2Pass: Instrumenting function: png_write_tIME
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in png_write_tIME
+Trace2Pass: Instrumenting function: png_write_acTL
+Trace2Pass: Instrumenting function: png_write_fcTL
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in png_write_fcTL
+Trace2Pass: Instrumenting function: png_write_start_row
+Trace2Pass: Instrumented 7 arithmetic operations, 2 division checks in png_write_start_row
+Trace2Pass: Instrumenting function: png_write_finish_row
+Trace2Pass: Instrumented 5 arithmetic operations, 2 division checks in png_write_finish_row
+Trace2Pass: Instrumenting function: png_do_write_interlace
+Trace2Pass: Instrumented 17 arithmetic operations, 1 division checks in png_do_write_interlace
+Trace2Pass: Instrumenting function: png_write_find_filter
+Trace2Pass: Instrumented 2 arithmetic operations in png_write_find_filter
+Trace2Pass: Instrumenting function: png_setup_sub_row_only
+Trace2Pass: Instrumented 1 arithmetic operations in png_setup_sub_row_only
+Trace2Pass: Instrumenting function: png_setup_sub_row
+Trace2Pass: Instrumented 1 arithmetic operations in png_setup_sub_row
+Trace2Pass: Instrumenting function: png_setup_up_row_only
+Trace2Pass: Instrumented 1 arithmetic operations in png_setup_up_row_only
+Trace2Pass: Instrumenting function: png_setup_up_row
+Trace2Pass: Instrumented 1 arithmetic operations in png_setup_up_row
+Trace2Pass: Instrumenting function: png_setup_avg_row_only
+Trace2Pass: Instrumented 3 arithmetic operations, 2 division checks in png_setup_avg_row_only
+Trace2Pass: Instrumenting function: png_setup_avg_row
+Trace2Pass: Instrumented 3 arithmetic operations, 2 division checks in png_setup_avg_row
+Trace2Pass: Instrumenting function: png_setup_paeth_row_only
+Trace2Pass: Instrumented 10 arithmetic operations in png_setup_paeth_row_only
+Trace2Pass: Instrumenting function: png_setup_paeth_row
+Trace2Pass: Instrumented 10 arithmetic operations, 1 unreachable blocks in png_setup_paeth_row
+Trace2Pass: Instrumenting function: png_write_filtered_row
+Trace2Pass: Instrumenting function: png_write_reset
+Trace2Pass: Instrumenting function: png_write_reinit
+Trace2Pass: Instrumented 2 arithmetic operations, 2 unreachable blocks in png_write_reinit
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: png_target_init
+Trace2Pass: Instrumenting function: png_target_init_filter_functions
+Trace2Pass: Instrumented 1 arithmetic operations in png_target_init_filter_functions
+Trace2Pass: Instrumenting function: png_init_filter_functions_sse2
+Trace2Pass: Instrumenting function: png_read_filter_row_sub3_sse2
+Trace2Pass: Instrumenting function: png_read_filter_row_avg3_sse2
+Trace2Pass: Instrumenting function: png_read_filter_row_paeth3_sse2
+Trace2Pass: Instrumenting function: png_read_filter_row_sub4_sse2
+Trace2Pass: Instrumenting function: png_read_filter_row_avg4_sse2
+Trace2Pass: Instrumenting function: png_read_filter_row_paeth4_sse2
+Trace2Pass: Instrumenting function: _mm_setzero_si128
+Trace2Pass: Instrumenting function: load4
+Trace2Pass: Instrumenting function: _mm_add_epi8
+Trace2Pass: Instrumenting function: store3
+Trace2Pass: Instrumenting function: load3
+Trace2Pass: Instrumenting function: _mm_cvtsi32_si128
+Trace2Pass: Instrumenting function: _mm_cvtsi128_si32
+Trace2Pass: Instrumenting function: _mm_avg_epu8
+Trace2Pass: Instrumenting function: _mm_sub_epi8
+Trace2Pass: Instrumenting function: _mm_and_si128
+Trace2Pass: Instrumenting function: _mm_xor_si128
+Trace2Pass: Instrumenting function: _mm_set1_epi8
+Trace2Pass: Instrumenting function: _mm_set_epi8
+Trace2Pass: Instrumenting function: _mm_unpacklo_epi8
+Trace2Pass: Instrumenting function: _mm_sub_epi16
+Trace2Pass: Instrumenting function: _mm_add_epi16
+Trace2Pass: Instrumenting function: abs_i16
+Trace2Pass: Instrumenting function: _mm_min_epi16
+Trace2Pass: Instrumenting function: if_then_else
+Trace2Pass: Instrumenting function: _mm_cmpeq_epi16
+Trace2Pass: Instrumenting function: _mm_packus_epi16
+Trace2Pass: Instrumenting function: _mm_cmplt_epi16
+Trace2Pass: Instrumenting function: _mm_cmpgt_epi16
+Trace2Pass: Instrumenting function: _mm_or_si128
+Trace2Pass: Instrumenting function: _mm_andnot_si128
+Trace2Pass: Instrumenting function: store4
+[ 78%] Linking C shared library libpng18.so
+[ 78%] Built target png_shared
+[ 80%] Building C object CMakeFiles/pngimage.dir/contrib/libtests/pngimage.c.o
+[ 81%] Building C object CMakeFiles/pngstest.dir/contrib/libtests/pngstest.c.o
+[ 83%] Building C object CMakeFiles/pngtest.dir/pngtest.c.o
+--
+Trace2Pass: Injected build metadata: opt_level=Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: main
+unknown, flags=(none)
+Trace2Pass: Instrumenting function: main
+[ 90%] Linking C static library libpng18.a
+Trace2Pass: Instrumented 12 arithmetic operations, 1 unreachable blocks in main
+Trace2Pass: Instrumenting function: test_one_file
+Trace2Pass: Instrumented 7 arithmetic operations, 4 unreachable blocks in test_one_file
+Trace2Pass: Instrumenting function: pngtest_error
+Trace2Pass: Instrumented 1 arithmetic operations in pngtest_error
+Trace2Pass: Instrumenting function: pngtest_warning
+Trace2Pass: Instrumented 1 arithmetic operations in pngtest_warning
+Trace2Pass: Instrumenting function: init_user_chunk_info
+Trace2Pass: Instrumented 4 arithmetic operations in main
+Trace2Pass: Instrumenting function: validate_T
+Trace2Pass: Instrumenting function: display_init
+Trace2Pass: Instrumenting function: do_test
+Trace2Pass: Instrumenting function: display_clean
+Trace2Pass: Instrumenting function: display_destroy
+Trace2Pass: Instrumenting function: buffer_init
+Trace2Pass: Instrumenting function: test_one_file
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=Trace2Pass: Instrumenting function: read_user_chunk_callback
+(none)
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in test_one_file
+Trace2Pass: Instrumenting function: display_log
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in read_user_chunk_callback
+Trace2Pass: Instrumenting function: write_row_callback
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in write_row_callback
+Trace2Pass: Instrumenting function: read_row_callback
+Trace2Pass: Instrumented 1 arithmetic operations, 3 unreachable blocks in read_row_callback
+Trace2Pass: Instrumenting function: read_user_callback
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in read_user_callback
+Trace2Pass: Instrumenting function: count_zero_samples
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in display_log
+Trace2Pass: Instrumenting function: display_cache_file
+Trace2Pass: Instrumenting function: update_display
+Trace2Pass: Instrumented 8 arithmetic operations, 3 unreachable blocks in count_zero_samples
+Trace2Pass: Instrumenting function: pngtest_check_text_support
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in pngtest_check_text_support
+Trace2Pass: Instrumenting function: write_chunks
+Trace2Pass: Instrumenting function: read_png
+Trace2Pass: Instrumenting function: compare_read
+Trace2Pass: Instrumented 1 arithmetic operations in write_chunks
+Trace2Pass: Instrumenting function: set_chunk_location
+Trace2Pass: Instrumenting function: write_sTER_chunk
+Trace2Pass: Instrumenting function: write_vpAg_chunk
+Trace2Pass: Instrumented 25 arithmetic operations in compare_read
+Trace2Pass: Instrumenting function: write_png
+Trace2Pass: Instrumenting function: first_transform
+Trace2Pass: Instrumented 1 arithmetic operations in first_transform
+Trace2Pass: Instrumenting function: is_combo
+Trace2Pass: Instrumented 1 arithmetic operations in is_combo
+Trace2Pass: Instrumenting function: skip_transform
+Trace2Pass: Instrumenting function: buffer_from_file
+Trace2Pass: Instrumenting function: buffer_extend
+Trace2Pass: Instrumenting function: display_clean_read
+Trace2Pass: Instrumenting function: display_error
+Trace2Pass: Instrumenting function: display_warning
+Trace2Pass: Instrumenting function: buffer_start_read
+Trace2Pass: Instrumenting function: read_function
+Trace2Pass: Instrumenting function: get_dp
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in get_dp
+Trace2Pass: Instrumenting function: buffer_read
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in buffer_read
+Trace2Pass: Instrumenting function: get_buffer
+Trace2Pass: Instrumenting function: display_clean_write
+Trace2Pass: Instrumenting function: buffer_start_write
+Trace2Pass: Instrumenting function: write_function
+Trace2Pass: Instrumenting function: buffer_write
+Trace2Pass: Instrumenting function: is_bad_combo
+Trace2Pass: Instrumenting function: transform_name
+Trace2Pass: Instrumented 1 arithmetic operations in transform_name
+Trace2Pass: Instrumenting function: putchar
+Trace2Pass: Instrumenting function: buffer_destroy
+Trace2Pass: Instrumenting function: buffer_destroy_list
+Trace2Pass: Instrumented 4 arithmetic operations, 7 unreachable blocks in main
+Trace2Pass: Instrumenting function: init_display
+Trace2Pass: Instrumenting function: usage
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in usage
+Trace2Pass: Instrumenting function: check
+Trace2Pass: Instrumented 22 arithmetic operations, 5 unreachable blocks in check
+Trace2Pass: Instrumenting function: perform_one_test
+Trace2Pass: Instrumenting function: display_rc
+Trace2Pass: Instrumented 1 arithmetic operations in display_rc
+Trace2Pass: Instrumenting function: perform_one_test_safe
+Trace2Pass: Instrumenting function: error
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in error
+Trace2Pass: Instrumenting function: warning
+Trace2Pass: Instrumented 1 arithmetic operations in warning
+Trace2Pass: Instrumenting function: clean_display
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in clean_display
+Trace2Pass: Instrumenting function: read_callback
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in read_callback
+Trace2Pass: Instrumenting function: display_exit
+Trace2Pass: Instrumented 1 arithmetic operations, 2 unreachable blocks in display_exit
+Trace2Pass: Instrumenting function: find
+Trace2Pass: Instrumented 1 arithmetic operations in find
+Trace2Pass: Instrumenting function: get_valid
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in get_valid
+Trace2Pass: Instrumenting function: get_unknown
+Trace2Pass: Instrumented 3 arithmetic operations in get_unknown
+Trace2Pass: Instrumenting function: findb
+Trace2Pass: Instrumented 1 arithmetic operations in findb
+Trace2Pass: Instrumenting function: ancillaryb
+Trace2Pass: Instrumented 4 arithmetic operations in ancillaryb
+Trace2Pass: Instrumenting function: clear_keep
+Trace2Pass: Instrumented 1 arithmetic operations in clear_keep
+Trace2Pass: Instrumenting function: check_error
+Trace2Pass: Instrumented 2 arithmetic operations in check_error
+Trace2Pass: Instrumenting function: check_handling
+Trace2Pass: Instrumented 2 arithmetic operations in check_handling
+Trace2Pass: Instrumenting function: find_by_flag
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in find_by_flag
+Trace2Pass: Instrumenting function: ancillary
+Trace2Pass: Instrumented 4 arithmetic operations in ancillary
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 7 arithmetic operations, 1 unreachable blocks in main
+Trace2Pass: Instrumenting function: global_init
+Trace2Pass: Instrumenting function: atol
+Trace2Pass: Instrumenting function: usage
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in usage
+Trace2Pass: Instrumenting function: one_file
+Trace2Pass: Instrumented 1 arithmetic operations in one_file
+Trace2Pass: Instrumenting function: global_end
+Trace2Pass: Instrumenting function: clear
+Trace2Pass: Instrumenting function: IDAT_list_init
+Trace2Pass: Instrumenting function: make_random_bytes
+Trace2Pass: Instrumented 6 arithmetic operations in make_random_bytes
+Trace2Pass: Instrumenting function: control_init
+Trace2Pass: Instrumenting function: read_png
+Trace2Pass: Instrumented 3 arithmetic operations, 1 unreachable blocks in read_png
+Trace2Pass: Instrumenting function: control_end
+Trace2Pass: Instrumenting function: file_init
+Trace2Pass: Instrumenting function: allocate
+Trace2Pass: Instrumenting function: IDAT_init
+Trace2Pass: Instrumenting function: chunk_init
+Trace2Pass: Instrumenting function: error_handler
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in error_handler
+Trace2Pass: Instrumenting function: warning_handler
+Trace2Pass: Instrumented 1 arithmetic operations in warning_handler
+Trace2Pass: Instrumenting function: log_error
+Trace2Pass: Instrumenting function: read_callback
+Trace2Pass: Instrumented 11 arithmetic operations, 7 unreachable blocks in read_callback
+Trace2Pass: Instrumenting function: stop
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in stop
+Trace2Pass: Instrumenting function: get_control
+Trace2Pass: Instrumenting function: current_type
+Trace2Pass: Instrumenting function: type_name
+Trace2Pass: Instrumented 3 arithmetic operations in type_name
+Trace2Pass: Instrumenting function: strcode
+Trace2Pass: Instrumenting function: emit_string
+Trace2Pass: Instrumenting function: type_char
+Trace2Pass: Instrumenting function: emit_error
+Trace2Pass: Instrumenting function: read_4
+Trace2Pass: Instrumented 1 arithmetic operations in read_4
+Trace2Pass: Instrumenting function: getpos
+Trace2Pass: Instrumenting function: read_chunk
+Trace2Pass: Instrumented 1 arithmetic operations, 2 unreachable blocks in read_chunk
+Trace2Pass: Instrumenting function: crc_init_4
+Trace2Pass: Instrumented 6 arithmetic operations in crc_init_4
+Trace2Pass: Instrumenting function: setpos
+Trace2Pass: Instrumenting function: skip_12
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in skip_12
+Trace2Pass: Instrumenting function: reread_byte
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in reread_byte
+Trace2Pass: Instrumenting function: crc_one_byte
+Trace2Pass: Instrumented 1 arithmetic operations in crc_one_byte
+Trace2Pass: Instrumenting function: rechunk_length
+Trace2Pass: Instrumenting function: file_setpos
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in file_setpos
+Trace2Pass: Instrumenting function: chunk_end
+Trace2Pass: Instrumenting function: IDAT_end
+Trace2Pass: Instrumenting function: write_byte
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in write_byte
+Trace2Pass: Instrumenting function: read_byte
+Trace2Pass: Instrumenting function: file_getpos
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in file_getpos
+Trace2Pass: Instrumenting function: crc_read_many
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in crc_read_many
+Trace2Pass: Instrumenting function: chunk_type_valid
+Trace2Pass: Instrumenting function: process_chunk
+Trace2Pass: Instrumented 2 arithmetic operations, 3 unreachable blocks in process_chunk
+Trace2Pass: Instrumenting function: sync_stream
+Trace2Pass: Instrumented 3 arithmetic operations, 1 unreachable blocks in sync_stream
+Trace2Pass: Instrumenting function: type_message
+Trace2Pass: Instrumenting function: skip_chunk_type
+Trace2Pass: Instrumented 6 arithmetic operations in skip_chunk_type
+Trace2Pass: Instrumenting function: stop_invalid
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in stop_invalid
+Trace2Pass: Instrumenting function: reread_4
+Trace2Pass: Instrumented 2 arithmetic operations in reread_4
+Trace2Pass: Instrumenting function: calc_image_size
+Trace2Pass: Instrumented 27 arithmetic operations, 7 unreachable blocks in calc_image_size
+Trace2Pass: Instrumenting function: process_zTXt_iCCP
+Trace2Pass: Instrumenting function: process_iTXt
+Trace2Pass: Instrumenting function: process_IDAT
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in process_IDAT
+Trace2Pass: Instrumenting function: type_sep
+Trace2Pass: Instrumenting function: uarb_mult_digit
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in uarb_mult_digit
+Trace2Pass: Instrumenting function: uarb_set
+Trace2Pass: Instrumented 2 arithmetic operations in uarb_set
+Trace2Pass: Instrumenting function: uarb_shift
+Trace2Pass: Instrumented 4 arithmetic operations in uarb_shift
+Trace2Pass: Instrumenting function: uarb_inc
+Trace2Pass: Instrumented 10 arithmetic operations in uarb_inc
+Trace2Pass: Instrumenting function: uarb_mult32
+Trace2Pass: Instrumented 3 arithmetic operations in uarb_mult32
+Trace2Pass: Instrumenting function: zlib_check
+Trace2Pass: Instrumented 5 arithmetic operations in zlib_check
+Trace2Pass: Instrumenting function: chunk_message
+Trace2Pass: Instrumenting function: zlib_init
+Trace2Pass: Instrumenting function: zlib_run
+Trace2Pass: Instrumented 1 arithmetic operations in zlib_run
+Trace2Pass: Instrumenting function: zlib_end
+Trace2Pass: Instrumented 1 arithmetic operations in zlib_end
+Trace2Pass: Instrumenting function: max_window_bits
+Trace2Pass: Instrumenting function: zlib_message
+Trace2Pass: Instrumenting function: zlib_reset
+Trace2Pass: Instrumenting function: zlib_advance
+Trace2Pass: Instrumented 9 arithmetic operations, 1 division checks in zlib_advance
+Trace2Pass: Instrumenting function: uarb_add32
+Trace2Pass: Instrumented 3 arithmetic operations in uarb_add32
+Trace2Pass: Instrumenting function: uarb_copy
+Trace2Pass: Instrumented 2 arithmetic operations in uarb_copy
+Trace2Pass: Instrumenting function: zlib_flevel
+Trace2Pass: Instrumented 1 arithmetic operations in zlib_flevel
+Trace2Pass: Instrumenting function: uarb_print
+Trace2Pass: Instrumented 2 arithmetic operations in uarb_print
+Trace2Pass: Instrumenting function: zlib_rc
+Trace2Pass: Instrumenting function: uarb_printx
+Trace2Pass: Instrumented 2 arithmetic operations in uarb_printx
+Trace2Pass: Instrumenting function: IDAT_list_extend
+Trace2Pass: Instrumenting function: uarb_cmp
+Trace2Pass: Instrumented 1 arithmetic operations in uarb_cmp
+Trace2Pass: Instrumenting function: IDAT_list_size
+Trace2Pass: Instrumenting function: get32
+Trace2Pass: Instrumented 9 arithmetic operations in get32
+Trace2Pass: Instrumenting function: file_end
+Trace2Pass: Instrumenting function: IDAT_list_end
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 7 arithmetic operations, 11 unreachable blocks, 2 division checks in main
+Trace2Pass: Instrumenting function: init_sRGB_to_d
+Trace2Pass: Instrumented 2 arithmetic operations in init_sRGB_to_d
+Trace2Pass: Instrumenting function: format_init
+Trace2Pass: Instrumented 1 arithmetic operations in format_init
+Trace2Pass: Instrumenting function: reseed
+Trace2Pass: Instrumenting function: formatof
+Trace2Pass: Instrumenting function: format_set
+Trace2Pass: Instrumented 2 arithmetic operations in format_set
+Trace2Pass: Instrumenting function: format_is_initial
+Trace2Pass: Instrumented 1 arithmetic operations in format_is_initial
+Trace2Pass: Instrumenting function: format_default
+Trace2Pass: Instrumented 1 arithmetic operations in format_default
+Trace2Pass: Instrumenting function: getchar
+Trace2Pass: Instrumenting function: test_one_file
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in test_one_file
+Trace2Pass: Instrumenting function: putchar
+Trace2Pass: Instrumenting function: linear_from_sRGB
+Trace2Pass: Instrumenting function: newimage
+Trace2Pass: Instrumenting function: initimage
+Trace2Pass: Instrumenting function: read_one_file
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in read_one_file
+Trace2Pass: Instrumenting function: testimage
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in testimage
+Trace2Pass: Instrumenting function: freeimage
+Trace2Pass: Instrumenting function: print_opts
+Trace2Pass: Instrumenting function: logclose
+Trace2Pass: Instrumenting function: logerror
+Trace2Pass: Instrumenting function: read_file
+Trace2Pass: Instrumenting function: allocbuffer
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in allocbuffer
+Trace2Pass: Instrumenting function: checkbuffer
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in checkbuffer
+Trace2Pass: Instrumenting function: checkopaque
+Trace2Pass: Instrumenting function: freebuffer
+Trace2Pass: Instrumenting function: check16
+Trace2Pass: Instrumented 1 arithmetic operations in check16
+Trace2Pass: Instrumenting function: format_isset
+Trace2Pass: Instrumented 2 arithmetic operations in format_isset
+Trace2Pass: Instrumenting function: random_color
+Trace2Pass: Instrumenting function: resetimage
+Trace2Pass: Instrumenting function: compare_two_images
+Trace2Pass: Instrumented 9 arithmetic operations in compare_two_images
+Trace2Pass: Instrumenting function: write_one_file
+Trace2Pass: Instrumented 10 arithmetic operations, 1 unreachable blocks, 1 division checks in write_one_file
+Trace2Pass: Instrumenting function: make_random_bytes
+Trace2Pass: Instrumented 6 arithmetic operations in make_random_bytes
+Trace2Pass: Instrumenting function: transform_from_formats
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in transform_from_formats
+Trace2Pass: Instrumenting function: cmppixel
+Trace2Pass: Instrumented 4 arithmetic operations, 4 pure function calls in cmppixel
+Trace2Pass: Instrumenting function: component_loc
+Trace2Pass: Instrumenting function: get_pixel
+Trace2Pass: Instrumenting function: gp_abgr16
+Trace2Pass: Instrumenting function: gp_bgra16
+Trace2Pass: Instrumenting function: gp_bgr16
+Trace2Pass: Instrumenting function: gp_argb16
+Trace2Pass: Instrumenting function: gp_rgba16
+Trace2Pass: Instrumenting function: gp_rgb16
+Trace2Pass: Instrumenting function: gp_ag16
+Trace2Pass: Instrumenting function: gp_ga16
+Trace2Pass: Instrumenting function: gp_g16
+Trace2Pass: Instrumenting function: gp_abgr8
+Trace2Pass: Instrumenting function: gp_bgra8
+Trace2Pass: Instrumenting function: gp_bgr8
+Trace2Pass: Instrumenting function: gp_argb8
+Trace2Pass: Instrumenting function: gp_rgba8
+Trace2Pass: Instrumenting function: gp_rgb8
+Trace2Pass: Instrumenting function: gp_ag8
+Trace2Pass: Instrumenting function: gp_ga8
+Trace2Pass: Instrumenting function: gp_g8
+Trace2Pass: Instrumenting function: gpc_noop
+Trace2Pass: Instrumenting function: gpc_Lin
+Trace2Pass: Instrumenting function: gpc_bckg
+Trace2Pass: Instrumenting function: gpc_bckc
+Trace2Pass: Instrumenting function: gpc_preq
+Trace2Pass: Instrumenting function: gpc_pre
+Trace2Pass: Instrumented 1 arithmetic operations in gpc_pre
+Trace2Pass: Instrumenting function: gpc_g8
+Trace2Pass: Instrumenting function: gpc_glin
+Trace2Pass: Instrumenting function: gpc_lin
+Trace2Pass: Instrumenting function: gpc_g8b
+Trace2Pass: Instrumenting function: gpc_gprq
+Trace2Pass: Instrumented 1 arithmetic operations in gpc_gprq
+Trace2Pass: Instrumenting function: gpc_gpre
+Trace2Pass: Instrumented 2 arithmetic operations in gpc_gpre
+Trace2Pass: Instrumenting function: gpc_sRGB
+Trace2Pass: Instrumenting function: gpc_b16g
+Trace2Pass: Instrumenting function: gpc_unpg
+Trace2Pass: Instrumenting function: gpc_b16c
+Trace2Pass: Instrumenting function: gpc_unpc
+Trace2Pass: Instrumenting function: gpc_A
+Trace2Pass: Instrumenting function: gpc_sG
+Trace2Pass: Instrumenting function: gpc_g16
+Trace2Pass: Instrumenting function: gpc_gb16
+Trace2Pass: Instrumenting function: gpc_sGp
+Trace2Pass: Instrumenting function: gpc_cb16
+Trace2Pass: Instrumenting function: gpc_sCp
+Trace2Pass: Instrumenting function: gpc_g16q
+Trace2Pass: Instrumenting function: ilinear_g22
+Trace2Pass: Instrumenting function: u16d
+Trace2Pass: Instrumenting function: closestinteger
+Trace2Pass: Instrumenting function: sRGB
+Trace2Pass: Instrumenting function: u8d
+Trace2Pass: Instrumenting function: sRGB_from_linear
+Trace2Pass: Instrumenting function: ilineara
+Trace2Pass: Instrumented 1 arithmetic operations in ilineara
+Trace2Pass: Instrumenting function: YfromRGB
+Trace2Pass: Instrumenting function: ilinear
+Trace2Pass: Instrumenting function: isRGB
+Trace2Pass: Instrumenting function: YfromRGBint
+Trace2Pass: Instrumenting function: logpixel
+Trace2Pass: Instrumenting function: print_pixel
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: image_transform_default_ini
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 22 arithmetic operations, 8 unreachable blocks in main
+Trace2Pass: Instrumenting function: signal_handler
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in signal_handler
+Trace2Pass: Instrumenting function: modifier_init
+Trace2Pass: Instrumenting function: store_ensure_image
+Trace2Pass: Instrumented 1 arithmetic operations, 2 unreachable blocks in store_ensure_image
+Trace2Pass: Instrumenting function: safecat
+Trace2Pass: Instrumenting function: transform_disable
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in transform_disable
+Trace2Pass: Instrumenting function: transform_enable
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in transform_enable
+Trace2Pass: Instrumenting function: atoi
+Trace2Pass: Instrumenting function: atof
+Trace2Pass: Instrumenting function: make_transform_images
+Trace2Pass: Instrumented 1 arithmetic operations in make_transform_images
+Trace2Pass: Instrumenting function: perform_interlace_macro_validation
+Trace2Pass: Instrumented 63 arithmetic operations, 10 unreachable blocks in perform_interlace_macro_validation
+Trace2Pass: Instrumenting function: perform_formatting_test
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in perform_formatting_test
+Trace2Pass: Instrumenting function: perform_standard_test
+Trace2Pass: Instrumenting function: perform_error_test
+Trace2Pass: Instrumenting function: make_size_images
+Trace2Pass: Instrumenting function: perform_size_test
+Trace2Pass: Instrumenting function: perform_transform_test
+Trace2Pass: Instrumented 8 arithmetic operations, 1 unreachable blocks in perform_transform_test
+Trace2Pass: Instrumenting function: perform_gamma_test
+Trace2Pass: Instrumented 14 arithmetic operations, 1 unreachable blocks in perform_gamma_test
+Trace2Pass: Instrumenting function: store_delete
+Trace2Pass: Instrumenting function: fail
+Trace2Pass: Instrumented 2 arithmetic operations in fail
+Trace2Pass: Instrumenting function: safecatn
+Trace2Pass: Instrumenting function: store_log
+Trace2Pass: Instrumented 2 arithmetic operations in store_log
+Trace2Pass: Instrumenting function: store_message
+Trace2Pass: Instrumenting function: store_verbose
+Trace2Pass: Instrumenting function: store_init
+Trace2Pass: Instrumenting function: store_pool_init
+Trace2Pass: Instrumenting function: store_pool_mark
+Trace2Pass: Instrumenting function: make_four_random_bytes
+Trace2Pass: Instrumenting function: make_random_bytes
+Trace2Pass: Instrumented 6 arithmetic operations in make_random_bytes
+Trace2Pass: Instrumenting function: store_image_free
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in store_image_free
+Trace2Pass: Instrumenting function: store_image_row
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in store_image_row
+Trace2Pass: Instrumenting function: image_transform_png_set_shift_set
+Trace2Pass: Instrumenting function: image_transform_png_set_shift_mod
+Trace2Pass: Instrumenting function: image_transform_png_set_shift_add
+Trace2Pass: Instrumenting function: image_transform_png_set_packswap_set
+Trace2Pass: Instrumenting function: image_transform_png_set_packswap_mod
+Trace2Pass: Instrumenting function: image_transform_png_set_packswap_add
+Trace2Pass: Instrumenting function: image_transform_png_set_packing_set
+Trace2Pass: Instrumenting function: image_transform_png_set_packing_mod
+Trace2Pass: Instrumenting function: image_transform_png_set_packing_add
+Trace2Pass: Instrumenting function: image_transform_png_set_add_alpha_set
+Trace2Pass: Instrumenting function: image_transform_png_set_add_alpha_mod
+Trace2Pass: Instrumented 2 arithmetic operations in image_transform_png_set_add_alpha_mod
+Trace2Pass: Instrumenting function: image_transform_png_set_add_alpha_add
+Trace2Pass: Instrumenting function: image_transform_png_set_filler_set
+Trace2Pass: Instrumenting function: image_transform_png_set_filler_mod
+Trace2Pass: Instrumented 2 arithmetic operations in image_transform_png_set_filler_mod
+Trace2Pass: Instrumenting function: image_transform_png_set_filler_add
+Trace2Pass: Instrumenting function: image_transform_png_set_swap_set
+Trace2Pass: Instrumenting function: image_transform_png_set_swap_mod
+Trace2Pass: Instrumenting function: image_transform_png_set_swap_add
+Trace2Pass: Instrumenting function: image_transform_png_set_swap_alpha_set
+Trace2Pass: Instrumenting function: image_transform_png_set_swap_alpha_mod
+Trace2Pass: Instrumenting function: image_transform_png_set_swap_alpha_add
+Trace2Pass: Instrumenting function: image_transform_png_set_bgr_set
+Trace2Pass: Instrumenting function: image_transform_png_set_bgr_mod
+Trace2Pass: Instrumenting function: image_transform_png_set_bgr_add
+Trace2Pass: Instrumenting function: image_transform_png_set_invert_alpha_set
+Trace2Pass: Instrumenting function: image_transform_png_set_invert_alpha_mod
+Trace2Pass: Instrumenting function: image_transform_png_set_invert_alpha_add
+Trace2Pass: Instrumenting function: image_transform_png_set_background_set
+Trace2Pass: Instrumenting function: image_transform_png_set_background_mod
+Trace2Pass: Instrumenting function: image_transform_default_add
+Trace2Pass: Instrumenting function: image_transform_png_set_rgb_to_gray_ini
+Trace2Pass: Instrumented 5 arithmetic operations in image_transform_png_set_rgb_to_gray_ini
+Trace2Pass: Instrumenting function: image_transform_png_set_rgb_to_gray_set
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in image_transform_png_set_rgb_to_gray_set
+Trace2Pass: Instrumenting function: image_transform_png_set_rgb_to_gray_mod
+Trace2Pass: Instrumented 2 arithmetic operations in image_transform_png_set_rgb_to_gray_mod
+Trace2Pass: Instrumenting function: image_transform_png_set_rgb_to_gray_add
+Trace2Pass: Instrumenting function: image_transform_png_set_strip_alpha_set
+Trace2Pass: Instrumenting function: image_transform_png_set_strip_alpha_mod
+Trace2Pass: Instrumenting function: image_transform_png_set_strip_alpha_add
+Trace2Pass: Instrumenting function: image_transform_png_set_strip_16_set
+Trace2Pass: Instrumenting function: image_transform_png_set_strip_16_mod
+Trace2Pass: Instrumenting function: image_transform_png_set_strip_16_add
+Trace2Pass: Instrumenting function: image_transform_png_set_scale_16_set
+Trace2Pass: Instrumenting function: image_transform_png_set_scale_16_mod
+Trace2Pass: Instrumenting function: image_transform_png_set_scale_16_add
+Trace2Pass: Instrumenting function: image_transform_png_set_expand_16_set
+Trace2Pass: Instrumenting function: image_transform_png_set_expand_16_mod
+Trace2Pass: Instrumenting function: image_transform_png_set_expand_16_add
+Trace2Pass: Instrumenting function: image_transform_png_set_expand_gray_1_2_4_to_8_set
+Trace2Pass: Instrumenting function: image_transform_png_set_expand_gray_1_2_4_to_8_mod
+Trace2Pass: Instrumenting function: image_transform_png_set_expand_gray_1_2_4_to_8_add
+Trace2Pass: Instrumenting function: image_transform_png_set_expand_set
+Trace2Pass: Instrumenting function: image_transform_png_set_expand_mod
+Trace2Pass: Instrumenting function: image_transform_png_set_expand_add
+Trace2Pass: Instrumenting function: image_transform_png_set_gray_to_rgb_set
+Trace2Pass: Instrumenting function: image_transform_png_set_gray_to_rgb_mod
+Trace2Pass: Instrumenting function: image_transform_png_set_gray_to_rgb_add
+Trace2Pass: Instrumenting function: image_transform_png_set_tRNS_to_alpha_set
+Trace2Pass: Instrumenting function: image_transform_png_set_tRNS_to_alpha_mod
+Trace2Pass: Instrumenting function: image_transform_png_set_tRNS_to_alpha_add
+Trace2Pass: Instrumenting function: image_transform_png_set_palette_to_rgb_set
+Trace2Pass: Instrumenting function: image_transform_png_set_palette_to_rgb_mod
+Trace2Pass: Instrumenting function: image_transform_png_set_palette_to_rgb_add
+Trace2Pass: Instrumenting function: image_pixel_convert_PLTE
+Trace2Pass: Instrumenting function: image_pixel_add_alpha
+Trace2Pass: Instrumenting function: random_choice
+Trace2Pass: Instrumenting function: random_u32
+Trace2Pass: Instrumented 3 arithmetic operations in random_u32
+Trace2Pass: Instrumenting function: random_byte
+Trace2Pass: Instrumenting function: randomize_bytes
+Trace2Pass: Instrumenting function: modifier_current_encoding
+Trace2Pass: Instrumenting function: normalize_color_encoding
+Trace2Pass: Instrumenting function: safecatd
+Trace2Pass: Instrumenting function: safecat_color_encoding
+Trace2Pass: Instrumenting function: digitize
+Trace2Pass: Instrumented 1 arithmetic operations in digitize
+Trace2Pass: Instrumenting function: image_pixel_init
+Trace2Pass: Instrumented 13 arithmetic operations in image_pixel_init
+Trace2Pass: Instrumenting function: sample
+Trace2Pass: Instrumented 5 arithmetic operations in sample
+Trace2Pass: Instrumenting function: image_pixel_setf
+Trace2Pass: Instrumenting function: random_mod
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in random_mod
+Trace2Pass: Instrumenting function: random_u16
+Trace2Pass: Instrumented 1 arithmetic operations in random_u16
+Trace2Pass: Instrumenting function: image_transform_ini_end
+Trace2Pass: Instrumenting function: image_transform_set_end
+Trace2Pass: Instrumenting function: image_transform_mod_end
+Trace2Pass: Instrumented 14 arithmetic operations in image_transform_mod_end
+Trace2Pass: Instrumenting function: sample_scale
+Trace2Pass: Instrumenting function: next_format
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in next_format
+Trace2Pass: Instrumenting function: standard_name
+Trace2Pass: Instrumenting function: make_transform_image
+Trace2Pass: Instrumented 6 arithmetic operations, 3 unreachable blocks in make_transform_image
+Trace2Pass: Instrumenting function: set_store_for_write
+Trace2Pass: Instrumented 2 arithmetic operations, 2 unreachable blocks in set_store_for_write
+Trace2Pass: Instrumenting function: transform_height
+Trace2Pass: Instrumenting function: init_standard_palette
+Trace2Pass: Instrumented 5 arithmetic operations in init_standard_palette
+Trace2Pass: Instrumenting function: set_random_tRNS
+Trace2Pass: Instrumented 3 arithmetic operations in set_random_tRNS
+Trace2Pass: Instrumenting function: transform_rowsize
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in transform_rowsize
+Trace2Pass: Instrumenting function: npasses_from_interlace_type
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in npasses_from_interlace_type
+Trace2Pass: Instrumenting function: transform_row
+Trace2Pass: Instrumented 13 arithmetic operations, 1 unreachable blocks in transform_row
+Trace2Pass: Instrumenting function: choose_random_filter
+Trace2Pass: Instrumenting function: store_storefile
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in store_storefile
+Trace2Pass: Instrumenting function: store_write_reset
+Trace2Pass: Instrumenting function: store_error
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in store_error
+Trace2Pass: Instrumenting function: store_warning
+Trace2Pass: Instrumented 1 arithmetic operations in store_warning
+Trace2Pass: Instrumenting function: store_malloc
+Trace2Pass: Instrumenting function: store_free
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in store_free
+Trace2Pass: Instrumenting function: store_write
+Trace2Pass: Instrumented 2 arithmetic operations, 5 unreachable blocks in store_write
+Trace2Pass: Instrumenting function: store_flush
+Trace2Pass: Instrumenting function: store_pool_error
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in store_pool_error
+Trace2Pass: Instrumenting function: store_memory_free
+Trace2Pass: Instrumenting function: store_storenew
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in store_storenew
+Trace2Pass: Instrumenting function: valid_chunktype
+Trace2Pass: Instrumented 1 arithmetic operations in valid_chunktype
+Trace2Pass: Instrumenting function: bit_size
+Trace2Pass: Instrumented 3 arithmetic operations, 1 unreachable blocks in bit_size
+Trace2Pass: Instrumenting function: make_standard_palette
+Trace2Pass: Instrumented 7 arithmetic operations in make_standard_palette
+Trace2Pass: Instrumenting function: store_write_palette
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in store_write_palette
+Trace2Pass: Instrumenting function: bits_of
+Trace2Pass: Instrumented 5 arithmetic operations in bits_of
+Trace2Pass: Instrumenting function: store_pool_delete
+Trace2Pass: Instrumented 1 arithmetic operations in store_pool_delete
+Trace2Pass: Instrumenting function: store_freenew
+Trace2Pass: Instrumenting function: store_freebuffer
+Trace2Pass: Instrumenting function: png_pass_start_row
+Trace2Pass: Instrumented 3 arithmetic operations in png_pass_start_row
+Trace2Pass: Instrumenting function: png_pass_start_col
+Trace2Pass: Instrumented 3 arithmetic operations in png_pass_start_col
+Trace2Pass: Instrumenting function: png_pass_row_shift
+Trace2Pass: Instrumented 8 arithmetic operations in png_pass_row_shift
+Trace2Pass: Instrumenting function: png_pass_col_shift
+Trace2Pass: Instrumented 8 arithmetic operations in png_pass_col_shift
+Trace2Pass: Instrumenting function: png_pass_rows
+Trace2Pass: Instrumented 2 arithmetic operations in png_pass_rows
+Trace2Pass: Instrumenting function: png_row_from_pass_row
+Trace2Pass: Instrumenting function: png_pass_cols
+Trace2Pass: Instrumented 2 arithmetic operations in png_pass_cols
+Trace2Pass: Instrumenting function: png_col_from_pass_col
+Trace2Pass: Instrumenting function: png_row_in_interlace_pass
+Trace2Pass: Instrumented 2 arithmetic operations in png_row_in_interlace_pass
+Trace2Pass: Instrumenting function: png_col_in_interlace_pass
+Trace2Pass: Instrumented 2 arithmetic operations in png_col_in_interlace_pass
+Trace2Pass: Instrumenting function: test_standard
+Trace2Pass: Instrumented 11 arithmetic operations, 1 unreachable blocks in test_standard
+Trace2Pass: Instrumenting function: standard_test
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks in standard_test
+Trace2Pass: Instrumenting function: standard_display_init
+Trace2Pass: Instrumented 3 arithmetic operations in standard_display_init
+Trace2Pass: Instrumenting function: set_store_for_read
+Trace2Pass: Instrumented 2 arithmetic operations, 3 unreachable blocks in set_store_for_read
+Trace2Pass: Instrumenting function: standard_palette_init
+Trace2Pass: Instrumented 1 arithmetic operations in standard_palette_init
+Trace2Pass: Instrumenting function: standard_info
+Trace2Pass: Instrumenting function: progressive_row
+Trace2Pass: Instrumented 25 arithmetic operations, 4 unreachable blocks in progressive_row
+Trace2Pass: Instrumenting function: standard_end
+Trace2Pass: Instrumenting function: store_progressive_read
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in store_progressive_read
+Trace2Pass: Instrumenting function: store_read
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in store_read
+Trace2Pass: Instrumenting function: standard_info_imp
+Trace2Pass: Instrumented 1 arithmetic operations in standard_info_imp
+Trace2Pass: Instrumenting function: sequential_row
+Trace2Pass: Instrumented 20 arithmetic operations in sequential_row
+Trace2Pass: Instrumenting function: standard_text_validate
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in standard_text_validate
+Trace2Pass: Instrumenting function: standard_image_validate
+Trace2Pass: Instrumenting function: store_read_reset
+Trace2Pass: Instrumenting function: internal_error
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in internal_error
+Trace2Pass: Instrumenting function: store_read_set
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in store_read_set
+Trace2Pass: Instrumenting function: store_read_buffer_next
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in store_read_buffer_next
+Trace2Pass: Instrumenting function: standard_name_from_id
+Trace2Pass: Instrumented 6 arithmetic operations in standard_name_from_id
+Trace2Pass: Instrumenting function: store_current_palette
+Trace2Pass: Instrumenting function: deinterlace_row
+Trace2Pass: Instrumented 7 arithmetic operations in deinterlace_row
+Trace2Pass: Instrumenting function: row_copy
+Trace2Pass: Instrumented 5 arithmetic operations in row_copy
+Trace2Pass: Instrumenting function: pixel_copy
+Trace2Pass: Instrumented 12 arithmetic operations in pixel_copy
+Trace2Pass: Instrumenting function: store_read_buffer_avail
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in store_read_buffer_avail
+Trace2Pass: Instrumenting function: store_read_chunk
+Trace2Pass: Instrumented 10 arithmetic operations, 4 unreachable blocks, 2 division checks in store_read_chunk
+Trace2Pass: Instrumenting function: store_read_imp
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in store_read_imp
+Trace2Pass: Instrumenting function: store_read_buffer_size
+Trace2Pass: Instrumenting function: standard_info_part1
+Trace2Pass: Instrumented 0 arithmetic operations, 14 unreachable blocks in standard_info_part1
+Trace2Pass: Instrumenting function: standard_info_part2
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks, 1 division checks in standard_info_part2
+Trace2Pass: Instrumenting function: standard_width
+Trace2Pass: Instrumented 1 arithmetic operations in standard_width
+Trace2Pass: Instrumenting function: standard_height
+Trace2Pass: Instrumented 2 arithmetic operations in standard_height
+Trace2Pass: Instrumenting function: standard_rowsize
+Trace2Pass: Instrumented 1 arithmetic operations, 1 division checks in standard_rowsize
+Trace2Pass: Instrumenting function: standard_palette_validate
+Trace2Pass: Instrumented 1 arithmetic operations, 3 unreachable blocks in standard_palette_validate
+Trace2Pass: Instrumenting function: read_palette
+Trace2Pass: Instrumented 7 arithmetic operations, 3 unreachable blocks in read_palette
+Trace2Pass: Instrumenting function: standard_check_text
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in standard_check_text
+Trace2Pass: Instrumenting function: store_image_check
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in store_image_check
+Trace2Pass: Instrumenting function: standard_row_validate
+Trace2Pass: Instrumented 6 arithmetic operations, 2 unreachable blocks in standard_row_validate
+Trace2Pass: Instrumenting function: standard_row
+Trace2Pass: Instrumented 4 arithmetic operations in standard_row
+Trace2Pass: Instrumenting function: pixel_cmp
+Trace2Pass: Instrumented 1 arithmetic operations in pixel_cmp
+Trace2Pass: Instrumenting function: size_row
+Trace2Pass: Instrumented 5 arithmetic operations in size_row
+Trace2Pass: Instrumenting function: make_errors
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks in make_errors
+Trace2Pass: Instrumenting function: make_error
+Trace2Pass: Instrumented 7 arithmetic operations, 4 unreachable blocks in make_error
+Trace2Pass: Instrumenting function: sBIT0_error_fn
+Trace2Pass: Instrumenting function: sBIT_error_fn
+Trace2Pass: Instrumented 1 arithmetic operations in sBIT_error_fn
+Trace2Pass: Instrumenting function: make_size
+Trace2Pass: Instrumented 5 arithmetic operations in make_size
+Trace2Pass: Instrumenting function: make_size_image
+Trace2Pass: Instrumented 31 arithmetic operations, 4 unreachable blocks, 1 division checks in make_size_image
+Trace2Pass: Instrumenting function: interlace_row
+Trace2Pass: Instrumented 7 arithmetic operations in interlace_row
+Trace2Pass: Instrumenting function: test_size
+Trace2Pass: Instrumented 58 arithmetic operations in test_size
+Trace2Pass: Instrumenting function: image_transform_add
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in image_transform_add
+Trace2Pass: Instrumenting function: transform_test
+Trace2Pass: Instrumented 1 arithmetic operations in transform_test
+Trace2Pass: Instrumenting function: image_transform_reset_count
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in image_transform_reset_count
+Trace2Pass: Instrumenting function: random_32
+Trace2Pass: Instrumented 3 arithmetic operations, 1 unreachable blocks in random_32
+Trace2Pass: Instrumenting function: image_transform_test_counter
+Trace2Pass: Instrumented 1 arithmetic operations in image_transform_test_counter
+Trace2Pass: Instrumenting function: transform_display_init
+Trace2Pass: Instrumenting function: transform_set_encoding
+Trace2Pass: Instrumenting function: safecat_current_encoding
+Trace2Pass: Instrumenting function: set_modifier_for_read
+Trace2Pass: Instrumenting function: transform_info
+Trace2Pass: Instrumenting function: transform_end
+Trace2Pass: Instrumenting function: modifier_progressive_read
+Trace2Pass: Instrumented 2 arithmetic operations, 3 unreachable blocks in modifier_progressive_read
+Trace2Pass: Instrumenting function: modifier_read
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in modifier_read
+Trace2Pass: Instrumenting function: transform_info_imp
+Trace2Pass: Instrumented 1 arithmetic operations, 7 unreachable blocks in transform_info_imp
+Trace2Pass: Instrumenting function: transform_image_validate
+Trace2Pass: Instrumented 5 arithmetic operations, 2 unreachable blocks in transform_image_validate
+Trace2Pass: Instrumenting function: modifier_reset
+Trace2Pass: Instrumenting function: modifier_set_encoding
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in modifier_set_encoding
+Trace2Pass: Instrumenting function: modifier_color_encoding_is_set
+Trace2Pass: Instrumenting function: modifier_color_encoding_is_sRGB
+Trace2Pass: Instrumenting function: srgb_modification_init
+Trace2Pass: Instrumenting function: gama_modification_init
+Trace2Pass: Instrumenting function: chrm_modification_init
+Trace2Pass: Instrumenting function: modification_init
+Trace2Pass: Instrumenting function: srgb_modify
+Trace2Pass: Instrumenting function: modification_reset
+Trace2Pass: Instrumenting function: gama_modify
+Trace2Pass: Instrumenting function: fix
+Trace2Pass: Instrumenting function: white_point
+Trace2Pass: Instrumenting function: chromaticity_x
+Trace2Pass: Instrumenting function: chromaticity_y
+Trace2Pass: Instrumenting function: chrm_modify
+Trace2Pass: Instrumenting function: modifier_read_imp
+Trace2Pass: Instrumented 13 arithmetic operations, 3 unreachable blocks in modifier_read_imp
+Trace2Pass: Instrumenting function: modifier_setbuffer
+Trace2Pass: Instrumented 3 arithmetic operations in modifier_setbuffer
+Trace2Pass: Instrumenting function: modifier_crc
+Trace2Pass: Instrumented 3 arithmetic operations in modifier_crc
+Trace2Pass: Instrumenting function: transform_range_check
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in transform_range_check
+Trace2Pass: Instrumenting function: modifier_encoding_iterate
+Trace2Pass: Instrumented 2 arithmetic operations in modifier_encoding_iterate
+Trace2Pass: Instrumenting function: modifier_total_encodings
+Trace2Pass: Instrumented 1 arithmetic operations in modifier_total_encodings
+Trace2Pass: Instrumenting function: perform_gamma_threshold_tests
+Trace2Pass: Instrumented 6 arithmetic operations, 1 unreachable blocks in perform_gamma_threshold_tests
+Trace2Pass: Instrumenting function: init_gamma_errors
+Trace2Pass: Instrumenting function: perform_gamma_transform_tests
+Trace2Pass: Instrumented 5 arithmetic operations, 1 unreachable blocks in perform_gamma_transform_tests
+Trace2Pass: Instrumenting function: summarize_gamma_errors
+Trace2Pass: Instrumenting function: perform_gamma_sbit_tests
+Trace2Pass: Instrumented 5 arithmetic operations, 1 unreachable blocks in perform_gamma_sbit_tests
+Trace2Pass: Instrumenting function: perform_gamma_scale16_tests
+Trace2Pass: Instrumented 12 arithmetic operations, 1 unreachable blocks in perform_gamma_scale16_tests
+Trace2Pass: Instrumenting function: perform_gamma_composition_tests
+Trace2Pass: Instrumented 5 arithmetic operations, 1 unreachable blocks in perform_gamma_composition_tests
+Trace2Pass: Instrumenting function: gamma_threshold_test
+Trace2Pass: Instrumenting function: gamma_test
+Trace2Pass: Instrumented 11 arithmetic operations, 2 unreachable blocks in gamma_test
+Trace2Pass: Instrumenting function: gamma_display_init
+Trace2Pass: Instrumenting function: sbit_modification_init
+Trace2Pass: Instrumenting function: gamma_info
+Trace2Pass: Instrumenting function: gamma_end
+Trace2Pass: Instrumenting function: gamma_info_imp
+Trace2Pass: Instrumented 2 arithmetic operations in gamma_info_imp
+Trace2Pass: Instrumenting function: gamma_image_validate
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in gamma_image_validate
+Trace2Pass: Instrumenting function: sbit_modify
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in sbit_modify
+Trace2Pass: Instrumenting function: init_validate_info
+Trace2Pass: Instrumented 3 arithmetic operations in init_validate_info
+Trace2Pass: Instrumenting function: gamma_component_validate
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in gamma_component_validate
+Trace2Pass: Instrumenting function: abserr
+Trace2Pass: Instrumented 2 arithmetic operations in abserr
+Trace2Pass: Instrumenting function: pcerr
+Trace2Pass: Instrumented 2 arithmetic operations in pcerr
+Trace2Pass: Instrumenting function: calcerr
+Trace2Pass: Instrumented 2 arithmetic operations in calcerr
+Trace2Pass: Instrumenting function: outerr
+Trace2Pass: Instrumented 1 arithmetic operations in outerr
+Trace2Pass: Instrumenting function: output_quantization_factor
+Trace2Pass: Instrumented 1 arithmetic operations in output_quantization_factor
+Trace2Pass: Instrumenting function: outlog
+Trace2Pass: Instrumented 3 arithmetic operations in outlog
+Trace2Pass: Instrumenting function: gamma_component_compose
+Trace2Pass: Instrumenting function: gamma_transform_test
+Trace2Pass: Instrumented 1 arithmetic operations in gamma_transform_test
+Trace2Pass: Instrumenting function: print_one
+Trace2Pass: Instrumenting function: gamma_composition_test
+Trace2Pass: Instrumented 14 arithmetic operations in gamma_composition_test
+Trace2Pass: Instrumenting function: store_freefile
+[ 90%] Built target png_static
+[ 91%] Linking C executable pngtest
+[ 93%] Linking C executable pngunknown
+[ 95%] Linking C executable pngimage
+/usr/bin/ld: CMakeFiles/pngtest.dir/pngtest.c.o: in function `main':

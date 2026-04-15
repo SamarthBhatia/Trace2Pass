@@ -1,0 +1,136 @@
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: cJSON_GetErrorPtr
+Trace2Pass: Instrumenting function: cJSON_GetStringValue
+Trace2Pass: Instrumenting function: cJSON_IsString
+Trace2Pass: Instrumenting function: cJSON_GetNumberValue
+Trace2Pass: Instrumenting function: cJSON_IsNumber
+Trace2Pass: Instrumenting function: cJSON_Version
+Trace2Pass: Instrumenting function: cJSON_InitHooks
+Trace2Pass: Instrumenting function: cJSON_Delete
+Trace2Pass: Instrumenting function: cJSON_SetNumberHelper
+Trace2Pass: Instrumenting function: cJSON_SetValuestring
+Trace2Pass: Instrumenting function: cJSON_strdup
+Trace2Pass: Instrumenting function: cJSON_free
+Trace2Pass: Instrumenting function: cJSON_ParseWithOpts
+Trace2Pass: Instrumenting function: cJSON_ParseWithLengthOpts
+Trace2Pass: Instrumenting function: cJSON_New_Item
+Trace2Pass: Instrumenting function: parse_value
+Trace2Pass: Instrumenting function: buffer_skip_whitespace
+Trace2Pass: Instrumenting function: skip_utf8_bom
+Trace2Pass: Instrumenting function: cJSON_Parse
+Trace2Pass: Instrumenting function: cJSON_ParseWithLength
+Trace2Pass: Instrumenting function: cJSON_Print
+Trace2Pass: Instrumenting function: print
+Trace2Pass: Instrumenting function: cJSON_PrintUnformatted
+Trace2Pass: Instrumenting function: cJSON_PrintBuffered
+Trace2Pass: Instrumenting function: print_value
+Trace2Pass: Instrumenting function: cJSON_PrintPreallocated
+Trace2Pass: Instrumenting function: cJSON_GetArraySize
+Trace2Pass: Instrumenting function: cJSON_GetArrayItem
+Trace2Pass: Instrumenting function: get_array_item
+Trace2Pass: Instrumenting function: cJSON_GetObjectItem
+Trace2Pass: Instrumenting function: get_object_item
+Trace2Pass: Instrumenting function: cJSON_GetObjectItemCaseSensitive
+Trace2Pass: Instrumenting function: cJSON_HasObjectItem
+Trace2Pass: Instrumenting function: cJSON_AddItemToArray
+Trace2Pass: Instrumenting function: add_item_to_array
+Trace2Pass: Instrumenting function: cJSON_AddItemToObject
+Trace2Pass: Instrumenting function: add_item_to_object
+Trace2Pass: Instrumenting function: cJSON_AddItemToObjectCS
+Trace2Pass: Instrumenting function: cJSON_AddItemReferenceToArray
+Trace2Pass: Instrumenting function: create_reference
+Trace2Pass: Instrumenting function: cJSON_AddItemReferenceToObject
+Trace2Pass: Instrumenting function: cJSON_AddNullToObject
+Trace2Pass: Instrumenting function: cJSON_CreateNull
+Trace2Pass: Instrumenting function: cJSON_AddTrueToObject
+Trace2Pass: Instrumenting function: cJSON_CreateTrue
+Trace2Pass: Instrumenting function: cJSON_AddFalseToObject
+Trace2Pass: Instrumenting function: cJSON_CreateFalse
+Trace2Pass: Instrumenting function: cJSON_AddBoolToObject
+Trace2Pass: Instrumenting function: cJSON_CreateBool
+Trace2Pass: Instrumenting function: cJSON_AddNumberToObject
+Trace2Pass: Instrumenting function: cJSON_CreateNumber
+Trace2Pass: Instrumenting function: cJSON_AddStringToObject
+Trace2Pass: Instrumenting function: cJSON_CreateString
+Trace2Pass: Instrumenting function: cJSON_AddRawToObject
+Trace2Pass: Instrumenting function: cJSON_CreateRaw
+Trace2Pass: Instrumenting function: cJSON_AddObjectToObject
+Trace2Pass: Instrumenting function: cJSON_CreateObject
+Trace2Pass: Instrumenting function: cJSON_AddArrayToObject
+Trace2Pass: Instrumenting function: cJSON_CreateArray
+Trace2Pass: Instrumenting function: cJSON_DetachItemViaPointer
+Trace2Pass: Instrumenting function: cJSON_DetachItemFromArray
+Trace2Pass: Instrumenting function: cJSON_DeleteItemFromArray
+Trace2Pass: Instrumenting function: cJSON_DetachItemFromObject
+Trace2Pass: Instrumenting function: cJSON_DetachItemFromObjectCaseSensitive
+Trace2Pass: Instrumenting function: cJSON_DeleteItemFromObject
+Trace2Pass: Instrumenting function: cJSON_DeleteItemFromObjectCaseSensitive
+Trace2Pass: Instrumenting function: cJSON_InsertItemInArray
+Trace2Pass: Instrumenting function: cJSON_ReplaceItemViaPointer
+Trace2Pass: Instrumenting function: cJSON_ReplaceItemInArray
+Trace2Pass: Instrumenting function: cJSON_ReplaceItemInObject
+Trace2Pass: Instrumenting function: replace_item_in_object
+Trace2Pass: Instrumenting function: cJSON_ReplaceItemInObjectCaseSensitive
+Trace2Pass: Instrumenting function: cJSON_CreateStringReference
+Trace2Pass: Instrumenting function: cast_away_const
+Trace2Pass: Instrumenting function: cJSON_CreateObjectReference
+Trace2Pass: Instrumenting function: cJSON_CreateArrayReference
+Trace2Pass: Instrumenting function: cJSON_CreateIntArray
+Trace2Pass: Instrumenting function: suffix_object
+Trace2Pass: Instrumenting function: cJSON_CreateFloatArray
+Trace2Pass: Instrumenting function: cJSON_CreateDoubleArray
+Trace2Pass: Instrumenting function: cJSON_CreateStringArray
+Trace2Pass: Instrumenting function: cJSON_Duplicate
+Trace2Pass: Instrumenting function: cJSON_Duplicate_rec
+Trace2Pass: Instrumenting function: cJSON_Minify
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in cJSON_Minify
+Trace2Pass: Instrumenting function: skip_oneline_comment
+Trace2Pass: Instrumenting function: skip_multiline_comment
+Trace2Pass: Instrumenting function: minify_string
+Trace2Pass: Instrumenting function: cJSON_IsInvalid
+Trace2Pass: Instrumenting function: cJSON_IsFalse
+Trace2Pass: Instrumenting function: cJSON_IsTrue
+Trace2Pass: Instrumenting function: cJSON_IsBool
+Trace2Pass: Instrumenting function: cJSON_IsNull
+Trace2Pass: Instrumenting function: cJSON_IsArray
+Trace2Pass: Instrumenting function: cJSON_IsObject
+Trace2Pass: Instrumenting function: cJSON_IsRaw
+Trace2Pass: Instrumenting function: cJSON_Compare
+Trace2Pass: Instrumenting function: compare_double
+Trace2Pass: Instrumenting function: cJSON_malloc
+Trace2Pass: Instrumenting function: update_offset
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in update_offset
+Trace2Pass: Instrumenting function: parse_string
+Trace2Pass: Instrumenting function: parse_number
+Trace2Pass: Instrumenting function: parse_array
+Trace2Pass: Instrumenting function: parse_object
+Trace2Pass: Instrumenting function: utf16_literal_to_utf8
+Trace2Pass: Instrumented 3 arithmetic operations in utf16_literal_to_utf8
+Trace2Pass: Instrumenting function: parse_hex4
+Trace2Pass: Instrumented 1 arithmetic operations in parse_hex4
+Trace2Pass: Instrumenting function: get_decimal_point
+Trace2Pass: Instrumenting function: ensure
+Trace2Pass: Instrumenting function: print_number
+Trace2Pass: Instrumenting function: print_string
+Trace2Pass: Instrumenting function: print_array
+Trace2Pass: Instrumenting function: print_object
+Trace2Pass: Instrumenting function: print_string_ptr
+Trace2Pass: Instrumenting function: case_insensitive_strcmp
+Trace2Pass: Instrumented 1 arithmetic operations in case_insensitive_strcmp
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumenting function: create_objects
+Trace2Pass: Instrumented 2 arithmetic operations, 6 unreachable blocks in create_objects
+Trace2Pass: Instrumenting function: print_preallocated
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in print_preallocated
+--- Test ---
+TEST_EXIT=0
+--- Test stdout ---
+Version: 1.7.19
+{
+--
+Trace2Pass: Runtime initialized (sample_rate=0.010, opt_level=unknown)
+Trace2Pass: Runtime shutting down
+--- Anomaly scan ---
+ANOMALY_COUNT=2
+--- Done ---

@@ -1,0 +1,19 @@
+{
+  "verdict": "user_ub",
+  "ub_detection": {
+    "verdict": "user_ub",
+    "confidence": 0.3,
+    "ubsan_clean": false,
+    "optimization_sensitive": true,
+    "multi_compiler_differs": false
+  },
+  "recommendation": "Fix undefined behavior in user code (signed integer overflow)",
+  "instrumentor": {
+    "anomaly_detected": true,
+    "anomaly_count": 1,
+    "check_type": "arithmetic_overflow",
+    "bug_prevented": true,
+    "uninstrumented_output": "DANGER: Check passed! Proceeding to use overflowed value.",
+    "instrumented_output": "SAFE: Overflow detected by check! Aborting."
+  }
+}

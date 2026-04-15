@@ -1,0 +1,9 @@
+{
+  "project": "dr_libs",
+  "density": 2,
+  "timestamp": "20260414_102641",
+  "status": "OK",
+  "runs_ms": [71.6,68.4],
+  "report_path": "/home/sbhatia/Trace2Pass/evaluation/results/seeded_bugs/dr_libs_d2_20260414_102641.jsonl",
+  "manifest_path": "/home/sbhatia/Trace2Pass/evaluation/results/seeded_bugs/dr_libs_d2_20260414_102641.seed.c"
+}

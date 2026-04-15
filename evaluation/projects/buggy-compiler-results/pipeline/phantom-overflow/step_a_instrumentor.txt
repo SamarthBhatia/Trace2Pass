@@ -1,0 +1,14 @@
+=== Uninstrumented ===
+Base: 2147483547, Incr: 200
+Checking overflow: 2147483547 + 200
+DANGER: Check passed! Proceeding to use overflowed value.
+Total allocated: -2147483549
+UNINSTR_RC=0
+=== Instrumented ===
+Trace2Pass: Runtime initialized (sample_rate=1.000, opt_level=unknown)
+{"report_id":"report_23c7794623c5148f","timestamp":"2026-02-08T13:17:29Z","check_type":"arithmetic_overflow","location":{"file":"unknown","line":0,"function":"check_and_allocate"},"pc":"0x55555555545f","compiler":{"name":"clang","version":"16.0.6 (++20231112084702+7cbf1a259152-1~exp1~20231112084757.16)","target":"x86_64"},"build_info":{"optimization_level":"unknown","flags":[]},"check_details":{"expr":"x sadd y","operands":[2147483547,200]}}
+Trace2Pass: Runtime shutting down
+Base: 2147483547, Incr: 200
+Checking overflow: 2147483547 + 200
+SAFE: Overflow detected by check! Aborting.
+INSTR_RC=0

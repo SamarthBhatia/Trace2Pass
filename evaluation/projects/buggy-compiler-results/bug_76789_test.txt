@@ -1,0 +1,18 @@
+--- Uninstrumented (-O2) ---
+1
+--- Uninstrumented (-O0, reference) ---
+1
+--- Instrumented (-O2) ---
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: h
+Trace2Pass: Instrumented 2 arithmetic operations in h
+Trace2Pass: Instrumenting function: l
+Trace2Pass: Instrumenting function: n
+Trace2Pass: Instrumenting function: m
+Trace2Pass: Instrumented 2 arithmetic operations in m
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Runtime initialized (sample_rate=1.000, opt_level=unknown)
+Trace2Pass: Runtime shutting down
+1
+--- Anomalies ---
+Count: 0

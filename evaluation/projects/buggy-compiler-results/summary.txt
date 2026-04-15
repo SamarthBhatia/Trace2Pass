@@ -1,0 +1,17 @@
+Trace2Pass Buggy Compiler Evaluation Summary
+LLVM Version: 16
+Date: 2026-02-08T12:28:00Z
+
+Bug #76789 (BasicAA/LICM, -O1):
+  Uninstrumented output: 0 (WRONG, expected 1)
+  Instrumented output:   1 (CORRECT)
+  Detection: Bug prevented by instrumentation
+
+Phantom Overflow (-O2):
+  Uninstrumented: DANGER (security check removed by optimizer)
+  Instrumented:   SAFE (check preserved) + arithmetic_overflow report
+  Detection: arithmetic_overflow report generated
+
+cJSON False Positive Check (-O2):
+  False positives: 0
+  All 19 tests pass with instrumentation

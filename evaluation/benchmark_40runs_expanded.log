@@ -1,0 +1,262 @@
+================================================================
+  Expanded Sanitizer Overhead Comparison
+================================================================
+Clang:     Ubuntu clang version 18.1.3 (1ubuntu1)
+Runs:      40 (+ 1 warmup)
+Work dir:  /tmp/tmp.XoOWiCSVbr
+Results:   /home/sbhatia/Trace2Pass/evaluation/results/sanitizer_comparison
+Timestamp: 20260413_211256
+
+================================================================
+  Project: sqlite
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (33369.8ms, 1242632B)
+    asan: OK (68961.5ms, 5588720B)
+    ubsan: OK (95929.8ms, 9183472B)
+    trace2pass: OK (34160.9ms, 1449480B)
+
+================================================================
+  Project: lz4
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (2500.7ms, 88616B)
+    asan: OK (5247.3ms, 1925480B)
+    ubsan: OK (7127.5ms, 742312B)
+    trace2pass: OK (2717.4ms, 133968B)
+
+================================================================
+  Project: zlib
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (2578.4ms, 94736B)
+    asan: OK (4583.0ms, 1908736B)
+    ubsan: OK (8947.9ms, 1426056B)
+    trace2pass: OK (3299.9ms, 160672B)
+
+================================================================
+  Project: cjson
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (918.9ms, 41336B)
+    asan: OK (1336.2ms, 1711656B)
+    ubsan: OK (1545.6ms, 569856B)
+    trace2pass: OK (867.5ms, 86608B)
+
+================================================================
+  Project: lua
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (8359.0ms, 300096B)
+    asan: OK (12874.2ms, 2471408B)
+    ubsan: OK (20870.4ms, 2645760B)
+    trace2pass: OK (8671.0ms, 370088B)
+
+================================================================
+  Project: xxhash
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (234.8ms, 16176B)
+    asan: OK (360.5ms, 1644128B)
+    ubsan: OK (291.9ms, 408248B)
+    trace2pass: OK (295.8ms, 53432B)
+
+================================================================
+  Project: utf8proc
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (1102.3ms, 358184B)
+    asan: OK (1345.4ms, 2094680B)
+    ubsan: OK (1317.1ms, 784496B)
+    trace2pass: OK (1210.5ms, 403592B)
+
+================================================================
+  Project: miniz
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (1386.6ms, 56592B)
+    asan: OK (2280.4ms, 1767192B)
+    ubsan: OK (4524.9ms, 842888B)
+    trace2pass: OK (1744.3ms, 106048B)
+
+================================================================
+  Project: yyjson
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (9100.7ms, 291320B)
+    asan: OK (20557.3ms, 2540336B)
+    ubsan: OK (47588.8ms, 1865696B)
+    trace2pass: OK (10032.1ms, 357000B)
+
+================================================================
+  Project: tinyexpr
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (432.0ms, 26232B)
+    asan: OK (586.5ms, 1682424B)
+    ubsan: OK (875.1ms, 499376B)
+    trace2pass: OK (458.3ms, 67584B)
+
+================================================================
+  Project: dr_libs
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (2237.1ms, 97936B)
+    asan: OK (3726.8ms, 1889600B)
+    ubsan: OK (5258.0ms, 963080B)
+    trace2pass: OK (2459.5ms, 147288B)
+
+================================================================
+  Project: duktape
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (16452.8ms, 550232B)
+    asan: OK (35545.9ms, 3190176B)
+    ubsan: OK (25132.7ms, 2846512B)
+    trace2pass: OK (17030.3ms, 616648B)
+
+================================================================
+  Project: jsmn
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (213.4ms, 16288B)
+    asan: OK (362.6ms, 1657336B)
+    ubsan: OK (586.9ms, 443872B)
+    trace2pass: OK (261.0ms, 53568B)
+
+================================================================
+  Project: stb_image
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (3403.1ms, 135088B)
+    asan: OK (6762.6ms, 2064952B)
+    ubsan: OK (6831.4ms, 1050496B)
+    trace2pass: OK (3517.2ms, 184392B)
+
+================================================================
+  Project: stb_sprintf
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (658.8ms, 29312B)
+    asan: OK (837.3ms, 1671440B)
+    ubsan: OK (1874.8ms, 492528B)
+    trace2pass: OK (851.4ms, 74824B)
+
+================================================================
+  Project: miniaudio
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (6597.9ms, 310944B)
+    asan: OK (10744.2ms, 2430928B)
+    ubsan: OK (13749.4ms, 1913592B)
+    trace2pass: OK (6754.4ms, 360256B)
+
+================================================================
+  Project: http_parser
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (777.0ms, 45896B)
+    asan: OK (1196.7ms, 1741928B)
+    ubsan: OK (1698.1ms, 586880B)
+    trace2pass: OK (800.4ms, 83272B)
+
+================================================================
+  Project: snappy
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (551.7ms, 21240B)
+    asan: OK (741.7ms, 1672136B)
+    ubsan: OK (937.1ms, 448784B)
+    trace2pass: OK (592.4ms, 66504B)
+
+================================================================
+  Project: libyaml
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (3468.4ms, 133408B)
+    asan: OK (5666.7ms, 2010240B)
+    ubsan: OK (23639.1ms, 2328296B)
+    trace2pass: OK (3656.2ms, 186728B)
+
+================================================================
+  Project: libexpat
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (3709.8ms, 200624B)
+    asan: OK (6753.1ms, 2175440B)
+    ubsan: OK (13934.2ms, 1952360B)
+    trace2pass: OK (3911.7ms, 245736B)
+
+================================================================
+  Project: libcbor
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (2025.5ms, 61264B)
+    asan: OK (2548.6ms, 1735272B)
+    ubsan: OK (3034.8ms, 612128B)
+    trace2pass: OK (2079.5ms, 102480B)
+
+================================================================
+  Project: zstd
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (21038.7ms, 632504B)
+    asan: OK (39047.7ms, 3841576B)
+    ubsan: OK (47235.4ms, 3914128B)
+    trace2pass: OK (22178.4ms, 809608B)
+
+================================================================
+  Project: monocypher
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (1877.3ms, 93704B)
+    asan: OK (3105.9ms, 1846288B)
+    ubsan: OK (11592.9ms, 1029824B)
+    trace2pass: OK (2166.7ms, 143256B)
+
+================================================================
+  Results saved to: /home/sbhatia/Trace2Pass/evaluation/results/sanitizer_comparison
+  Combined JSON:    /home/sbhatia/Trace2Pass/evaluation/results/sanitizer_comparison/all_projects_20260413_211256.json
+================================================================
+
+=== Quick Summary ===
+| Project | Baseline (ms) | ASan OH | UBSan OH | T2P OH |
+|---------|--------------|---------|----------|--------|
+Traceback (most recent call last):
+  File "<stdin>", line 4, in <module>
+  File "/usr/lib/python3.12/json/__init__.py", line 293, in load
+    return loads(fp.read(),
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 353, in raw_decode
+    obj, end = self.scan_once(s, idx)
+               ^^^^^^^^^^^^^^^^^^^^^^
+json.decoder.JSONDecodeError: Expecting ',' delimiter: line 2 column 1 (char 18936)

@@ -467,3 +467,107 @@ int main() {
 
     finally:
         os.unlink(source)
+
+
+# ============================================================================
+# Test Cases - Clang Bisection (Backend Passes)
+# ============================================================================
+
+def test_bisect_clang_basic():
+    """Test that bisect_clang() can discover passes and complete."""
+    bisector = PassBisector(verbose=True)
+    source = write_test_file("""
+#include <stdio.h>
+int main() {
+    int x = 42;
+    printf("%d\\n", x);
+    return 0;
+}
+""")
+
+    try:
+        result = bisector.bisect_clang(source, simple_test_func("42"))
+
+        # Should complete without error
+        assert result.verdict in ["bisected", "baseline_fails", "full_passes", "error"]
+        assert result.total_tests > 0
+        assert isinstance(result.pass_pipeline, list)
+
+        # bisect_clang uses -opt-bisect-limit which covers all passes
+        # For a simple correct program, it should not find a bug
+        assert result.verdict in ["full_passes", "baseline_fails"]
+
+        print(f"\nbisect_clang completed: verdict={result.verdict}, tests={result.total_tests}")
+
+    finally:
+        os.unlink(source)
+
+
+def test_bisect_clang_discovers_passes():
+    """Test that bisect_clang discovers backend passes via -opt-bisect-limit."""
+    bisector = PassBisector(verbose=True)
+    source = write_test_file("int main() { return 0; }")
+
+    try:
+        # Use the internal _discover_total_passes method
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            max_index, passes = bisector._discover_total_passes(source, tmpdir)
+
+        # Should discover a substantial number of passes (including backend)
+        assert max_index > 0, f"Expected max_index > 0, got {max_index}"
+        assert len(passes) > 0, f"Expected passes, got empty list"
+
+        # Backend passes should be included (higher indices than middle-end)
+        # The total should be significantly more than middle-end passes alone
+        print(f"\nDiscovered {len(passes)} pass executions, max index = {max_index}")
+
+        # Check that pass names include known backend passes
+        pass_names = [name for _, name in passes]
+        pass_names_str = " ".join(pass_names)
+
+        # At least some of these backend pass keywords should appear
+        backend_keywords = ["SelectionDAG", "Instruction Selection", "Register",
+                           "Machine", "Expand", "Prologue", "Epilogue",
+                           "AArch64", "Post-RA", "Live"]
+        found = sum(1 for kw in backend_keywords if kw in pass_names_str)
+        assert found >= 1, (
+            f"Expected at least 1 backend pass keyword, found {found}. "
+            f"Pass names: {pass_names_str[:500]}"
+        )
+
+    finally:
+        os.unlink(source)
+
+
+def test_bisect_auto_fallback_structure():
+    """Test that auto-fallback results have correct metadata."""
+    # This tests the structural correctness of auto-fallback results
+    result = PassBisectionResult(
+        culprit_pass="AArch64PreLegalizerCombiner",
+        culprit_index=42,
+        last_good_index=41,
+        tested_indices=[0, 100, 50, 42],
+        total_tests=4,
+        verdict="bisected",
+        pass_pipeline=["Pass" + str(i) for i in range(100)],
+        details={
+            "auto_fallback": True,
+            "note": "Bug not found in middle-end passes (opt). "
+                    "Auto-fallback to clang -opt-bisect-limit identified a backend pass.",
+            "mode": "clang_opt_bisect_limit"
+        }
+    )
+
+    # Verify auto-fallback metadata
+    assert result.details["auto_fallback"] is True
+    assert "backend pass" in result.details["note"]
+    assert result.verdict == "bisected"
+    assert result.culprit_pass == "AArch64PreLegalizerCombiner"
+
+    # Generate report
+    bisector = PassBisector(verbose=False)
+    report = bisector.generate_report(result)
+    assert "AArch64PreLegalizerCombiner" in report
+    assert "42" in report
+

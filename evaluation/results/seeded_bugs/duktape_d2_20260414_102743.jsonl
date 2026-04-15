@@ -1,0 +1,4 @@
+Trace2Pass: Runtime initialized (sample_rate=1.000, opt_level=unknown)
+{"report_id":"report_af29254c0657abfd","timestamp":"2026-04-14T10:28:04Z","check_type":"arithmetic_overflow","location":{"file":"unknown","line":0,"function":"__seeded_bug_arithmetic_overflow_0"},"pc":"0x5b0d4bc5133b","compiler":{"name":"gcc","version":"13.3.0","target":"x86_64"},"build_info":{"optimization_level":"unknown","flags":[]},"check_details":{"expr":"x sadd y","operands":[2147483647,1]}}
+{"report_id":"report_8b402f194d98e38a","timestamp":"2026-04-14T10:28:04Z","check_type":"division_by_zero","location":{"file":"unknown","line":0,"function":"__seeded_bug_division_by_zero_0"},"pc":"0x5b0d4bc51368","compiler":{"name":"gcc","version":"13.3.0","target":"x86_64"},"build_info":{"optimization_level":"unknown","flags":[]},"check_details":{"operation":"sdiv","dividend":100,"divisor":0}}
+Trace2Pass: Runtime shutting down

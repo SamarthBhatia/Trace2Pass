@@ -32,4 +32,7 @@ int main() {
  int i = g(0);
  c(i);
  printf("%d\n", a);
+ if (a != -1)
+   return 1;
+ return 0;
 }

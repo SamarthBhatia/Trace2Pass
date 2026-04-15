@@ -713,6 +713,25 @@ class PassBisector:
                 if combo_result:
                     return combo_result
 
+                # Auto-fallback: try clang -opt-bisect-limit which covers
+                # BOTH middle-end AND backend passes. This catches backend
+                # codegen bugs that the opt-based bisector cannot isolate.
+                self._log("Falling back to clang -opt-bisect-limit (covers backend passes)")
+                try:
+                    clang_result = self.bisect_clang(source_file, test_func)
+                    if clang_result.verdict == "bisected":
+                        clang_result.details["auto_fallback"] = True
+                        clang_result.details["note"] = (
+                            "Bug not found in middle-end passes (opt). "
+                            "Auto-fallback to clang -opt-bisect-limit identified a backend pass."
+                        )
+                        self._log(f"Auto-fallback found culprit: {clang_result.culprit_pass}")
+                        return clang_result
+                    else:
+                        self._log(f"Auto-fallback result: {clang_result.verdict}")
+                except Exception as e:
+                    self._log(f"Auto-fallback to clang bisection failed: {e}")
+
                 # Still couldn't find issue - return full_passes verdict
                 return PassBisectionResult(
                     culprit_pass=None,

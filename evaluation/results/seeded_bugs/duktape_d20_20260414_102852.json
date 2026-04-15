@@ -1,0 +1,9 @@
+{
+  "project": "duktape",
+  "density": 20,
+  "timestamp": "20260414_102852",
+  "status": "OK",
+  "runs_ms": [1517.13,1577.9],
+  "report_path": "/home/sbhatia/Trace2Pass/evaluation/results/seeded_bugs/duktape_d20_20260414_102852.jsonl",
+  "manifest_path": "/home/sbhatia/Trace2Pass/evaluation/results/seeded_bugs/duktape_d20_20260414_102852.seed.c"
+}

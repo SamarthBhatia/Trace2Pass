@@ -1,0 +1,10 @@
+{
+  "project": "tcc",
+  "llvm_version": "19",
+  "opt_level": "-O2",
+  "layer": 1,
+  "build_status": "ok",
+  "test_exit": "?",
+  "anomaly_count": 0,
+  "detection": "no"
+}

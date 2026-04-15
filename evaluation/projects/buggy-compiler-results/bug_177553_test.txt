@@ -1,0 +1,53 @@
+--- Uninstrumented (-O2) ---
+/evaluation/real-bugs/llvm-177553/test_bug.c:22:18: warning: initializing 'uint32_t *' (aka 'unsigned int *') with an expression of type 'int32_t *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+   22 | static uint32_t *r = &l;
+      |                  ^   ~~
+/evaluation/real-bugs/llvm-177553/test_bug.c:31:71: warning: expression result unused [-Wunused-value]
+   31 |   (0 == 0 == func_27(aa(n = c((0 < 0) < 5, 0) > 0, 0), 0, 0, 0)) >= 1 && 0;
+      |   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ^  ~
+/evaluation/real-bugs/llvm-177553/test_bug.c:38:8: warning: inequality comparison result unused [-Wunused-comparison]
+   38 |     &k != (m || f(af, 5) && (*ak = *r != aj), &k);
+      |     ~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+3 warnings generated.
+0
+--- Uninstrumented (-O0, reference) ---
+/evaluation/real-bugs/llvm-177553/test_bug.c:22:18: warning: initializing 'uint32_t *' (aka 'unsigned int *') with an expression of type 'int32_t *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+   22 | static uint32_t *r = &l;
+      |                  ^   ~~
+/evaluation/real-bugs/llvm-177553/test_bug.c:31:71: warning: expression result unused [-Wunused-value]
+   31 |   (0 == 0 == func_27(aa(n = c((0 < 0) < 5, 0) > 0, 0), 0, 0, 0)) >= 1 && 0;
+      |   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ^  ~
+/evaluation/real-bugs/llvm-177553/test_bug.c:38:8: warning: inequality comparison result unused [-Wunused-comparison]
+   38 |     &k != (m || f(af, 5) && (*ak = *r != aj), &k);
+      |     ~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+3 warnings generated.
+0
+--- Instrumented (-O2) ---
+/evaluation/real-bugs/llvm-177553/test_bug.c:22:18: warning: initializing 'uint32_t *' (aka 'unsigned int *') with an expression of type 'int32_t *' (aka 'int *') converts between pointers to integer types with different sign [-Wpointer-sign]
+   22 | static uint32_t *r = &l;
+      |                  ^   ~~
+/evaluation/real-bugs/llvm-177553/test_bug.c:31:71: warning: expression result unused [-Wunused-value]
+   31 |   (0 == 0 == func_27(aa(n = c((0 < 0) < 5, 0) > 0, 0), 0, 0, 0)) >= 1 && 0;
+      |   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ^  ~
+/evaluation/real-bugs/llvm-177553/test_bug.c:38:8: warning: inequality comparison result unused [-Wunused-comparison]
+   38 |     &k != (m || f(af, 5) && (*ak = *r != aj), &k);
+      |     ~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: c
+Trace2Pass: Instrumenting function: f
+Trace2Pass: Instrumenting function: a
+Trace2Pass: Instrumented 1 arithmetic operations, 1 division checks in a
+Trace2Pass: Instrumenting function: aa
+Trace2Pass: Instrumented 1 arithmetic operations in aa
+Trace2Pass: Instrumenting function: ab
+Trace2Pass: Instrumented 1 arithmetic operations in ab
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumenting function: func_1
+Trace2Pass: Instrumenting function: func_27
+Trace2Pass: Instrumented 1 arithmetic operations in func_27
+3 warnings generated.
+Trace2Pass: Runtime initialized (sample_rate=1.000, opt_level=unknown)
+Trace2Pass: Runtime shutting down
+0
+--- Anomalies ---
+Count: 0

@@ -1,0 +1,9 @@
+{
+  "project": "sqlite",
+  "density": 0,
+  "timestamp": "20260414_101704",
+  "status": "OK",
+  "runs_ms": [75.29,73.5],
+  "report_path": "/home/sbhatia/Trace2Pass/evaluation/results/seeded_bugs/sqlite_d0_20260414_101704.jsonl",
+  "manifest_path": "/home/sbhatia/Trace2Pass/evaluation/results/seeded_bugs/sqlite_d0_20260414_101704.seed.c"
+}

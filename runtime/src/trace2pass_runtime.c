@@ -48,7 +48,7 @@
 #endif
 
 // Configuration
-static double sample_rate = 0.01;  // Default: 1%
+static double sample_rate = 0.10;  // Default: 10%
 static FILE* output_file = NULL;
 static char* collector_url = NULL;  // Collector API endpoint (optional)
 static int json_output = 0;  // If 1, output JSON to stderr instead of plain text
@@ -68,6 +68,15 @@ static const char* build_compile_flags = NULL;
 // CRITICAL: Must be shared, not thread-local, to deduplicate across all threads
 #define BLOOM_SIZE 1024
 static uint64_t seen_reports[BLOOM_SIZE] = {0};
+
+// Backend checksum state (miscompilation detection)
+// Accumulates a deterministic checksum of all function return values.
+// Record mode: prints final checksum at exit
+// Verify mode: compares against a reference checksum and reports mismatch
+static uint64_t backend_checksum = 0;       // Accumulated via atomic rotate-XOR
+static int checksum_mode = 0;               // 0=disabled, 1=record, 2=verify
+static uint64_t checksum_ref_value = 0;     // Reference checksum (verify mode)
+static const char* checksum_file_path = NULL;  // Output file path (record mode)
 
 // Helper: Hash function including location metadata for deduplication
 // CRITICAL: Uses file:line:function for dedup key, not just PC, because:
@@ -278,6 +287,24 @@ void trace2pass_init(void) {
         json_output = 1;
     }
 
+    // Backend checksum mode configuration
+    const char* checksum_mode_env = getenv("TRACE2PASS_CHECKSUM_MODE");
+    if (checksum_mode_env) {
+        if (strcmp(checksum_mode_env, "record") == 0) {
+            checksum_mode = 1;
+        } else if (strcmp(checksum_mode_env, "verify") == 0) {
+            checksum_mode = 2;
+            const char* ref_env = getenv("TRACE2PASS_CHECKSUM_REF");
+            if (ref_env) {
+                checksum_ref_value = strtoull(ref_env, NULL, 16);
+            } else {
+                fprintf(stderr, "Trace2Pass: WARNING: verify mode but TRACE2PASS_CHECKSUM_REF not set\n");
+                checksum_mode = 0;  // Disable if no reference
+            }
+        }
+    }
+    checksum_file_path = getenv("TRACE2PASS_CHECKSUM_FILE");
+
     // Read build metadata injected by instrumentor
     // Weak symbols provide defaults ("unknown", "") for non-instrumented code
     build_opt_level = __trace2pass_opt_level;
@@ -287,11 +314,57 @@ void trace2pass_init(void) {
     if (collector_url) {
         fprintf(get_output_file(), ", collector=%s", collector_url);
     }
+    if (checksum_mode == 1) {
+        fprintf(get_output_file(), ", checksum=record");
+    } else if (checksum_mode == 2) {
+        fprintf(get_output_file(), ", checksum=verify(ref=0x%016llx)", (unsigned long long)checksum_ref_value);
+    }
     fprintf(get_output_file(), ")\n");
 }
 
 // Cleanup
 void trace2pass_fini(void) {
+    // Backend checksum output
+    if (checksum_mode == 1) {
+        // Record mode: output the final checksum
+        fprintf(stderr, "Trace2Pass: Backend checksum = 0x%016llx\n",
+                (unsigned long long)backend_checksum);
+
+        // Write to file if requested
+        if (checksum_file_path) {
+            FILE* f = fopen(checksum_file_path, "w");
+            if (f) {
+                fprintf(f, "0x%016llx\n", (unsigned long long)backend_checksum);
+                fclose(f);
+                fprintf(stderr, "Trace2Pass: Checksum written to %s\n", checksum_file_path);
+            }
+        }
+    } else if (checksum_mode == 2) {
+        // Verify mode: compare against reference
+        if (backend_checksum == checksum_ref_value) {
+            fprintf(stderr, "Trace2Pass: Backend checksum MATCH (0x%016llx) — no miscompilation detected\n",
+                    (unsigned long long)backend_checksum);
+        } else {
+            fprintf(stderr, "\n");
+            fprintf(stderr, "╔══════════════════════════════════════════════════════════════════╗\n");
+            fprintf(stderr, "║  TRACE2PASS: BACKEND MISCOMPILATION DETECTED                    ║\n");
+            fprintf(stderr, "╠══════════════════════════════════════════════════════════════════╣\n");
+            fprintf(stderr, "║  Expected checksum: 0x%016llx                    ║\n",
+                    (unsigned long long)checksum_ref_value);
+            fprintf(stderr, "║  Actual checksum:   0x%016llx                    ║\n",
+                    (unsigned long long)backend_checksum);
+            fprintf(stderr, "║                                                                  ║\n");
+            fprintf(stderr, "║  The optimized binary produces different function return values  ║\n");
+            fprintf(stderr, "║  than the reference (O0) build. This indicates a backend         ║\n");
+            fprintf(stderr, "║  codegen bug (instruction selection, register allocation, etc).  ║\n");
+            fprintf(stderr, "║                                                                  ║\n");
+            fprintf(stderr, "║  Next step: run 'diagnose.py pass-bisect' to identify the       ║\n");
+            fprintf(stderr, "║  specific pass responsible.                                      ║\n");
+            fprintf(stderr, "╚══════════════════════════════════════════════════════════════════╝\n");
+            fprintf(stderr, "\n");
+        }
+    }
+
     fprintf(get_output_file(), "Trace2Pass: Runtime shutting down\n");
     if (output_file && output_file != stderr) {
         fclose(output_file);
@@ -565,7 +638,7 @@ static int validate_url(const char* url) {
 // In production, this should be replaced with libcurl or raw sockets.
 // Performance NOTE: Spawning curl adds ~50-100ms per report, but most reports
 // are filtered by bloom filter deduplication (1 report per unique PC address).
-// With 1% sampling rate, overhead remains <5%.
+// With 10% sampling rate, overhead remains <20%.
 // Returns 0 on success, -1 on failure
 static int http_post_json(const char* url, const char* json_data) {
     if (!url || !json_data) return -1;
@@ -724,6 +797,26 @@ int trace2pass_should_sample(void) {
 #endif
 
     return random_double < sample_rate;
+}
+
+// Backend Checksum Accumulation
+// Called at every function return point (inserted by instrumentor).
+// Uses atomic rotate-XOR to maintain a deterministic, order-sensitive checksum.
+// NO sampling — every return value must contribute for O0 vs Ox comparison to work.
+void trace2pass_accumulate_checksum(uint64_t func_hash, int64_t ret_value) {
+    // Mix function identity with return value
+    uint64_t mixed = func_hash ^ (uint64_t)ret_value;
+
+    // Atomic rotate-XOR: order-sensitive accumulation
+    // The rotation ensures that call sequence matters, not just the set of values.
+    // This catches bugs where functions return values in different order or
+    // where loop iteration counts change.
+    uint64_t old_val, new_val;
+    do {
+        old_val = __atomic_load_n(&backend_checksum, __ATOMIC_RELAXED);
+        new_val = ((old_val << 7) | (old_val >> 57)) ^ mixed;
+    } while (!__atomic_compare_exchange_n(&backend_checksum, &old_val, new_val,
+                                          0, __ATOMIC_SEQ_CST, __ATOMIC_RELAXED));
 }
 
 // Helper: Generate call-site ID from PC

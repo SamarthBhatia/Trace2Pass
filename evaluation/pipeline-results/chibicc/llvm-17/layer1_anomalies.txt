@@ -1,0 +1,496 @@
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so   -c -o codegen.o codegen.c
+codegen.c:82:11: warning: 40 enumeration values not handled in switch: 'ND_NULL_EXPR', 'ND_ADD', 'ND_SUB'... [-Wswitch]
+   82 |   switch (node->kind) {
+      |           ^~~~~~~~~~
+codegen.c:187:11: warning: 8 enumeration values not handled in switch: 'TY_VOID', 'TY_BOOL', 'TY_CHAR'... [-Wswitch]
+  187 |   switch (ty->kind) {
+--
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: align_to
+Trace2Pass: Instrumented 3 arithmetic operations, 1 division checks in align_to
+Trace2Pass: Instrumenting function: codegen
+Trace2Pass: Instrumented 1 arithmetic operations in codegen
+Trace2Pass: Instrumenting function: println
+Trace2Pass: Instrumenting function: assign_lvar_offsets
+Trace2Pass: Instrumented 13 arithmetic operations, 1 unreachable blocks in assign_lvar_offsets
+Trace2Pass: Instrumenting function: emit_data
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in emit_data
+Trace2Pass: Instrumenting function: emit_text
+Trace2Pass: Instrumented 35 arithmetic operations, 2 unreachable blocks in emit_text
+Trace2Pass: Instrumenting function: has_flonum
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks in has_flonum
+Trace2Pass: Instrumenting function: store_fp
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in store_fp
+Trace2Pass: Instrumenting function: store_gp
+Trace2Pass: Instrumented 2 arithmetic operations in store_gp
+Trace2Pass: Instrumenting function: gen_stmt
+Trace2Pass: Instrumented 1 arithmetic operations, 2 unreachable blocks in gen_stmt
+Trace2Pass: Instrumenting function: count
+Trace2Pass: Instrumented 1 arithmetic operations in count
+Trace2Pass: Instrumenting function: gen_expr
+Trace2Pass: Instrumented 22 arithmetic operations, 4 unreachable blocks in gen_expr
+Trace2Pass: Instrumenting function: cmp_zero
+Trace2Pass: Instrumenting function: copy_struct_reg
+Trace2Pass: Instrumented 6 arithmetic operations, 2 unreachable blocks in copy_struct_reg
+Trace2Pass: Instrumenting function: copy_struct_mem
+Trace2Pass: Instrumented 1 arithmetic operations in copy_struct_mem
+Trace2Pass: Instrumenting function: gen_addr
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in gen_addr
+Trace2Pass: Instrumenting function: load
+Trace2Pass: Instrumenting function: push
+Trace2Pass: Instrumented 1 arithmetic operations in push
+Trace2Pass: Instrumenting function: store
+Trace2Pass: Instrumented 1 arithmetic operations in store
+Trace2Pass: Instrumenting function: cast
+Trace2Pass: Instrumenting function: builtin_alloca
+Trace2Pass: Instrumenting function: push_args
+Trace2Pass: Instrumented 19 arithmetic operations, 3 division checks in push_args
+Trace2Pass: Instrumenting function: pop
+Trace2Pass: Instrumented 1 arithmetic operations in pop
+Trace2Pass: Instrumenting function: has_flonum1
+Trace2Pass: Instrumenting function: has_flonum2
+Trace2Pass: Instrumenting function: popf
+Trace2Pass: Instrumented 1 arithmetic operations in popf
+Trace2Pass: Instrumenting function: copy_ret_buffer
+Trace2Pass: Instrumented 8 arithmetic operations, 2 unreachable blocks in copy_ret_buffer
+Trace2Pass: Instrumenting function: reg_dx
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in reg_dx
+Trace2Pass: Instrumenting function: reg_ax
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in reg_ax
+Trace2Pass: Instrumenting function: pushf
+Trace2Pass: Instrumented 1 arithmetic operations in pushf
+Trace2Pass: Instrumenting function: getTypeId
+Trace2Pass: Instrumenting function: push_args2
+Trace2Pass: Instrumented 1 arithmetic operations in push_args2
+Trace2Pass: Instrumenting function: push_struct
+Trace2Pass: Instrumented 2 arithmetic operations, 1 division checks in push_struct
+15 warnings generated.
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so   -c -o hashmap.o hashmap.c
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: hashmap_get
+Trace2Pass: Instrumenting function: hashmap_get2
+Trace2Pass: Instrumenting function: get_entry
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks, 1 division checks in get_entry
+Trace2Pass: Instrumenting function: hashmap_put
+Trace2Pass: Instrumenting function: hashmap_put2
+Trace2Pass: Instrumenting function: get_or_insert_entry
+Trace2Pass: Instrumented 3 arithmetic operations, 1 unreachable blocks, 2 division checks in get_or_insert_entry
+Trace2Pass: Instrumenting function: hashmap_delete
+Trace2Pass: Instrumenting function: hashmap_delete2
+Trace2Pass: Instrumenting function: hashmap_test
+Trace2Pass: Instrumented 11 arithmetic operations, 7 unreachable blocks in hashmap_test
+Trace2Pass: Instrumenting function: fnv_hash
+Trace2Pass: Instrumented 1 arithmetic operations in fnv_hash
+Trace2Pass: Instrumenting function: match
+Trace2Pass: Instrumenting function: rehash
+Trace2Pass: Instrumented 5 arithmetic operations, 2 unreachable blocks, 1 division checks in rehash
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so   -c -o main.o main.c
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: file_exists
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 1 arithmetic operations, 2 unreachable blocks in main
+Trace2Pass: Instrumenting function: cleanup
+Trace2Pass: Instrumented 1 arithmetic operations in cleanup
+Trace2Pass: Instrumenting function: parse_args
+Trace2Pass: Instrumented 19 arithmetic operations, 3 unreachable blocks in parse_args
+Trace2Pass: Instrumenting function: add_default_include_paths
+Trace2Pass: Instrumented 1 arithmetic operations in add_default_include_paths
+Trace2Pass: Instrumenting function: cc1
+Trace2Pass: Instrumented 1 arithmetic operations, 2 unreachable blocks in cc1
+Trace2Pass: Instrumenting function: replace_extn
+Trace2Pass: Instrumenting function: get_file_type
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in get_file_type
+Trace2Pass: Instrumenting function: assemble
+Trace2Pass: Instrumenting function: run_cc1
+Trace2Pass: Instrumented 6 arithmetic operations in run_cc1
+Trace2Pass: Instrumenting function: create_tmpfile
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in create_tmpfile
+Trace2Pass: Instrumenting function: run_linker
+Trace2Pass: Instrumented 2 arithmetic operations in run_linker
+Trace2Pass: Instrumenting function: take_arg
+Trace2Pass: Instrumented 1 arithmetic operations in take_arg
+Trace2Pass: Instrumenting function: usage
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in usage
+Trace2Pass: Instrumenting function: define
+Trace2Pass: Instrumenting function: parse_opt_x
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in parse_opt_x
+Trace2Pass: Instrumenting function: quote_makefile
+Trace2Pass: Instrumented 11 arithmetic operations in quote_makefile
+Trace2Pass: Instrumenting function: must_tokenize_file
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in must_tokenize_file
+Trace2Pass: Instrumenting function: append_tokens
+Trace2Pass: Instrumenting function: print_dependencies
+Trace2Pass: Instrumented 2 arithmetic operations in print_dependencies
+Trace2Pass: Instrumenting function: print_tokens
+Trace2Pass: Instrumented 1 arithmetic operations in print_tokens
+Trace2Pass: Instrumenting function: open_file
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in open_file
+Trace2Pass: Instrumenting function: in_std_include_path
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in in_std_include_path
+Trace2Pass: Instrumenting function: endswith
+Trace2Pass: Instrumenting function: run_subprocess
+Trace2Pass: Instrumented 1 arithmetic operations, 2 unreachable blocks in run_subprocess
+Trace2Pass: Instrumenting function: find_libpath
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in find_libpath
+Trace2Pass: Instrumenting function: find_gcc_libpath
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in find_gcc_libpath
+Trace2Pass: Instrumenting function: find_file
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so   -c -o parse.o parse.c
+parse.c:1844:11: warning: 21 enumeration values not handled in switch: 'ND_NULL_EXPR', 'ND_ASSIGN', 'ND_DEREF'... [-Wswitch]
+ 1844 |   switch (node->kind) {
+      |           ^~~~~~~~~~
+parse.c:1934:11: warning: 45 enumeration values not handled in switch: 'ND_NULL_EXPR', 'ND_ADD', 'ND_SUB'... [-Wswitch]
+ 1934 |   switch (node->kind) {
+--
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: new_cast
+Trace2Pass: Instrumenting function: const_expr
+Trace2Pass: Instrumenting function: conditional
+Trace2Pass: Instrumenting function: eval
+Trace2Pass: Instrumenting function: parse
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in parse
+Trace2Pass: Instrumenting function: declare_builtin_functions
+Trace2Pass: Instrumenting function: declspec
+Trace2Pass: Instrumented 12 arithmetic operations, 6 unreachable blocks in declspec
+Trace2Pass: Instrumenting function: parse_typedef
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in parse_typedef
+Trace2Pass: Instrumenting function: is_function
+Trace2Pass: Instrumenting function: function
+Trace2Pass: Instrumented 0 arithmetic operations, 4 unreachable blocks in function
+Trace2Pass: Instrumenting function: global_variable
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in global_variable
+Trace2Pass: Instrumenting function: mark_live
+Trace2Pass: Instrumented 1 arithmetic operations in mark_live
+Trace2Pass: Instrumenting function: scan_globals
+Trace2Pass: Instrumenting function: eval2
+Trace2Pass: Instrumented 8 arithmetic operations, 5 unreachable blocks, 4 division checks in eval2
+Trace2Pass: Instrumenting function: eval_double
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in eval_double
+Trace2Pass: Instrumenting function: eval_rval
+Trace2Pass: Instrumented 1 arithmetic operations, 2 unreachable blocks in eval_rval
+Trace2Pass: Instrumenting function: logor
+Trace2Pass: Instrumenting function: new_lvar
+Trace2Pass: Instrumenting function: new_binary
+Trace2Pass: Instrumenting function: new_var_node
+Trace2Pass: Instrumenting function: new_node
+Trace2Pass: Instrumenting function: expr
+Trace2Pass: Instrumenting function: logand
+Trace2Pass: Instrumenting function: bitor
+Trace2Pass: Instrumenting function: bitxor
+Trace2Pass: Instrumenting function: bitand
+Trace2Pass: Instrumenting function: equality
+Trace2Pass: Instrumenting function: relational
+Trace2Pass: Instrumenting function: shift
+Trace2Pass: Instrumenting function: add
+Trace2Pass: Instrumenting function: mul
+Trace2Pass: Instrumenting function: new_add
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in new_add
+Trace2Pass: Instrumenting function: new_sub
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in new_sub
+Trace2Pass: Instrumenting function: cast
+Trace2Pass: Instrumenting function: is_typename
+Trace2Pass: Instrumented 1 arithmetic operations in is_typename
+Trace2Pass: Instrumenting function: typename
+Trace2Pass: Instrumenting function: unary
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in unary
+Trace2Pass: Instrumenting function: find_typedef
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in find_typedef
+Trace2Pass: Instrumenting function: find_var
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in find_var
+Trace2Pass: Instrumenting function: abstract_declarator
+Trace2Pass: Instrumenting function: pointers
+Trace2Pass: Instrumenting function: type_suffix
+Trace2Pass: Instrumenting function: func_params
+Trace2Pass: Instrumenting function: array_dimensions
+Trace2Pass: Instrumenting function: declarator
+Trace2Pass: Instrumenting function: is_const_expr
+Trace2Pass: Instrumenting function: new_unary
+Trace2Pass: Instrumenting function: to_assign
+Trace2Pass: Instrumenting function: new_num
+Trace2Pass: Instrumenting function: get_ident
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in get_ident
+Trace2Pass: Instrumenting function: postfix
+Trace2Pass: Instrumenting function: new_unique_name
+Trace2Pass: Instrumented 1 arithmetic operations in new_unique_name
+Trace2Pass: Instrumenting function: new_anon_gvar
+Trace2Pass: Instrumenting function: gvar_initializer
+Trace2Pass: Instrumenting function: lvar_initializer
+Trace2Pass: Instrumenting function: primary
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in primary
+Trace2Pass: Instrumenting function: funcall
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in funcall
+Trace2Pass: Instrumenting function: struct_ref
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in struct_ref
+Trace2Pass: Instrumenting function: new_inc_dec
+Trace2Pass: Instrumented 1 arithmetic operations in new_inc_dec
+Trace2Pass: Instrumenting function: new_gvar
+Trace2Pass: Instrumenting function: new_var
+Trace2Pass: Instrumenting function: push_scope
+Trace2Pass: Instrumenting function: initializer
+Trace2Pass: Instrumented 1 arithmetic operations in initializer
+Trace2Pass: Instrumenting function: write_gvar_data
+Trace2Pass: Instrumented 7 arithmetic operations in write_gvar_data
+Trace2Pass: Instrumenting function: new_initializer
+Trace2Pass: Instrumented 2 arithmetic operations in new_initializer
+Trace2Pass: Instrumenting function: initializer2
+Trace2Pass: Instrumenting function: copy_struct_type
+Trace2Pass: Instrumenting function: string_initializer
+Trace2Pass: Instrumented 3 arithmetic operations, 1 unreachable blocks in string_initializer
+Trace2Pass: Instrumenting function: array_initializer1
+Trace2Pass: Instrumented 2 arithmetic operations in array_initializer1
+Trace2Pass: Instrumenting function: array_initializer2
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in array_initializer2
+Trace2Pass: Instrumenting function: struct_initializer1
+Trace2Pass: Instrumenting function: assign
+Trace2Pass: Instrumenting function: struct_initializer2
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in struct_initializer2
+Trace2Pass: Instrumenting function: union_initializer
+Trace2Pass: Instrumenting function: count_array_init_elements
+Trace2Pass: Instrumented 1 arithmetic operations in count_array_init_elements
+Trace2Pass: Instrumenting function: consume_end
+Trace2Pass: Instrumenting function: array_designator
+Trace2Pass: Instrumented 0 arithmetic operations, 3 unreachable blocks in array_designator
+Trace2Pass: Instrumenting function: designation
+Trace2Pass: Instrumented 2 arithmetic operations, 2 unreachable blocks in designation
+Trace2Pass: Instrumenting function: skip_excess_element
+Trace2Pass: Instrumenting function: struct_designator
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in struct_designator
+Trace2Pass: Instrumenting function: get_struct_member
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in get_struct_member
+Trace2Pass: Instrumenting function: is_end
+Trace2Pass: Instrumenting function: read_buf
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in read_buf
+Trace2Pass: Instrumenting function: write_buf
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in write_buf
+Trace2Pass: Instrumenting function: create_lvar_init
+Trace2Pass: Instrumented 1 arithmetic operations in create_lvar_init
+Trace2Pass: Instrumenting function: init_desg_expr
+Trace2Pass: Instrumenting function: compound_stmt
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in compound_stmt
+Trace2Pass: Instrumenting function: compute_vla_size
+Trace2Pass: Instrumenting function: new_ulong
+Trace2Pass: Instrumenting function: generic_selection
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in generic_selection
+Trace2Pass: Instrumenting function: new_string_literal
+Trace2Pass: Instrumenting function: enter_scope
+Trace2Pass: Instrumenting function: declaration
+Trace2Pass: Instrumented 1 arithmetic operations, 6 unreachable blocks in declaration
+Trace2Pass: Instrumenting function: stmt
+Trace2Pass: Instrumented 0 arithmetic operations, 5 unreachable blocks in stmt
+Trace2Pass: Instrumenting function: leave_scope
+Trace2Pass: Instrumenting function: new_vla_ptr
+Trace2Pass: Instrumenting function: new_alloca
+Trace2Pass: Instrumenting function: expr_stmt
+Trace2Pass: Instrumenting function: asm_stmt
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in asm_stmt
+Trace2Pass: Instrumenting function: new_long
+Trace2Pass: Instrumenting function: struct_decl
+Trace2Pass: Instrumented 12 arithmetic operations, 6 division checks in struct_decl
+Trace2Pass: Instrumenting function: union_decl
+Trace2Pass: Instrumenting function: enum_specifier
+Trace2Pass: Instrumented 2 arithmetic operations, 2 unreachable blocks in enum_specifier
+Trace2Pass: Instrumenting function: typeof_specifier
+Trace2Pass: Instrumenting function: struct_union_decl
+Trace2Pass: Instrumenting function: align_down
+Trace2Pass: Instrumented 2 arithmetic operations in align_down
+Trace2Pass: Instrumenting function: attribute_list
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in attribute_list
+Trace2Pass: Instrumenting function: find_tag
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in find_tag
+Trace2Pass: Instrumenting function: push_tag_scope
+Trace2Pass: Instrumenting function: struct_members
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in struct_members
+Trace2Pass: Instrumenting function: find_func
+Trace2Pass: Instrumenting function: create_param_lvars
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in create_param_lvars
+Trace2Pass: Instrumenting function: resolve_goto_labels
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in resolve_goto_labels
+4 warnings generated.
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so   -c -o preprocess.o preprocess.c
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: search_include_paths
+Trace2Pass: Instrumented 2 arithmetic operations in search_include_paths
+Trace2Pass: Instrumenting function: define_macro
+Trace2Pass: Instrumenting function: add_macro
+Trace2Pass: Instrumenting function: undef_macro
+Trace2Pass: Instrumenting function: init_macros
+Trace2Pass: Instrumenting function: add_builtin
+Trace2Pass: Instrumenting function: file_macro
+Trace2Pass: Instrumenting function: line_macro
+Trace2Pass: Instrumented 1 arithmetic operations in line_macro
+Trace2Pass: Instrumenting function: counter_macro
+Trace2Pass: Instrumented 1 arithmetic operations in counter_macro
+Trace2Pass: Instrumenting function: timestamp_macro
+Trace2Pass: Instrumenting function: base_file_macro
+Trace2Pass: Instrumenting function: format_date
+Trace2Pass: Instrumented 1 arithmetic operations in format_date
+Trace2Pass: Instrumenting function: format_time
+Trace2Pass: Instrumenting function: preprocess
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in preprocess
+Trace2Pass: Instrumenting function: preprocess2
+Trace2Pass: Instrumented 0 arithmetic operations, 6 unreachable blocks in preprocess2
+Trace2Pass: Instrumenting function: join_adjacent_string_literals
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks in join_adjacent_string_literals
+Trace2Pass: Instrumenting function: new_str_token
+Trace2Pass: Instrumenting function: quote_string
+Trace2Pass: Instrumented 4 arithmetic operations in quote_string
+Trace2Pass: Instrumenting function: new_num_token
+Trace2Pass: Instrumenting function: expand_macro
+Trace2Pass: Instrumenting function: is_hash
+Trace2Pass: Instrumenting function: read_include_filename
+Trace2Pass: Instrumented 1 arithmetic operations, 2 unreachable blocks in read_include_filename
+Trace2Pass: Instrumenting function: include_file
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in include_file
+Trace2Pass: Instrumenting function: search_include_next
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in search_include_next
+Trace2Pass: Instrumenting function: read_macro_definition
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in read_macro_definition
+Trace2Pass: Instrumenting function: skip_line
+Trace2Pass: Instrumenting function: eval_const_expr
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in eval_const_expr
+Trace2Pass: Instrumenting function: push_cond_incl
+Trace2Pass: Instrumenting function: skip_cond_incl
+Trace2Pass: Instrumenting function: find_macro
+Trace2Pass: Instrumenting function: read_line_marker
+Trace2Pass: Instrumented 1 arithmetic operations, 3 unreachable blocks in read_line_marker
+Trace2Pass: Instrumenting function: hideset_contains
+Trace2Pass: Instrumenting function: hideset_union
+Trace2Pass: Instrumenting function: new_hideset
+Trace2Pass: Instrumenting function: add_hideset
+Trace2Pass: Instrumenting function: append
+Trace2Pass: Instrumenting function: read_macro_args
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in read_macro_args
+Trace2Pass: Instrumenting function: hideset_intersection
+Trace2Pass: Instrumenting function: subst
+Trace2Pass: Instrumented 0 arithmetic operations, 4 unreachable blocks in subst
+Trace2Pass: Instrumenting function: copy_token
+Trace2Pass: Instrumenting function: read_macro_arg_one
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in read_macro_arg_one
+Trace2Pass: Instrumenting function: new_eof
+Trace2Pass: Instrumenting function: find_arg
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in find_arg
+Trace2Pass: Instrumenting function: stringize
+Trace2Pass: Instrumenting function: paste
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in paste
+Trace2Pass: Instrumenting function: has_varargs
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in has_varargs
+Trace2Pass: Instrumenting function: join_tokens
+Trace2Pass: Instrumented 4 arithmetic operations in join_tokens
+Trace2Pass: Instrumenting function: copy_line
+Trace2Pass: Instrumenting function: detect_include_guard
+Trace2Pass: Instrumenting function: read_macro_params
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in read_macro_params
+Trace2Pass: Instrumenting function: read_const_expr
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in read_const_expr
+Trace2Pass: Instrumenting function: skip_cond_incl2
+Trace2Pass: Instrumenting function: getStringKind
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in getStringKind
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so   -c -o strings.o strings.c
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: strarray_push
+Trace2Pass: Instrumented 3 arithmetic operations in strarray_push
+Trace2Pass: Instrumenting function: format
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so   -c -o tokenize.o tokenize.c
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: error
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in error
+Trace2Pass: Instrumenting function: error_at
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in error_at
+Trace2Pass: Instrumenting function: verror_at
+Trace2Pass: Instrumented 1 arithmetic operations in verror_at
+Trace2Pass: Instrumenting function: error_tok
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in error_tok
+Trace2Pass: Instrumenting function: warn_tok
+Trace2Pass: Instrumenting function: equal
+Trace2Pass: Instrumenting function: skip
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in skip
+Trace2Pass: Instrumenting function: consume
+Trace2Pass: Instrumenting function: convert_pp_tokens
+Trace2Pass: Instrumenting function: is_keyword
+Trace2Pass: Instrumented 1 arithmetic operations in is_keyword
+Trace2Pass: Instrumenting function: convert_pp_number
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in convert_pp_number
+Trace2Pass: Instrumenting function: tokenize_string_literal
+Trace2Pass: Instrumenting function: read_utf16_string_literal
+Trace2Pass: Instrumented 6 arithmetic operations in read_utf16_string_literal
+Trace2Pass: Instrumenting function: read_utf32_string_literal
+Trace2Pass: Instrumented 3 arithmetic operations in read_utf32_string_literal
+Trace2Pass: Instrumenting function: tokenize
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in tokenize
+Trace2Pass: Instrumenting function: startswith
+Trace2Pass: Instrumenting function: new_token
+Trace2Pass: Instrumenting function: read_string_literal
+Trace2Pass: Instrumented 3 arithmetic operations in read_string_literal
+Trace2Pass: Instrumenting function: read_char_literal
+Trace2Pass: Instrumented 0 arithmetic operations, 2 unreachable blocks in read_char_literal
+Trace2Pass: Instrumenting function: read_ident
+Trace2Pass: Instrumenting function: read_punct
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in read_punct
+Trace2Pass: Instrumenting function: add_line_numbers
+Trace2Pass: Instrumented 1 arithmetic operations in add_line_numbers
+Trace2Pass: Instrumenting function: get_input_files
+Trace2Pass: Instrumenting function: new_file
+Trace2Pass: Instrumenting function: tokenize_file
+Trace2Pass: Instrumented 4 arithmetic operations in tokenize_file
+Trace2Pass: Instrumenting function: read_file
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in read_file
+Trace2Pass: Instrumenting function: canonicalize_newline
+Trace2Pass: Instrumented 7 arithmetic operations in canonicalize_newline
+Trace2Pass: Instrumenting function: remove_backslash_newline
+Trace2Pass: Instrumented 11 arithmetic operations in remove_backslash_newline
+Trace2Pass: Instrumenting function: convert_universal_chars
+Trace2Pass: Instrumenting function: convert_pp_int
+Trace2Pass: Instrumented 7 arithmetic operations in convert_pp_int
+Trace2Pass: Instrumenting function: string_literal_end
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in string_literal_end
+Trace2Pass: Instrumenting function: read_escaped_char
+Trace2Pass: Instrumented 9 arithmetic operations, 1 unreachable blocks in read_escaped_char
+Trace2Pass: Instrumenting function: from_hex
+Trace2Pass: Instrumented 5 arithmetic operations in from_hex
+Trace2Pass: Instrumenting function: read_universal_char
+Trace2Pass: Instrumented 2 arithmetic operations in read_universal_char
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so   -c -o type.o type.c
+type.c:56:11: warning: 6 enumeration values not handled in switch: 'TY_VOID', 'TY_BOOL', 'TY_ENUM'... [-Wswitch]
+   56 |   switch (t1->kind) {
+      |           ^~~~~~~~
+type.c:193:11: warning: 15 enumeration values not handled in switch: 'ND_NULL_EXPR', 'ND_RETURN', 'ND_IF'... [-Wswitch]
+  193 |   switch (node->kind) {
+--
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: is_integer
+Trace2Pass: Instrumenting function: is_flonum
+Trace2Pass: Instrumenting function: is_numeric
+Trace2Pass: Instrumenting function: is_compatible
+Trace2Pass: Instrumenting function: copy_type
+Trace2Pass: Instrumenting function: pointer_to
+Trace2Pass: Instrumenting function: new_type
+Trace2Pass: Instrumenting function: func_type
+Trace2Pass: Instrumenting function: array_of
+Trace2Pass: Instrumented 1 arithmetic operations in array_of
+Trace2Pass: Instrumenting function: vla_of
+Trace2Pass: Instrumenting function: enum_type
+Trace2Pass: Instrumenting function: struct_type
+Trace2Pass: Instrumenting function: add_type
+Trace2Pass: Instrumented 0 arithmetic operations, 8 unreachable blocks in add_type
+Trace2Pass: Instrumenting function: usual_arith_conv
+Trace2Pass: Instrumenting function: get_common_type
+2 warnings generated.
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so   -c -o unicode.o unicode.c
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: encode_utf8
+Trace2Pass: Instrumented 6 arithmetic operations in encode_utf8
+Trace2Pass: Instrumenting function: decode_utf8
+Trace2Pass: Instrumented 3 arithmetic operations, 2 unreachable blocks in decode_utf8
+Trace2Pass: Instrumenting function: is_ident1
+Trace2Pass: Instrumenting function: in_range
+Trace2Pass: Instrumented 2 arithmetic operations, 1 unreachable blocks in in_range
+Trace2Pass: Instrumenting function: is_ident2
+Trace2Pass: Instrumenting function: display_width
+Trace2Pass: Instrumented 1 arithmetic operations in display_width
+Trace2Pass: Instrumenting function: char_width
+clang -O2 -fpass-plugin=/trace2pass/instrumentor/build/Trace2PassInstrumentor.so -o chibicc codegen.o hashmap.o main.o parse.o preprocess.o strings.o tokenize.o type.o unicode.o 
+/usr/bin/ld: codegen.o: in function `align_to':
+codegen.c:(.text+0x15): undefined reference to `trace2pass_should_sample'
+/usr/bin/ld: codegen.c:(.text+0x44): undefined reference to `trace2pass_report_overflow'
+/usr/bin/ld: codegen.c:(.text+0x50): undefined reference to `trace2pass_should_sample'
+/usr/bin/ld: codegen.c:(.text+0x80): undefined reference to `trace2pass_report_overflow'

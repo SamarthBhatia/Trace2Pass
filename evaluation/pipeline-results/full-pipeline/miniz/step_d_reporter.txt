@@ -1,0 +1,10 @@
+
+✓ Report saved to: /Volumes/Crucial X6/Projects/Trace2Pass/evaluation/pipeline-results/full-pipeline/miniz/bug_report.md
+# Trace2Pass Compiler Bug Report
+
+**Source File:** `/Volumes/Crucial X6/Projects/Trace2Pass/evaluation/pipeline-results/full-pipeline/seeded_gvn_test.c`
+
+## UB Detection
+
+- **Verdict:** compiler_bug
+-

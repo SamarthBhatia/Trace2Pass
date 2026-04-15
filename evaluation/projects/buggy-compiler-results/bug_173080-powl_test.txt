@@ -1,0 +1,138 @@
+--- Uninstrumented (-O2) ---
+===========================================
+LLVM Issue #173080 - powl() FE_UNDERFLOW Bug
+===========================================
+
+Compiler: Clang 18.1.8 (++20240731024826+3b5b5c1ec4a3-1~exp1~20240731144843.145)
+Long double size: 16 bytes
+LDBL_MANT_DIG: 64 bits
+
+Testing powl() with IEEE 754 exception semantics
+Base: -0.99999999999999999989
+Exponent: 9.9999999999999999998e+306
+Initial exception flags: 0x0
+Result: 0
+Result is finite: yes
+Result is normal: no
+Final exception flags: 0x30
+
+Exception flags raised:
+  FE_UNDERFLOW (underflow) ← BUG!
+  FE_INEXACT (inexact result)
+
+❌ BUG DETECTED: Spurious FE_UNDERFLOW flag set!
+   IEEE 754: Result is finite and normal, should not underflow
+
+=== Additional Edge Cases ===
+
+Test 2: powl(-0.9999..., 1e308)
+  Result: 0
+  FE_UNDERFLOW: YES (BUG!)
+
+Test 3: powl(-1.0, 307)
+  Result: -1
+  FE_UNDERFLOW: NO (correct)
+
+Test 4: powl(-1.0-epsilon, 1e307)
+  Result: inf
+  FE_UNDERFLOW: NO
+
+===========================================
+❌ FAIL: Spurious FE_UNDERFLOW detected
+   Compiler: LLVM 21 with bug #173080
+===========================================
+EXIT: $?
+--- Uninstrumented (-O0, reference) ---
+===========================================
+LLVM Issue #173080 - powl() FE_UNDERFLOW Bug
+===========================================
+
+Compiler: Clang 18.1.8 (++20240731024826+3b5b5c1ec4a3-1~exp1~20240731144843.145)
+Long double size: 16 bytes
+LDBL_MANT_DIG: 64 bits
+
+Testing powl() with IEEE 754 exception semantics
+Base: -0.99999999999999999989
+Exponent: 9.9999999999999999998e+306
+Initial exception flags: 0x0
+Result: 0
+Result is finite: yes
+Result is normal: no
+Final exception flags: 0x30
+
+Exception flags raised:
+  FE_UNDERFLOW (underflow) ← BUG!
+  FE_INEXACT (inexact result)
+
+❌ BUG DETECTED: Spurious FE_UNDERFLOW flag set!
+   IEEE 754: Result is finite and normal, should not underflow
+
+=== Additional Edge Cases ===
+
+Test 2: powl(-0.9999..., 1e308)
+  Result: 0
+  FE_UNDERFLOW: YES (BUG!)
+
+Test 3: powl(-1.0, 307)
+  Result: -1
+  FE_UNDERFLOW: NO (correct)
+
+Test 4: powl(-1.0-epsilon, 1e307)
+  Result: inf
+  FE_UNDERFLOW: NO
+
+===========================================
+❌ FAIL: Spurious FE_UNDERFLOW detected
+   Compiler: LLVM 21 with bug #173080
+===========================================
+EXIT: $?
+--- Instrumented (-O2) ---
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: test_powl_underflow
+Trace2Pass: Instrumenting function: test_powl_edge_cases
+Trace2Pass: Instrumenting function: main
+===========================================
+LLVM Issue #173080 - powl() FE_UNDERFLOW Bug
+===========================================
+
+Compiler: Clang 18.1.8 (++20240731024826+3b5b5c1ec4a3-1~exp1~20240731144843.145)
+Long double size: 16 bytes
+LDBL_MANT_DIG: 64 bits
+
+Testing powl() with IEEE 754 exception semantics
+Base: -0.99999999999999999989
+Exponent: 9.9999999999999999998e+306
+Initial exception flags: 0x0
+Result: 0
+Result is finite: yes
+Result is normal: no
+Final exception flags: 0x30
+
+Exception flags raised:
+  FE_UNDERFLOW (underflow) ← BUG!
+  FE_INEXACT (inexact result)
+
+❌ BUG DETECTED: Spurious FE_UNDERFLOW flag set!
+   IEEE 754: Result is finite and normal, should not underflow
+
+=== Additional Edge Cases ===
+
+Test 2: powl(-0.9999..., 1e308)
+  Result: 0
+  FE_UNDERFLOW: YES (BUG!)
+
+Test 3: powl(-1.0, 307)
+  Result: -1
+  FE_UNDERFLOW: NO (correct)
+
+Test 4: powl(-1.0-epsilon, 1e307)
+  Result: inf
+  FE_UNDERFLOW: NO
+
+===========================================
+❌ FAIL: Spurious FE_UNDERFLOW detected
+   Compiler: LLVM 21 with bug #173080
+===========================================
+EXIT: $?
+--- Anomalies ---
+Count: 0

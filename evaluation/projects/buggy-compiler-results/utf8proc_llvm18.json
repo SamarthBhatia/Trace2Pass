@@ -1,0 +1,12 @@
+{
+    "project": "utf8proc",
+    "docker_image": "trace2pass-eval:18",
+    "baseline_ms": 174.65,
+    "instrumented_ms": 156.90,
+    "overhead_percent": 0.00,
+    "anomalies": 0,
+    "warmup_runs": 5,
+    "measurement_runs": 10,
+    "method": "median",
+    "timestamp": "2026-02-17T16:00:11Z"
+}

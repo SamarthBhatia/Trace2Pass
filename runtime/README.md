@@ -49,7 +49,7 @@ clang my_code.o -L/path/to/runtime/build -lTrace2PassRuntime -o my_program
 
 Environment variables:
 
-- `TRACE2PASS_SAMPLE_RATE=0.01` - Sampling rate (0.0-1.0, default: 0.01)
+- `TRACE2PASS_SAMPLE_RATE=0.10` - Sampling rate (0.0-1.0, default: 0.10)
 - `TRACE2PASS_OUTPUT=/path/to/log` - Output file (default: stderr)
 
 Example:
@@ -97,7 +97,7 @@ Expected output: 4 unique anomaly reports demonstrating each check type.
 
 - **Thread-safe:** Uses pthread mutexes for concurrent reporting
 - **Deduplication:** Bloom filter prevents duplicate reports (per-thread)
-- **Low overhead:** <5% runtime impact with default sampling (1%)
+- **Low overhead:** <20% runtime impact with default sampling (10%)
 - **Configurable:** Sample rate and output path via environment variables
 - **ASLR-stable call-site IDs:** Module-relative offsets on POSIX, raw PC on Windows
 

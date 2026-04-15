@@ -1,0 +1,40 @@
+[
+  {
+    "bug_id": "phantom-overflow",
+    "docker_version": "16",
+    "opt_level": "-O2",
+    "expected_check": "arithmetic_overflow",
+    "expected_pass": "instcombine",
+    "step_a_instrumentor": true,
+    "step_b_collector": true,
+    "step_c_diagnoser": true,
+    "step_d_reporter": true,
+    "full_pipeline": true,
+    "ub_verdict": "user_ub",
+    "version_verdict": "all_fail",
+    "first_bad_version": "all",
+    "culprit_pass": "N/A (UB in user code)",
+    "anomaly_count": 1,
+    "bug_prevented": true,
+    "notes": "Correctly identified as user UB. Pipeline stops at Stage 1."
+  },
+  {
+    "bug_id": "76789",
+    "docker_version": "16",
+    "opt_level": "-O1",
+    "expected_check": "sign_conversion",
+    "expected_pass": "basicaa/licm",
+    "step_a_instrumentor": true,
+    "step_b_collector": true,
+    "step_c_diagnoser": true,
+    "step_d_reporter": true,
+    "full_pipeline": true,
+    "ub_verdict": "compiler_bug",
+    "version_verdict": "bisected",
+    "first_bad_version": "14",
+    "culprit_pass": "N/A (integrated pipeline bug)",
+    "anomaly_count": 0,
+    "bug_prevented": true,
+    "notes": "Bug prevented by instrumentation. Version bisected to 14-17. Pass bisection limited by opt/clang pipeline difference."
+  }
+]

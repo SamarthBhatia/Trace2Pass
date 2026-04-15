@@ -43,7 +43,8 @@ class ReportGenerator:
     def generate(self, diagnosis: Dict[str, Any], source_file: str,
                  test_command: Optional[str] = None,
                  output_format: str = 'text',
-                 output_file: Optional[str] = None) -> str:
+                 output_file: Optional[str] = None,
+                 healing_result: Optional[Dict[str, Any]] = None) -> str:
         """
         Generate a bug report from diagnosis results.
 
@@ -106,6 +107,10 @@ class ReportGenerator:
 
         # Generate report
         report = template.format(diagnosis, source_file, minimal_reproducer, workarounds)
+
+        # Append healing section if provided
+        if healing_result:
+            report += self._format_healing_section(healing_result, output_format)
 
         # Save to file if requested
         if output_file:
@@ -207,6 +212,45 @@ class ReportGenerator:
         lines.append("=" * 80)
 
         return "\n".join(lines)
+
+    def _format_healing_section(self, healing_result: Dict[str, Any],
+                                output_format: str) -> str:
+        """Format healing result as a report section."""
+        status = healing_result.get("status", "unknown")
+        strategy = healing_result.get("strategy_used", "N/A")
+        verified = healing_result.get("verified", False)
+        overhead = healing_result.get("perf_overhead_pct")
+        desc = healing_result.get("description", "")
+        error = healing_result.get("error", "")
+
+        if output_format == "markdown":
+            lines = ["\n## Healing Applied\n"]
+            lines.append(f"- **Status**: {status}")
+            lines.append(f"- **Strategy**: {strategy}")
+            lines.append(f"- **Verified**: {'Yes' if verified else 'No'}")
+            if overhead is not None:
+                lines.append(f"- **Performance overhead**: {overhead:.2f}%")
+            if desc:
+                lines.append(f"- **Details**: {desc}")
+            if error:
+                lines.append(f"- **Error**: {error}")
+            lines.append("")
+            return "\n".join(lines)
+        else:
+            lines = ["\n" + "=" * 40]
+            lines.append("Healing Applied")
+            lines.append("=" * 40)
+            lines.append(f"  Status:   {status}")
+            lines.append(f"  Strategy: {strategy}")
+            lines.append(f"  Verified: {'Yes' if verified else 'No'}")
+            if overhead is not None:
+                lines.append(f"  Overhead: {overhead:.2f}%")
+            if desc:
+                lines.append(f"  Details:  {desc}")
+            if error:
+                lines.append(f"  Error:    {error}")
+            lines.append("")
+            return "\n".join(lines)
 
     def generate_from_file(self, diagnosis_file: str, source_file: str,
                           **kwargs) -> str:

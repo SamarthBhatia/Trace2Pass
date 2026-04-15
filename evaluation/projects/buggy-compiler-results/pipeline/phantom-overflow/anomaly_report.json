@@ -1,0 +1,28 @@
+{
+  "report_id": "report_23c7794623c5148f",
+  "timestamp": "2026-02-08T13:12:48+00:00",
+  "check_type": "arithmetic_overflow",
+  "location": {
+    "file": "test_overflow.c",
+    "line": 0,
+    "function": "check_and_allocate"
+  },
+  "pc": "0x55555555545f",
+  "compiler": {
+    "name": "clang",
+    "version": "16.0.6",
+    "target": "x86_64"
+  },
+  "build_info": {
+    "optimization_level": "-O2",
+    "flags": []
+  },
+  "check_details": {
+    "expr": "x sadd y",
+    "operands": [2147483547, 200]
+  },
+  "system_info": {
+    "os": "Linux",
+    "arch": "x86_64"
+  }
+}

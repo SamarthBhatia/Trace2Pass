@@ -1,0 +1,10 @@
+{
+  "project": "utf8proc",
+  "llvm_version": "19",
+  "opt_level": "-O2",
+  "layer": 1,
+  "build_status": "ok",
+  "test_exit": "0",
+  "anomaly_count": 2,
+  "detection": "yes"
+}

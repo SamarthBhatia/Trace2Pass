@@ -1,0 +1,43 @@
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: http_parser_execute
+Trace2Pass: Instrumented 286 arithmetic operations, 43 unreachable blocks in http_parser_execute
+Trace2Pass: Instrumenting function: parse_url_char
+Trace2Pass: Instrumented 8 arithmetic operations in parse_url_char
+Trace2Pass: Instrumenting function: http_should_keep_alive
+Trace2Pass: Instrumented 2 arithmetic operations in http_should_keep_alive
+Trace2Pass: Instrumenting function: http_message_needs_eof
+Trace2Pass: Instrumented 4 arithmetic operations, 1 division checks in http_message_needs_eof
+Trace2Pass: Instrumenting function: http_method_str
+Trace2Pass: Instrumenting function: http_status_str
+Trace2Pass: Instrumenting function: http_parser_init
+Trace2Pass: Instrumented 1 arithmetic operations in http_parser_init
+Trace2Pass: Instrumenting function: http_parser_settings_init
+Trace2Pass: Instrumenting function: http_errno_name
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in http_errno_name
+Trace2Pass: Instrumenting function: http_errno_description
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in http_errno_description
+Trace2Pass: Instrumenting function: http_parser_url_init
+Trace2Pass: Instrumenting function: http_parser_parse_url
+Trace2Pass: Instrumented 3 arithmetic operations, 2 unreachable blocks in http_parser_parse_url
+Trace2Pass: Instrumenting function: http_parse_host
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in http_parse_host
+Trace2Pass: Instrumenting function: http_parser_pause
+Trace2Pass: Instrumented 3 arithmetic operations, 1 unreachable blocks in http_parser_pause
+Trace2Pass: Instrumenting function: http_body_is_final
+Trace2Pass: Instrumented 1 arithmetic operations in http_body_is_final
+Trace2Pass: Instrumenting function: http_parser_version
+Trace2Pass: Instrumenting function: http_parser_set_max_header_size
+Trace2Pass: Instrumenting function: http_parse_host_char
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumenting function: on_url
+--- Test ---
+TEST_EXIT=0
+--- Test stdout ---
+http-parser: url=/test
+--- Test stderr ---
+Trace2Pass: Runtime initialized (sample_rate=0.010, opt_level=unknown)
+Trace2Pass: Runtime shutting down
+--- Anomaly scan ---
+ANOMALY_COUNT=2
+--- Done ---

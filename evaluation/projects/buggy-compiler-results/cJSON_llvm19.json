@@ -1,0 +1,12 @@
+{
+    "project": "cJSON",
+    "docker_image": "trace2pass-eval:19",
+    "baseline_ms": 35.04,
+    "instrumented_ms": 36.22,
+    "overhead_percent": 3.36,
+    "anomalies": 0,
+    "warmup_runs": 5,
+    "measurement_runs": 10,
+    "method": "median",
+    "timestamp": "2026-02-17T16:04:25Z"
+}

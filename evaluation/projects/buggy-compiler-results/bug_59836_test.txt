@@ -1,0 +1,14 @@
+--- Uninstrumented (-O2) ---
+check_mul_fits_32(3363831808) = 1
+CORRECT: 3363831808 squared mod 2^34 fits in 32 bits
+--- Uninstrumented (-O0, reference) ---
+check_mul_fits_32(3363831808) = 1
+CORRECT: 3363831808 squared mod 2^34 fits in 32 bits
+--- Instrumented (-O2) ---
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: check_mul_fits_32
+Trace2Pass: Instrumenting function: main
+check_mul_fits_32(3363831808) = 1
+CORRECT: 3363831808 squared mod 2^34 fits in 32 bits
+--- Anomalies ---
+Count: 0

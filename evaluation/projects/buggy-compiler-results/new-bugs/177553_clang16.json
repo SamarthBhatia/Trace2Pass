@@ -1,0 +1,12 @@
+{
+    "bug_id": "177553",
+    "clang_version": "16",
+    "opt_flags": "-O1",
+    "expected_output": "0",
+    "baseline_output": "0",
+    "optimized_output": "0",
+    "reproduces": "no",
+    "anomaly_count": 0,
+    "bug_prevented": "no",
+    "description": "PGO miscompilation (without PGO profile)"
+}

@@ -11,8 +11,16 @@ ARG LLVM_VERSION=16
 
 # Install build tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    cmake make git ca-certificates \
+    cmake make git ca-certificates bc curl unzip \
+    libpcre3-dev zlib1g-dev \
+    python3-pip python3-setuptools \
+    autoconf automake libtool \
+    xz-utils \
     && rm -rf /var/lib/apt/lists/*
+
+# mbedtls 3.x build dependencies
+RUN pip3 install --break-system-packages jinja2 jsonschema 2>/dev/null || \
+    pip3 install jinja2 jsonschema
 
 # Copy instrumentor and runtime source
 COPY instrumentor/ /trace2pass/instrumentor/

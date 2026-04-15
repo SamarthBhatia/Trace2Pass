@@ -1,0 +1,151 @@
+================================================================
+  Expanded Sanitizer Overhead Comparison
+================================================================
+Clang:     Ubuntu clang version 18.1.3 (1ubuntu1)
+Runs:      40 (+ 1 warmup)
+Work dir:  /tmp/tmp.0USiQcTzTM
+Results:   /home/sbhatia/Trace2Pass/evaluation/results/sanitizer_comparison
+Timestamp: 20260413_190407
+
+================================================================
+  Project: sqlite
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (33057.4ms, 1242632B)
+    asan: OK (65394.3ms, 5588720B)
+    ubsan: OK (95582.3ms, 9183472B)
+    trace2pass: OK (35870.0ms, 1449480B)
+
+================================================================
+  Project: lz4
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (2701.6ms, 88616B)
+    asan: OK (5157.6ms, 1925480B)
+    ubsan: OK (7571.4ms, 742312B)
+    trace2pass: OK (2749.2ms, 133968B)
+
+================================================================
+  Project: zlib
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (2771.8ms, 94736B)
+    asan: OK (4878.7ms, 1908736B)
+    ubsan: OK (9308.5ms, 1426056B)
+    trace2pass: OK (3231.1ms, 160672B)
+
+================================================================
+  Project: cjson
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (888.4ms, 41336B)
+    asan: OK (1377.7ms, 1711656B)
+    ubsan: OK (1502.0ms, 569856B)
+    trace2pass: OK (870.5ms, 86608B)
+
+================================================================
+  Project: lua
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (8210.0ms, 300096B)
+    asan: OK (12769.0ms, 2471408B)
+    ubsan: OK (21361.0ms, 2645760B)
+    trace2pass: OK (8569.0ms, 370088B)
+
+================================================================
+  Project: xxhash
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (254.5ms, 16176B)
+    asan: OK (361.6ms, 1644128B)
+    ubsan: OK (306.9ms, 408248B)
+    trace2pass: OK (284.8ms, 53432B)
+
+================================================================
+  Project: utf8proc
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (1117.9ms, 358184B)
+    asan: OK (1329.6ms, 2094680B)
+    ubsan: OK (1421.1ms, 784496B)
+    trace2pass: OK (1224.1ms, 403592B)
+
+================================================================
+  Project: miniz
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (1429.3ms, 56592B)
+    asan: OK (2196.6ms, 1767192B)
+    ubsan: OK (4399.7ms, 842888B)
+    trace2pass: OK (1596.6ms, 106048B)
+
+================================================================
+  Project: yyjson
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (9047.3ms, 291320B)
+    asan: OK (19886.4ms, 2540336B)
+    ubsan: OK (43832.7ms, 1865696B)
+    trace2pass: OK (9338.8ms, 357000B)
+
+================================================================
+  Project: tinyexpr
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (389.0ms, 26232B)
+    asan: OK (585.3ms, 1682424B)
+    ubsan: OK (854.1ms, 499376B)
+    trace2pass: OK (449.7ms, 67584B)
+
+================================================================
+  Project: dr_libs
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (2047.2ms, 97936B)
+    asan: OK (3624.2ms, 1889600B)
+    ubsan: OK (5371.3ms, 963080B)
+    trace2pass: OK (2424.5ms, 147288B)
+
+================================================================
+  Project: duktape
+================================================================
+  Downloading...
+  Building 4 configurations...
+    baseline: OK (15829.7ms, 550232B)
+    asan: OK (35045.6ms, 3190176B)
+    ubsan: OK (24447.1ms, 2846512B)
+    trace2pass: OK (16394.7ms, 616648B)
+
+================================================================
+  Results saved to: /home/sbhatia/Trace2Pass/evaluation/results/sanitizer_comparison
+  Combined JSON:    /home/sbhatia/Trace2Pass/evaluation/results/sanitizer_comparison/all_projects_20260413_190407.json
+================================================================
+
+=== Quick Summary ===
+| Project | Baseline (ms) | ASan OH | UBSan OH | T2P OH |
+|---------|--------------|---------|----------|--------|
+| sqlite        |         48.3 | +170.9% | +270.7% |   -0.8% |
+| lz4           |        108.1 | +167.5% | +151.0% |   +7.0% |
+| zlib          |        317.4 | +167.4% | +217.8% |   +5.3% |
+| cjson         |         36.7 | +554.6% |  +48.2% |   -1.9% |
+| lua           |       6568.1 | +153.9% | +174.5% |   +2.9% |
+| xxhash        |         50.8 | +172.6% |  +23.4% |   +0.3% |
+| utf8proc      |         10.6 | +183.3% | +120.2% |  +10.0% |
+| miniz         |        928.3 | +133.4% | +101.2% |   +0.8% |
+| yyjson        |          5.3 | +1145.1% |  +98.7% |   -0.6% |
+| tinyexpr      |         83.6 | +290.9% |  +51.6% |   +3.0% |
+| dr_libs       |         43.0 |  +23.4% |   -2.9% |   -5.7% |
+| duktape       |       1415.2 | +283.7% | +242.3% |   +7.8% |
+
+Done. Run aggregate_comparison.py to generate thesis-quality tables.

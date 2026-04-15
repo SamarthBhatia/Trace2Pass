@@ -45,6 +45,7 @@ private:
   bool instrumentStoreLoadConsistency(Function &F);
   bool instrumentVolatileConsistency(Function &F);
   bool instrumentCrossBBConsistency(Function &F);
+  bool instrumentReturnChecksums(Function &F);
   bool insertOverflowCheck(IRBuilder<> &Builder, Instruction *I,
                            Value *LHS, Value *RHS);
   void insertShiftCheck(IRBuilder<> &Builder, Instruction *I,
@@ -79,6 +80,7 @@ private:
   FunctionCallee getValuePropagationReportFunc(Module &M);
   FunctionCallee getCrossBBCheckFunc(Module &M);
   FunctionCallee getShouldSampleFunc(Module &M);
+  FunctionCallee getAccumulateChecksumFunc(Module &M);
 
   // Cross-BB consistency helpers
   AllocaInst *findRootAlloca(Value *V);
@@ -98,6 +100,7 @@ private:
   unsigned NumStoreLoadInstrumented = 0;
   unsigned NumVolatileInstrumented = 0;
   unsigned NumCrossBBInstrumented = 0;
+  unsigned NumReturnChecksumInstrumented = 0;
 };
 
 PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
@@ -129,6 +132,7 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
   NumStoreLoadInstrumented = 0;
   NumVolatileInstrumented = 0;
   NumCrossBBInstrumented = 0;
+  NumReturnChecksumInstrumented = 0;
 
   bool Modified = false;
 
@@ -157,6 +161,7 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
   bool enable_storeload = all_checks || envIsSet("TRACE2PASS_ENABLE_STORE_LOAD_CHECK");
   bool enable_volatile  = all_checks || envIsSet("TRACE2PASS_ENABLE_VOLATILE_TRACKING");
   bool enable_crossbb   = all_checks || envIsSet("TRACE2PASS_ENABLE_CROSS_BB_CHECK");
+  bool enable_backend_checksum = all_checks || envIsSet("TRACE2PASS_ENABLE_BACKEND_CHECKSUM");
 
   // Always-on checks (production)
   Modified |= instrumentArithmeticOperations(F);
@@ -173,6 +178,7 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
   if (enable_storeload) Modified |= instrumentStoreLoadConsistency(F);
   if (enable_volatile)  Modified |= instrumentVolatileConsistency(F);
   if (enable_crossbb)   Modified |= instrumentCrossBBConsistency(F);
+  if (enable_backend_checksum) Modified |= instrumentReturnChecksums(F);
 
   if (Modified) {
     errs() << "Trace2Pass: Instrumented " << NumInstrumented
@@ -209,6 +215,9 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
     }
     if (NumCrossBBInstrumented > 0) {
       errs() << ", " << NumCrossBBInstrumented << " cross-BB consistency checks";
+    }
+    if (NumReturnChecksumInstrumented > 0) {
+      errs() << ", " << NumReturnChecksumInstrumented << " return checksums";
     }
     errs() << " in " << F.getName() << "\n";
 
@@ -2118,6 +2127,88 @@ FunctionCallee Trace2PassInstrumentorPass::getShadowCheckFunc(Module &M) {
       VoidTy, {PtrTy, PtrTy, I32Ty, PtrTy, PtrTy, I64Ty}, false);
 
   return M.getOrInsertFunction("trace2pass_shadow_check", FT);
+}
+
+// Backend Checksum: Instrument function return values for miscompilation detection
+// Accumulates a deterministic checksum of all function return values.
+// Compare O0 checksum vs Ox checksum to detect backend codegen bugs.
+bool Trace2PassInstrumentorPass::instrumentReturnChecksums(Function &F) {
+  Module &M = *F.getParent();
+  LLVMContext &Ctx = M.getContext();
+  bool Modified = false;
+
+  // Compute a stable hash of the function name (used as func_hash argument)
+  // This ties each return value to its function, making the checksum order-sensitive
+  uint64_t FuncNameHash = 0;
+  StringRef FName = F.getName();
+  for (size_t i = 0; i < FName.size(); ++i) {
+    FuncNameHash = FuncNameHash * 31 + (uint64_t)FName[i];
+  }
+
+  // Collect all return instructions
+  SmallVector<ReturnInst *, 8> Returns;
+  for (BasicBlock &BB : F) {
+    if (auto *RI = dyn_cast<ReturnInst>(BB.getTerminator())) {
+      Returns.push_back(RI);
+    }
+  }
+
+  if (Returns.empty())
+    return false;
+
+  FunctionCallee AccumFunc = getAccumulateChecksumFunc(M);
+
+  for (ReturnInst *RI : Returns) {
+    IRBuilder<> Builder(RI);
+
+    Value *FuncHash = Builder.getInt64(FuncNameHash);
+    Value *RetVal_i64;
+
+    Value *RetVal = RI->getReturnValue();
+    if (RetVal) {
+      Type *RetTy = RetVal->getType();
+      if (RetTy->isIntegerTy()) {
+        // Integer return: sign-extend or truncate to i64
+        RetVal_i64 = Builder.CreateSExtOrTrunc(RetVal, Builder.getInt64Ty());
+      } else if (RetTy->isPointerTy()) {
+        // Pointer return: cast to i64
+        RetVal_i64 = Builder.CreatePtrToInt(RetVal, Builder.getInt64Ty());
+      } else if (RetTy->isFloatingPointTy()) {
+        // Float/double: bitcast to integer, then extend to i64
+        unsigned BitWidth = RetTy->getPrimitiveSizeInBits();
+        Type *IntTy = Type::getIntNTy(Ctx, BitWidth);
+        Value *AsInt = Builder.CreateBitCast(RetVal, IntTy);
+        RetVal_i64 = Builder.CreateZExtOrTrunc(AsInt, Builder.getInt64Ty());
+      } else {
+        // Aggregate, vector, or other complex type — use constant 1
+        // (still captures call count)
+        RetVal_i64 = Builder.getInt64(1);
+      }
+    } else {
+      // Void function — use constant 0
+      // Still contributes to checksum via func_hash (captures call count)
+      RetVal_i64 = Builder.getInt64(0);
+    }
+
+    Builder.CreateCall(AccumFunc, {FuncHash, RetVal_i64});
+
+    Modified = true;
+    NumReturnChecksumInstrumented++;
+  }
+
+  return Modified;
+}
+
+FunctionCallee Trace2PassInstrumentorPass::getAccumulateChecksumFunc(Module &M) {
+  LLVMContext &Ctx = M.getContext();
+  Type *VoidTy = Type::getVoidTy(Ctx);
+  Type *I64Ty = Type::getInt64Ty(Ctx);
+
+  // Signature: void trace2pass_accumulate_checksum(uint64_t func_hash, int64_t ret_value)
+  FunctionType *FT = FunctionType::get(
+      VoidTy, {I64Ty, I64Ty}, false);
+
+  return M.getOrInsertFunction("trace2pass_accumulate_checksum", FT);
 }
 
 } // anonymous namespace

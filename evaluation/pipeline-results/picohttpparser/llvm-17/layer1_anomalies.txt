@@ -1,0 +1,29 @@
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: phr_parse_request
+Trace2Pass: Instrumenting function: is_complete
+Trace2Pass: Instrumented 2 arithmetic operations in is_complete
+Trace2Pass: Instrumenting function: parse_request
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in parse_request
+Trace2Pass: Instrumenting function: phr_parse_response
+Trace2Pass: Instrumenting function: parse_response
+Trace2Pass: Instrumented 8 arithmetic operations, 1 unreachable blocks in parse_response
+Trace2Pass: Instrumenting function: phr_parse_headers
+Trace2Pass: Instrumenting function: parse_headers
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in parse_headers
+Trace2Pass: Instrumenting function: phr_decode_chunked
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks, 1 division checks in phr_decode_chunked
+Trace2Pass: Instrumenting function: decode_hex
+Trace2Pass: Instrumented 5 arithmetic operations in decode_hex
+Trace2Pass: Instrumenting function: phr_decode_chunked_is_in_data
+Trace2Pass: Instrumenting function: parse_token
+Trace2Pass: Instrumenting function: findchar_fast
+Trace2Pass: Instrumenting function: parse_http_version
+Trace2Pass: Instrumented 2 arithmetic operations in parse_http_version
+Trace2Pass: Instrumenting function: get_token_to_eol
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: main
+--- Test ---
+TEST_EXIT=0
+--- Test stdout ---
+picohttpparser: parsed 37 bytes, method=GET path=/
+--- Test stderr ---

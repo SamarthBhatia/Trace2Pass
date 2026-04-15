@@ -1,0 +1,28 @@
+{
+    "report_id": "project-xxhash-gvn116668-20260221_130208",
+    "timestamp": "2026-02-21T12:02:29+00:00",
+    "check_type": "arithmetic_overflow",
+    "location": {
+        "file": "seeded_gvn_setjmp_bug.c",
+        "line": 1,
+        "function": "seeded_check_gvn"
+    },
+    "compiler": {
+        "name": "clang",
+        "version": "17",
+        "target": "x86_64-linux-gnu"
+    },
+    "build_info": {
+        "optimization_level": "-O2"
+    },
+    "check_details": {
+        "pattern": "gvn_116668",
+        "description": "GVN propagates pre-setjmp value through longjmp path",
+        "uninstrumented_exit_code": "3",
+        "instrumented_exit_code": "2"
+    },
+    "system_info": {
+        "os": "Linux",
+        "arch": "x86_64"
+    }
+}

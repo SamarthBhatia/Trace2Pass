@@ -1,0 +1,36 @@
+=== Phantom Overflow — Security check removal (clang:16, -O2) ===
+
+--- Uninstrumented (security check removed by optimizer) ---
+Output:
+Base: 2147483547, Incr: 200
+Checking overflow: 2147483547 + 200
+DANGER: Check passed! Proceeding to use overflowed value.
+Total allocated: -2147483549
+
+--- Instrumented (Trace2Pass active) ---
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: check_and_allocate
+Trace2Pass: Instrumented 2 arithmetic operations in check_and_allocate
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumenting function: atoi
+Running instrumented binary...
+Output:
+Trace2Pass: Runtime initialized (sample_rate=1.000, opt_level=unknown)
+
+=== Trace2Pass Report ===
+Timestamp: 2026-02-08T12:28:10Z
+Type: arithmetic_overflow
+Location: unknown:0 in check_and_allocate
+PC: 0x55555555545f
+Expression: x sadd y
+Operands: 2147483547, 200
+========================
+
+Trace2Pass: Runtime shutting down
+Base: 2147483547, Incr: 200
+Checking overflow: 2147483547 + 200
+SAFE: Overflow detected by check! Aborting.
+
+--- Anomaly report ---
+Anomalies: 0
+(anomaly reports printed to stderr above)

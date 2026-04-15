@@ -1,0 +1,39 @@
+--- Uninstrumented (-O2) ---
+=== LLVM #127511: GVN setjmp/longjmp Bug ===
+
+BUG: kPtr is NULL (GVN removed check or propagated NULL)
+trace: 1
+
+=== Test Complete ===
+If 'Flag set successfully' printed, behavior is correct.
+If 'BUG: kPtr is NULL' printed, GVN misoptimized.
+EXIT: $?
+--- Uninstrumented (-O0, reference) ---
+=== LLVM #127511: GVN setjmp/longjmp Bug ===
+
+Flag set successfully (kPtr=0x6476c2155044, flg=1)
+trace: 1
+
+=== Test Complete ===
+If 'Flag set successfully' printed, behavior is correct.
+If 'BUG: kPtr is NULL' printed, GVN misoptimized.
+--- Instrumented (-O2) ---
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: bar
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in bar
+Trace2Pass: Instrumenting function: foo
+Trace2Pass: Instrumented 1 arithmetic operations in foo
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Runtime initialized (sample_rate=1.000, opt_level=unknown)
+Trace2Pass: Runtime shutting down
+=== LLVM #127511: GVN setjmp/longjmp Bug ===
+
+BUG: kPtr is NULL (GVN removed check or propagated NULL)
+trace: 1
+
+=== Test Complete ===
+If 'Flag set successfully' printed, behavior is correct.
+If 'BUG: kPtr is NULL' printed, GVN misoptimized.
+EXIT: $?
+--- Anomalies ---
+Count: 0

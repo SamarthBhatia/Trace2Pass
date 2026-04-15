@@ -1,0 +1,9 @@
+{
+  "project": "cjson",
+  "density": 5,
+  "timestamp": "20260414_102154",
+  "status": "OK",
+  "runs_ms": [63.32,65.92],
+  "report_path": "/home/sbhatia/Trace2Pass/evaluation/results/seeded_bugs/cjson_d5_20260414_102154.jsonl",
+  "manifest_path": "/home/sbhatia/Trace2Pass/evaluation/results/seeded_bugs/cjson_d5_20260414_102154.seed.c"
+}

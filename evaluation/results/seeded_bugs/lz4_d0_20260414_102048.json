@@ -1,0 +1,9 @@
+{
+  "project": "lz4",
+  "density": 0,
+  "timestamp": "20260414_102048",
+  "status": "OK",
+  "runs_ms": [150.71,148.67],
+  "report_path": "/home/sbhatia/Trace2Pass/evaluation/results/seeded_bugs/lz4_d0_20260414_102048.jsonl",
+  "manifest_path": "/home/sbhatia/Trace2Pass/evaluation/results/seeded_bugs/lz4_d0_20260414_102048.seed.c"
+}

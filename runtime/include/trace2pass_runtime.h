@@ -73,6 +73,13 @@ void trace2pass_report_value_propagation(void* pc, const char* file, int line,
 
 int trace2pass_should_sample(void);
 
+// Backend Checksum (miscompilation detection)
+// Accumulates a deterministic checksum of function return values.
+// Compare O0 vs Ox checksums to detect backend codegen bugs.
+// Controlled by TRACE2PASS_CHECKSUM_MODE env var (record/verify).
+
+void trace2pass_accumulate_checksum(uint64_t func_hash, int64_t ret_value);
+
 // Initialization (automatically called via constructor/destructor attributes)
 
 void trace2pass_init(void) __attribute__((constructor));

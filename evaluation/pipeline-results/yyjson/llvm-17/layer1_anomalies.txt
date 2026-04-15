@@ -1,0 +1,401 @@
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: yyjson_version
+Trace2Pass: Instrumenting function: yyjson_alc_pool_init
+Trace2Pass: Instrumenting function: mem_align_up
+Trace2Pass: Instrumenting function: size_align_down
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in size_align_down
+Trace2Pass: Instrumenting function: pool_malloc
+Trace2Pass: Instrumenting function: pool_realloc
+Trace2Pass: Instrumenting function: pool_free
+Trace2Pass: Instrumenting function: yyjson_alc_dyn_new
+Trace2Pass: Instrumenting function: default_malloc
+Trace2Pass: Instrumenting function: default_realloc
+Trace2Pass: Instrumenting function: default_free
+Trace2Pass: Instrumenting function: dyn_malloc
+Trace2Pass: Instrumenting function: dyn_realloc
+Trace2Pass: Instrumenting function: dyn_free
+Trace2Pass: Instrumenting function: yyjson_alc_dyn_free
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in yyjson_alc_dyn_free
+Trace2Pass: Instrumenting function: unsafe_yyjson_str_pool_grow
+Trace2Pass: Instrumenting function: unsafe_yyjson_val_pool_grow
+Trace2Pass: Instrumenting function: yyjson_mut_doc_set_str_pool_size
+Trace2Pass: Instrumenting function: yyjson_mut_doc_set_val_pool_size
+Trace2Pass: Instrumenting function: yyjson_mut_doc_free
+Trace2Pass: Instrumenting function: unsafe_yyjson_str_pool_release
+Trace2Pass: Instrumenting function: unsafe_yyjson_val_pool_release
+Trace2Pass: Instrumenting function: yyjson_mut_doc_new
+Trace2Pass: Instrumenting function: yyjson_doc_mut_copy
+Trace2Pass: Instrumenting function: yyjson_val_mut_copy
+Trace2Pass: Instrumented 0 arithmetic operations, 3 division checks in yyjson_val_mut_copy
+Trace2Pass: Instrumenting function: yyjson_mut_doc_set_root
+Trace2Pass: Instrumenting function: yyjson_mut_doc_mut_copy
+Trace2Pass: Instrumenting function: yyjson_mut_val_mut_copy
+Trace2Pass: Instrumenting function: unsafe_yyjson_get_next
+Trace2Pass: Instrumenting function: unsafe_yyjson_mut_val
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in unsafe_yyjson_mut_val
+Trace2Pass: Instrumenting function: unsafe_yyjson_get_type
+Trace2Pass: Instrumenting function: unsafe_yyjson_get_len
+Trace2Pass: Instrumented 1 arithmetic operations in unsafe_yyjson_get_len
+Trace2Pass: Instrumenting function: unsafe_yyjson_mut_strncpy
+Trace2Pass: Instrumenting function: unsafe_yyjson_mut_val_mut_copy
+Trace2Pass: Instrumenting function: yyjson_mut_doc_imut_copy
+Trace2Pass: Instrumenting function: yyjson_mut_val_imut_copy
+Trace2Pass: Instrumenting function: yyjson_mut_stat
+Trace2Pass: Instrumented 1 arithmetic operations in yyjson_mut_stat
+Trace2Pass: Instrumenting function: size_align_up
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in size_align_up
+Trace2Pass: Instrumenting function: yyjson_imut_copy
+Trace2Pass: Instrumented 1 arithmetic operations in yyjson_imut_copy
+Trace2Pass: Instrumenting function: unsafe_yyjson_equals
+Trace2Pass: Instrumenting function: yyjson_obj_iter_init
+Trace2Pass: Instrumenting function: unsafe_yyjson_get_first
+Trace2Pass: Instrumenting function: yyjson_obj_iter_getn
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in yyjson_obj_iter_getn
+Trace2Pass: Instrumenting function: unsafe_yyjson_num_equals
+Trace2Pass: Instrumenting function: unsafe_yyjson_str_equals
+Trace2Pass: Instrumenting function: unsafe_yyjson_mut_equals
+Trace2Pass: Instrumenting function: yyjson_mut_obj_iter_init
+Trace2Pass: Instrumenting function: yyjson_mut_obj_iter_getn
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in yyjson_mut_obj_iter_getn
+Trace2Pass: Instrumenting function: yyjson_locate_pos
+Trace2Pass: Instrumenting function: is_utf8_bom
+Trace2Pass: Instrumenting function: yyjson_read_opts
+Trace2Pass: Instrumenting function: has_rflag
+Trace2Pass: Instrumenting function: char_is_ctn
+Trace2Pass: Instrumenting function: char_is_space
+Trace2Pass: Instrumenting function: char_is_trivia
+Trace2Pass: Instrumenting function: skip_trivia
+Trace2Pass: Instrumenting function: read_root_pretty
+Trace2Pass: Instrumented 7 arithmetic operations, 1 unreachable blocks, 38 division checks in read_root_pretty
+Trace2Pass: Instrumenting function: read_root_minify
+Trace2Pass: Instrumented 7 arithmetic operations, 1 unreachable blocks, 38 division checks in read_root_minify
+Trace2Pass: Instrumenting function: read_root_single
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in read_root_single
+Trace2Pass: Instrumenting function: is_utf32_bom
+Trace2Pass: Instrumenting function: is_utf16_bom
+Trace2Pass: Instrumenting function: yyjson_read_file
+Trace2Pass: Instrumenting function: fopen_readonly
+Trace2Pass: Instrumenting function: yyjson_read_fp
+Trace2Pass: Instrumented 2 arithmetic operations in yyjson_read_fp
+Trace2Pass: Instrumenting function: fread_safe
+Trace2Pass: Instrumenting function: yyjson_read_number
+Trace2Pass: Instrumenting function: read_num
+Trace2Pass: Instrumented 123 arithmetic operations, 1 unreachable blocks in read_num
+Trace2Pass: Instrumenting function: yyjson_incr_new
+Trace2Pass: Instrumenting function: yyjson_incr_free
+Trace2Pass: Instrumenting function: yyjson_incr_read
+Trace2Pass: Instrumented 7 arithmetic operations, 1 unreachable blocks, 34 division checks in yyjson_incr_read
+Trace2Pass: Instrumenting function: char_is_num
+Trace2Pass: Instrumenting function: read_str_con
+Trace2Pass: Instrumenting function: read_true
+Trace2Pass: Instrumenting function: read_false
+Trace2Pass: Instrumenting function: read_null
+Trace2Pass: Instrumenting function: is_truncated_end
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in is_truncated_end
+Trace2Pass: Instrumenting function: yyjson_write_number
+Trace2Pass: Instrumented 4 arithmetic operations in yyjson_write_number
+Trace2Pass: Instrumenting function: write_u64
+Trace2Pass: Instrumented 0 arithmetic operations, 3 division checks in write_u64
+Trace2Pass: Instrumenting function: write_f64_raw
+Trace2Pass: Instrumented 15 arithmetic operations in write_f64_raw
+Trace2Pass: Instrumenting function: write_f64_raw_fixed
+Trace2Pass: Instrumented 23 arithmetic operations, 1 division checks in write_f64_raw_fixed
+Trace2Pass: Instrumenting function: write_f32_raw
+Trace2Pass: Instrumented 16 arithmetic operations in write_f32_raw
+Trace2Pass: Instrumenting function: yyjson_val_write_opts
+Trace2Pass: Instrumenting function: write_root
+Trace2Pass: Instrumenting function: yyjson_write_opts
+Trace2Pass: Instrumenting function: yyjson_val_write_file
+Trace2Pass: Instrumenting function: write_dat_to_file
+Trace2Pass: Instrumenting function: yyjson_val_write_fp
+Trace2Pass: Instrumenting function: write_dat_to_fp
+Trace2Pass: Instrumenting function: yyjson_val_write_buf
+Trace2Pass: Instrumenting function: yyjson_write_file
+Trace2Pass: Instrumenting function: yyjson_write_fp
+Trace2Pass: Instrumenting function: yyjson_write_buf
+Trace2Pass: Instrumenting function: yyjson_mut_val_write_opts
+Trace2Pass: Instrumenting function: mut_write_root
+Trace2Pass: Instrumenting function: yyjson_mut_write_opts
+Trace2Pass: Instrumenting function: yyjson_mut_doc_estimated_val_num
+Trace2Pass: Instrumented 0 arithmetic operations, 2 division checks in yyjson_mut_doc_estimated_val_num
+Trace2Pass: Instrumenting function: yyjson_mut_val_write_file
+Trace2Pass: Instrumenting function: yyjson_mut_val_write_fp
+Trace2Pass: Instrumenting function: yyjson_mut_val_write_buf
+Trace2Pass: Instrumenting function: yyjson_mut_write_file
+Trace2Pass: Instrumenting function: yyjson_mut_write_fp
+Trace2Pass: Instrumenting function: yyjson_mut_write_buf
+Trace2Pass: Instrumenting function: unsafe_yyjson_ptr_getx
+Trace2Pass: Instrumenting function: ptr_next_token
+Trace2Pass: Instrumenting function: ptr_obj_get
+Trace2Pass: Instrumenting function: ptr_arr_get
+Trace2Pass: Instrumenting function: unsafe_yyjson_mut_ptr_getx
+Trace2Pass: Instrumenting function: ptr_mut_obj_get
+Trace2Pass: Instrumenting function: ptr_mut_arr_get
+Trace2Pass: Instrumenting function: unsafe_yyjson_mut_ptr_putx
+Trace2Pass: Instrumenting function: yyjson_mut_obj
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in yyjson_mut_obj
+Trace2Pass: Instrumenting function: ptr_new_key
+Trace2Pass: Instrumenting function: yyjson_mut_obj_add
+Trace2Pass: Instrumenting function: unsafe_yyjson_mut_obj_add
+Trace2Pass: Instrumenting function: yyjson_mut_obj_put
+Trace2Pass: Instrumenting function: unsafe_yyjson_set_len
+Trace2Pass: Instrumented 1 arithmetic operations in unsafe_yyjson_set_len
+Trace2Pass: Instrumenting function: yyjson_mut_arr_append
+Trace2Pass: Instrumenting function: unsafe_yyjson_mut_ptr_replacex
+Trace2Pass: Instrumenting function: yyjson_mut_is_obj
+Trace2Pass: Instrumenting function: yyjson_ptr_ctx_replace
+Trace2Pass: Instrumenting function: unsafe_yyjson_mut_ptr_removex
+Trace2Pass: Instrumenting function: yyjson_ptr_ctx_remove
+Trace2Pass: Instrumenting function: yyjson_patch
+Trace2Pass: Instrumenting function: yyjson_is_arr
+Trace2Pass: Instrumenting function: yyjson_arr_iter_init
+Trace2Pass: Instrumenting function: yyjson_arr_iter_next
+Trace2Pass: Instrumenting function: unsafe_yyjson_is_obj
+Trace2Pass: Instrumenting function: yyjson_obj_get
+Trace2Pass: Instrumenting function: yyjson_is_str
+Trace2Pass: Instrumenting function: patch_op_get
+Trace2Pass: Instrumenting function: yyjson_mut_ptr_addx
+Trace2Pass: Instrumenting function: yyjson_mut_ptr_removex
+Trace2Pass: Instrumenting function: yyjson_mut_ptr_replacex
+Trace2Pass: Instrumenting function: yyjson_mut_ptr_getx
+Trace2Pass: Instrumenting function: yyjson_mut_equals
+Trace2Pass: Instrumenting function: yyjson_mut_patch
+Trace2Pass: Instrumenting function: yyjson_mut_is_arr
+Trace2Pass: Instrumenting function: yyjson_mut_arr_iter_init
+Trace2Pass: Instrumenting function: yyjson_mut_arr_iter_next
+Trace2Pass: Instrumenting function: yyjson_mut_obj_get
+Trace2Pass: Instrumenting function: yyjson_mut_is_str
+Trace2Pass: Instrumenting function: yyjson_merge_patch
+Trace2Pass: Instrumenting function: yyjson_is_obj
+Trace2Pass: Instrumenting function: yyjson_obj_size
+Trace2Pass: Instrumenting function: yyjson_obj_getn
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in yyjson_obj_getn
+Trace2Pass: Instrumenting function: unsafe_yyjson_get_str
+Trace2Pass: Instrumenting function: unsafe_yyjson_is_null
+Trace2Pass: Instrumenting function: yyjson_mut_merge_patch
+Trace2Pass: Instrumenting function: yyjson_mut_obj_size
+Trace2Pass: Instrumenting function: yyjson_mut_obj_getn
+Trace2Pass: Instrumenting function: null_malloc
+Trace2Pass: Instrumenting function: null_realloc
+Trace2Pass: Instrumenting function: null_free
+Trace2Pass: Instrumenting function: size_is_pow2
+Trace2Pass: Instrumenting function: pool_size_align
+Trace2Pass: Instrumenting function: dyn_size_align
+Trace2Pass: Instrumenting function: dyn_chunk_list_add
+Trace2Pass: Instrumenting function: dyn_chunk_list_remove
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in dyn_chunk_list_remove
+Trace2Pass: Instrumenting function: unsafe_yyjson_is_ctn
+Trace2Pass: Instrumenting function: unsafe_yyjson_get_tag
+Trace2Pass: Instrumenting function: unsafe_yyjson_mut_str_alc
+Trace2Pass: Instrumenting function: unsafe_yyjson_equals_strn
+Trace2Pass: Instrumenting function: unsafe_yyjson_get_subtype
+Trace2Pass: Instrumenting function: byte_load_3
+Trace2Pass: Instrumenting function: char_is_space_ext
+Trace2Pass: Instrumenting function: ext_space_len
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in ext_space_len
+Trace2Pass: Instrumenting function: char_is_eol_ext
+Trace2Pass: Instrumenting function: ext_eol_len
+Trace2Pass: Instrumenting function: char_is_eol
+Trace2Pass: Instrumenting function: byte_match_2
+Trace2Pass: Instrumenting function: byte_load_2
+Trace2Pass: Instrumenting function: read_str
+Trace2Pass: Instrumenting function: read_nan
+Trace2Pass: Instrumented 1 arithmetic operations in read_nan
+Trace2Pass: Instrumenting function: read_inf_or_nan
+Trace2Pass: Instrumenting function: read_str_sq
+Trace2Pass: Instrumenting function: char_is_id_start
+Trace2Pass: Instrumenting function: read_str_id
+Trace2Pass: Instrumented 4 arithmetic operations in read_str_id
+Trace2Pass: Instrumenting function: read_str_opt
+Trace2Pass: Instrumented 3 arithmetic operations in read_str_opt
+Trace2Pass: Instrumenting function: char_is_ascii_skip
+Trace2Pass: Instrumenting function: char_is_ascii_skip_sq
+Trace2Pass: Instrumenting function: byte_load_4
+Trace2Pass: Instrumenting function: read_uni_esc
+Trace2Pass: Instrumented 7 arithmetic operations in read_uni_esc
+Trace2Pass: Instrumenting function: char_is_digit
+Trace2Pass: Instrumenting function: hex_load_2
+Trace2Pass: Instrumented 1 arithmetic operations in hex_load_2
+Trace2Pass: Instrumenting function: byte_move_16
+Trace2Pass: Instrumenting function: byte_move_forward
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks, 1 division checks in byte_move_forward
+Trace2Pass: Instrumenting function: byte_copy_4
+Trace2Pass: Instrumenting function: byte_copy_2
+Trace2Pass: Instrumenting function: hex_load_4
+Trace2Pass: Instrumented 3 arithmetic operations in hex_load_4
+Trace2Pass: Instrumenting function: byte_move_8
+Trace2Pass: Instrumenting function: byte_move_4
+Trace2Pass: Instrumenting function: byte_move_2
+Trace2Pass: Instrumenting function: char_is_sign
+Trace2Pass: Instrumenting function: char_to_lower
+Trace2Pass: Instrumenting function: f64_bits_nan
+Trace2Pass: Instrumented 1 arithmetic operations in f64_bits_nan
+Trace2Pass: Instrumenting function: read_inf
+Trace2Pass: Instrumented 1 arithmetic operations in read_inf
+Trace2Pass: Instrumenting function: f64_bits_inf
+Trace2Pass: Instrumented 1 arithmetic operations in f64_bits_inf
+Trace2Pass: Instrumenting function: char_is_id_ascii
+Trace2Pass: Instrumenting function: char_is_id_next
+Trace2Pass: Instrumenting function: fopen_safe
+Trace2Pass: Instrumenting function: read_num_raw
+Trace2Pass: Instrumented 5 arithmetic operations, 1 unreachable blocks in read_num_raw
+Trace2Pass: Instrumenting function: char_is_nonzero
+Trace2Pass: Instrumenting function: char_is_digit_or_fp
+Trace2Pass: Instrumenting function: read_num_hex
+Trace2Pass: Instrumented 4 arithmetic operations, 1 unreachable blocks in read_num_hex
+Trace2Pass: Instrumenting function: char_is_exp
+Trace2Pass: Instrumenting function: unsafe_yyjson_u64_to_f64
+Trace2Pass: Instrumenting function: char_is_fp
+Trace2Pass: Instrumenting function: pow10_table_get_sig
+Trace2Pass: Instrumented 4 arithmetic operations in pow10_table_get_sig
+Trace2Pass: Instrumenting function: pow10_table_get_exp
+Trace2Pass: Instrumented 3 arithmetic operations in pow10_table_get_exp
+Trace2Pass: Instrumenting function: u64_lz_bits
+Trace2Pass: Instrumenting function: u128_mul
+Trace2Pass: Instrumented 1 arithmetic operations in u128_mul
+Trace2Pass: Instrumenting function: diy_fp_mul
+Trace2Pass: Instrumented 3 arithmetic operations in diy_fp_mul
+Trace2Pass: Instrumenting function: diy_fp_get_cached_pow10
+Trace2Pass: Instrumented 1 arithmetic operations in diy_fp_get_cached_pow10
+Trace2Pass: Instrumenting function: diy_fp_to_ieee_raw
+Trace2Pass: Instrumented 10 arithmetic operations in diy_fp_to_ieee_raw
+Trace2Pass: Instrumenting function: bigint_set_buf
+Trace2Pass: Instrumented 3 arithmetic operations, 1 division checks in bigint_set_buf
+Trace2Pass: Instrumenting function: bigint_set_u64
+Trace2Pass: Instrumenting function: bigint_mul_pow10
+Trace2Pass: Instrumented 1 arithmetic operations in bigint_mul_pow10
+Trace2Pass: Instrumenting function: bigint_mul_pow2
+Trace2Pass: Instrumented 3 arithmetic operations, 2 division checks in bigint_mul_pow2
+Trace2Pass: Instrumenting function: bigint_cmp
+Trace2Pass: Instrumenting function: char_is_hex
+Trace2Pass: Instrumenting function: bigint_add_u64
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in bigint_add_u64
+Trace2Pass: Instrumenting function: bigint_mul_u64
+Trace2Pass: Instrumenting function: u128_mul_add
+Trace2Pass: Instrumented 1 arithmetic operations in u128_mul_add
+Trace2Pass: Instrumenting function: byte_match_4
+Trace2Pass: Instrumenting function: is_truncated_str
+Trace2Pass: Instrumenting function: is_truncated_utf8
+Trace2Pass: Instrumented 6 arithmetic operations in is_truncated_utf8
+Trace2Pass: Instrumenting function: write_u32_len_1_to_8
+Trace2Pass: Instrumented 6 arithmetic operations in write_u32_len_1_to_8
+Trace2Pass: Instrumenting function: write_u32_len_8
+Trace2Pass: Instrumented 3 arithmetic operations in write_u32_len_8
+Trace2Pass: Instrumenting function: write_u32_len_5_to_8
+Trace2Pass: Instrumented 5 arithmetic operations in write_u32_len_5_to_8
+Trace2Pass: Instrumenting function: write_u32_len_4
+Trace2Pass: Instrumented 1 arithmetic operations in write_u32_len_4
+Trace2Pass: Instrumenting function: write_inf_or_nan
+Trace2Pass: Instrumenting function: u64_tz_bits
+Trace2Pass: Instrumenting function: write_u64_len_1_to_16
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in write_u64_len_1_to_16
+Trace2Pass: Instrumenting function: f64_bin_to_dec
+Trace2Pass: Instrumented 25 arithmetic operations, 1 unreachable blocks, 3 division checks in f64_bin_to_dec
+Trace2Pass: Instrumenting function: write_u64_len_16_to_17_trim
+Trace2Pass: Instrumented 7 arithmetic operations, 2 division checks in write_u64_len_16_to_17_trim
+Trace2Pass: Instrumenting function: write_f64_exp
+Trace2Pass: Instrumented 4 arithmetic operations in write_f64_exp
+Trace2Pass: Instrumenting function: write_u64_len_1_to_17
+Trace2Pass: Instrumented 1 arithmetic operations, 3 division checks in write_u64_len_1_to_17
+Trace2Pass: Instrumenting function: has_wflag
+Trace2Pass: Instrumenting function: byte_copy_8
+Trace2Pass: Instrumenting function: u128_round_to_odd
+Trace2Pass: Instrumenting function: f64_bin_to_dec_fast
+Trace2Pass: Instrumented 10 arithmetic operations in f64_bin_to_dec_fast
+Trace2Pass: Instrumenting function: div_pow10
+Trace2Pass: Instrumented 2 arithmetic operations in div_pow10
+Trace2Pass: Instrumenting function: f32_to_bits
+Trace2Pass: Instrumenting function: f64_to_f32
+Trace2Pass: Instrumenting function: f64_from_bits
+Trace2Pass: Instrumenting function: f32_bin_to_dec
+Trace2Pass: Instrumented 26 arithmetic operations, 1 unreachable blocks, 3 division checks in f32_bin_to_dec
+Trace2Pass: Instrumenting function: write_u32_len_7_to_9_trim
+Trace2Pass: Instrumented 3 arithmetic operations, 1 division checks in write_u32_len_7_to_9_trim
+Trace2Pass: Instrumenting function: write_f32_exp
+Trace2Pass: Instrumented 2 arithmetic operations in write_f32_exp
+Trace2Pass: Instrumenting function: u64_round_to_odd
+Trace2Pass: Instrumented 1 arithmetic operations in u64_round_to_odd
+Trace2Pass: Instrumenting function: write_root_single
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in write_root_single
+Trace2Pass: Instrumenting function: write_root_pretty
+Trace2Pass: Instrumented 7 arithmetic operations, 1 unreachable blocks, 17 division checks in write_root_pretty
+Trace2Pass: Instrumenting function: write_root_minify
+Trace2Pass: Instrumented 7 arithmetic operations, 1 unreachable blocks, 15 division checks in write_root_minify
+Trace2Pass: Instrumenting function: get_enc_table_with_flag
+Trace2Pass: Instrumenting function: write_raw
+Trace2Pass: Instrumenting function: write_str_noesc
+Trace2Pass: Instrumenting function: write_str
+Trace2Pass: Instrumented 20 arithmetic operations, 1 division checks in write_str
+Trace2Pass: Instrumenting function: write_num
+Trace2Pass: Instrumented 5 arithmetic operations in write_num
+Trace2Pass: Instrumenting function: write_bool
+Trace2Pass: Instrumenting function: unsafe_yyjson_get_bool
+Trace2Pass: Instrumented 1 arithmetic operations in unsafe_yyjson_get_bool
+Trace2Pass: Instrumenting function: write_null
+Trace2Pass: Instrumenting function: byte_copy_16
+Trace2Pass: Instrumenting function: write_indent
+Trace2Pass: Instrumenting function: yyjson_write_ctx_set
+Trace2Pass: Instrumented 1 arithmetic operations in yyjson_write_ctx_set
+Trace2Pass: Instrumenting function: yyjson_write_ctx_get
+Trace2Pass: Instrumented 1 arithmetic operations in yyjson_write_ctx_get
+Trace2Pass: Instrumenting function: fopen_writeonly
+Trace2Pass: Instrumenting function: mut_write_root_single
+Trace2Pass: Instrumenting function: mut_write_root_pretty
+Trace2Pass: Instrumented 7 arithmetic operations, 1 unreachable blocks, 16 division checks in mut_write_root_pretty
+Trace2Pass: Instrumenting function: mut_write_root_minify
+Trace2Pass: Instrumented 7 arithmetic operations, 1 unreachable blocks, 14 division checks in mut_write_root_minify
+Trace2Pass: Instrumenting function: yyjson_mut_write_ctx_set
+Trace2Pass: Instrumented 1 arithmetic operations in yyjson_mut_write_ctx_set
+Trace2Pass: Instrumenting function: yyjson_mut_write_ctx_get
+Trace2Pass: Instrumented 1 arithmetic operations in yyjson_mut_write_ctx_get
+Trace2Pass: Instrumenting function: ptr_token_eq
+Trace2Pass: Instrumenting function: ptr_token_to_idx
+Trace2Pass: Instrumented 1 arithmetic operations in ptr_token_to_idx
+Trace2Pass: Instrumenting function: unsafe_yyjson_arr_is_flat
+Trace2Pass: Instrumented 1 arithmetic operations in unsafe_yyjson_arr_is_flat
+Trace2Pass: Instrumenting function: yyjson_mut_strncpy
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in yyjson_mut_strncpy
+Trace2Pass: Instrumenting function: yyjson_mut_strn
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in yyjson_mut_strn
+Trace2Pass: Instrumenting function: unsafe_yyjson_set_strn
+Trace2Pass: Instrumenting function: unsafe_yyjson_set_tag
+Trace2Pass: Instrumented 1 arithmetic operations in unsafe_yyjson_set_tag
+Trace2Pass: Instrumenting function: yyjson_mut_obj_iter_next
+Trace2Pass: Instrumenting function: yyjson_mut_obj_iter_remove
+Trace2Pass: Instrumenting function: unsafe_yyjson_is_arr
+Trace2Pass: Instrumenting function: unsafe_yyjson_is_str
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumenting function: yyjson_read
+Trace2Pass: Instrumenting function: yyjson_doc_get_root
+Trace2Pass: Instrumenting function: yyjson_obj_get
+Trace2Pass: Instrumenting function: yyjson_get_str
+Trace2Pass: Instrumenting function: yyjson_doc_free
+Trace2Pass: Instrumenting function: yyjson_arr_size
+Trace2Pass: Instrumenting function: yyjson_obj_getn
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in yyjson_obj_getn
+Trace2Pass: Instrumenting function: yyjson_is_obj
+Trace2Pass: Instrumenting function: unsafe_yyjson_get_len
+Trace2Pass: Instrumented 1 arithmetic operations in unsafe_yyjson_get_len
+Trace2Pass: Instrumenting function: unsafe_yyjson_get_first
+Trace2Pass: Instrumenting function: unsafe_yyjson_equals_strn
+Trace2Pass: Instrumenting function: unsafe_yyjson_get_next
+Trace2Pass: Instrumenting function: unsafe_yyjson_is_obj
+Trace2Pass: Instrumenting function: unsafe_yyjson_get_type
+Trace2Pass: Instrumenting function: unsafe_yyjson_is_ctn
+Trace2Pass: Instrumenting function: unsafe_yyjson_get_tag
+Trace2Pass: Instrumenting function: yyjson_is_str
+Trace2Pass: Instrumenting function: unsafe_yyjson_get_str
+Trace2Pass: Instrumenting function: unsafe_yyjson_is_str
+Trace2Pass: Instrumenting function: yyjson_is_arr
+Trace2Pass: Instrumenting function: unsafe_yyjson_is_arr
+--- Test ---
+TEST_EXIT=0
+--- Test stdout ---
+yyjson: parsed OK, name=trace2pass, 3 items
+--- Test stderr ---
+Trace2Pass: Runtime initialized (sample_rate=0.010, opt_level=unknown)
+Trace2Pass: Runtime shutting down
+--- Anomaly scan ---
+ANOMALY_COUNT=2
+--- Done ---
