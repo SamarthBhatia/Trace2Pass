@@ -21,11 +21,17 @@ fi
 
 echo "[part2] Done $(date -u +%Y%m%dT%H%M%SZ)"
 
-if [ -x "$ROOT/evaluation/scripts/run_part3.sh" ]; then
-    echo "[part2] Launching Part 3..."
-    nohup bash "$ROOT/evaluation/scripts/run_part3.sh" > "$ROOT/evaluation/results/part3_run.log" 2>&1 &
-    disown
-    echo "[part2] Part 3 PID: $!"
-else
-    echo "[part2] run_part3.sh missing — stopping here"
+# Part 3 data from the previous run is still valid; we only re-ran Part 2
+# because of a detection-parser bug. So skip Part 3 re-run and go directly
+# to doc regeneration with fresh Part 2 numbers + existing Part 3 numbers.
+echo "[part2] Regenerating thesis docs (Part 3 data is unchanged)..."
+python3 "$ROOT/evaluation/scripts/generate_thesis_docs.py" 2>&1 || \
+    echo "[part2] WARN: doc regen failed"
+
+cd "$ROOT"
+git add evaluation/*.md 2>/dev/null || true
+if ! git diff --cached --quiet 2>/dev/null; then
+    git commit -m "docs(evaluation): regenerate thesis writeups with fixed Part 2 detection numbers" || true
 fi
+
+echo "[part2] All done $(date -u +%Y%m%dT%H%M%SZ)"
