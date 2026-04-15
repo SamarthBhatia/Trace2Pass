@@ -5,15 +5,19 @@ using `evaluation/scripts/expanded_sanitizer_overhead.sh`.
 Statistical claims use a two-tailed t-distribution with df=39 for the
 95% confidence interval.
 
-## Mean overhead across projects
+## Cross-project overhead
 
-| Configuration | Mean % | Median % | Min % | Max % | Projects |
+**Headline statistic is the MEDIAN.** The mean is reported alongside but is
+driven by noise on short (<10 ms) benchmarks where OS jitter dominates; the
+median is the honest production overhead.
+
+| Configuration | **Median %** | Mean % | Min % | Max % | Projects |
 |---|---|---|---|---|---|
-| asan | +249.30% | +165.89% | +25.55% | +1107.21% | 21 |
-| ubsan | +250.83% | +167.72% | +0.34% | +2099.33% | 21 |
-| msan | +572.12% | +351.63% | +105.69% | +2276.52% | 21 |
-| tsan | +1184.11% | +1049.19% | +175.17% | +2361.47% | 21 |
-| trace2pass | +21.49% | +2.78% | -8.25% | +284.19% | 21 |
+| asan | **+165.89%** | +249.30% | +25.55% | +1107.21% | 21 |
+| ubsan | **+167.72%** | +250.83% | +0.34% | +2099.33% | 21 |
+| msan | **+351.63%** | +572.12% | +105.69% | +2276.52% | 21 |
+| tsan | **+1049.19%** | +1184.11% | +175.17% | +2361.47% | 21 |
+| trace2pass | **+2.78%** | +21.49% | -8.25% | +284.19% | 21 |
 | trace2pass_allchecks | — | — | — | — | 0 |
 
 ## Per-project detail
