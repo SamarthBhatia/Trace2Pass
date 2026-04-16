@@ -82,7 +82,7 @@ build_and_measure() {
     local name="$1"; shift
     local env_args=("$@")
 
-    echo "[scaling] Config: $name"
+    echo "[scaling] Config: $name" >&2
 
     # Build env string for clang invocation
     local ENV_STR=""
@@ -126,7 +126,7 @@ build_and_measure() {
     set -e
 
     if [ ! -f "$BIN" ] || [ "${ALL_OK:-0}" -ne 1 ]; then
-        echo "  BUILD_FAIL"
+        echo "  BUILD_FAIL" >&2
         echo "BUILD_FAIL"
         return
     fi
@@ -144,7 +144,7 @@ build_and_measure() {
         TIMES="${TIMES}${ms},"
     done
     TIMES="${TIMES%,}"
-    echo "  samples: [$TIMES]"
+    echo "  samples: [$TIMES]" >&2
     echo "$TIMES"
 }
 
