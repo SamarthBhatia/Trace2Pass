@@ -73,6 +73,18 @@ void trace2pass_report_value_propagation(void* pc, const char* file, int line,
 
 int trace2pass_should_sample(void);
 
+// Per-check sampling. Heavy checks (cross_bb, sign_conversion, store_load,
+// gep_bounds) can be sampled at independent rates via:
+//   TRACE2PASS_SAMPLE_RATE_CROSS_BB
+//   TRACE2PASS_SAMPLE_RATE_SIGN_CONVERSION
+//   TRACE2PASS_SAMPLE_RATE_STORE_LOAD
+//   TRACE2PASS_SAMPLE_RATE_GEP_BOUNDS
+// When unset, the per-check rate falls back to the global TRACE2PASS_SAMPLE_RATE.
+int trace2pass_should_sample_cross_bb(void);
+int trace2pass_should_sample_sign_conversion(void);
+int trace2pass_should_sample_store_load(void);
+int trace2pass_should_sample_gep_bounds(void);
+
 // Backend Checksum (miscompilation detection)
 // Accumulates a deterministic checksum of function return values.
 // Compare O0 vs Ox checksums to detect backend codegen bugs.

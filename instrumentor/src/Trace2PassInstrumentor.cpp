@@ -80,6 +80,15 @@ private:
   FunctionCallee getValuePropagationReportFunc(Module &M);
   FunctionCallee getCrossBBCheckFunc(Module &M);
   FunctionCallee getShouldSampleFunc(Module &M);
+  // Per-check sampling getters. Each returns a runtime function whose
+  // sampling rate can be tuned independently of the global rate via
+  // TRACE2PASS_SAMPLE_RATE_<CHECK> env vars. Used to keep the heavy
+  // checks (cross_bb, sign_conversion, store_load, gep_bounds) cheap
+  // even at production sampling rates.
+  FunctionCallee getShouldSampleCrossBBFunc(Module &M);
+  FunctionCallee getShouldSampleSignConversionFunc(Module &M);
+  FunctionCallee getShouldSampleStoreLoadFunc(Module &M);
+  FunctionCallee getShouldSampleGEPBoundsFunc(Module &M);
   FunctionCallee getAccumulateChecksumFunc(Module &M);
 
   // Cross-BB consistency helpers
@@ -931,8 +940,9 @@ bool Trace2PassInstrumentorPass::instrumentSignConversions(Function &F) {
     // Now check sampling in the "then" block
     Builder.SetInsertPoint(ThenTerm);
 
-    // Call trace2pass_should_sample() to decide if we should report
-    FunctionCallee ShouldSampleFunc = getShouldSampleFunc(M);
+    // Use the per-check sampling rate so sign_conversion can be tuned
+    // independently of the global rate (it is one of the heaviest checks).
+    FunctionCallee ShouldSampleFunc = getShouldSampleSignConversionFunc(M);
     Value *ShouldSample = Builder.CreateCall(ShouldSampleFunc);
     Value *ShouldReport = Builder.CreateICmpNE(ShouldSample, Builder.getInt32(0), "should_report");
 
@@ -1260,6 +1270,31 @@ FunctionCallee Trace2PassInstrumentorPass::getShouldSampleFunc(Module &M) {
       false);
 
   return M.getOrInsertFunction("trace2pass_should_sample", FT);
+}
+
+// Per-check sampling getters. All share the same `int (void)` signature as
+// the global trace2pass_should_sample; only the underlying runtime function
+// differs so each check can be sampled at its own rate.
+static FunctionCallee getNullaryInt32Func(Module &M, const char *name) {
+  LLVMContext &Ctx = M.getContext();
+  FunctionType *FT = FunctionType::get(Type::getInt32Ty(Ctx), {}, false);
+  return M.getOrInsertFunction(name, FT);
+}
+
+FunctionCallee Trace2PassInstrumentorPass::getShouldSampleCrossBBFunc(Module &M) {
+  return getNullaryInt32Func(M, "trace2pass_should_sample_cross_bb");
+}
+
+FunctionCallee Trace2PassInstrumentorPass::getShouldSampleSignConversionFunc(Module &M) {
+  return getNullaryInt32Func(M, "trace2pass_should_sample_sign_conversion");
+}
+
+FunctionCallee Trace2PassInstrumentorPass::getShouldSampleStoreLoadFunc(Module &M) {
+  return getNullaryInt32Func(M, "trace2pass_should_sample_store_load");
+}
+
+FunctionCallee Trace2PassInstrumentorPass::getShouldSampleGEPBoundsFunc(Module &M) {
+  return getNullaryInt32Func(M, "trace2pass_should_sample_gep_bounds");
 }
 
 // Instrument loop iteration bounds
@@ -2089,9 +2124,20 @@ bool Trace2PassInstrumentorPass::instrumentCrossBBConsistency(Function &F) {
     // Extract source location
     LocationInfo Loc = extractLocation(Builder, LI);
 
-    // Single consolidated call: read + compare + report all in runtime.
-    // This produces NO branches in the IR, minimizing CFG disruption
-    // so GVN can still fold the load (exercising potential bugs).
+    // Gate the check on per-check sampling so cross_bb can be tuned
+    // independently of the global rate. Cross_bb's runtime cost is
+    // ~100-1000x the default checks; even 1% sampling turns a 90x
+    // slowdown into a ~1x slowdown in hot loops.
+    //
+    // CRITICAL: the load instruction (LI) remains UNCONDITIONAL above
+    // this point. Only the check call is moved inside the conditional
+    // block, so GVN can still fold the load and exercise the bug.
+    FunctionCallee SampleFunc = getShouldSampleCrossBBFunc(M);
+    Value *ShouldSample = Builder.CreateCall(SampleFunc);
+    Value *DoCheck = Builder.CreateICmpNE(ShouldSample, Builder.getInt32(0), "cb_do_check");
+    Instruction *ThenTerm = SplitBlockAndInsertIfThen(DoCheck, InsertPt, false);
+    Builder.SetInsertPoint(ThenTerm);
+
     Value *PtrCast = Builder.CreateBitCast(Ptr, Builder.getPtrTy());
     Builder.CreateCall(CheckFunc, {PtrCast, Builder.getInt32(SizeBytes),
                                     Loaded_i64, Loc.File, Loc.Line, Loc.Function});

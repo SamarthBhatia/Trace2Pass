@@ -49,6 +49,14 @@
 
 // Configuration
 static double sample_rate = 0.10;  // Default: 10%
+// Per-check sample rates. -1.0 means "use the global sample_rate".
+// These let heavy checks (cross_bb, sign_conversion, store_load, gep_bounds)
+// sample independently of the global rate, which is critical because their
+// per-call cost is 100-1000x higher than the cheap default checks.
+static double sample_rate_cross_bb         = -1.0;
+static double sample_rate_sign_conversion  = -1.0;
+static double sample_rate_store_load       = -1.0;
+static double sample_rate_gep_bounds       = -1.0;
 static FILE* output_file = NULL;
 static char* collector_url = NULL;  // Collector API endpoint (optional)
 static int json_output = 0;  // If 1, output JSON to stderr instead of plain text
@@ -267,6 +275,23 @@ void trace2pass_init(void) {
         sample_rate = atof(rate_env);
         if (sample_rate < 0.0) sample_rate = 0.0;
         if (sample_rate > 1.0) sample_rate = 1.0;
+    }
+
+    // Per-check sample rates. Defaults to global rate when env var is absent.
+    struct { const char* name; double* var; } per_check_rates[] = {
+        { "TRACE2PASS_SAMPLE_RATE_CROSS_BB",        &sample_rate_cross_bb        },
+        { "TRACE2PASS_SAMPLE_RATE_SIGN_CONVERSION", &sample_rate_sign_conversion },
+        { "TRACE2PASS_SAMPLE_RATE_STORE_LOAD",      &sample_rate_store_load      },
+        { "TRACE2PASS_SAMPLE_RATE_GEP_BOUNDS",      &sample_rate_gep_bounds      },
+    };
+    for (size_t i = 0; i < sizeof(per_check_rates)/sizeof(per_check_rates[0]); i++) {
+        const char* v = getenv(per_check_rates[i].name);
+        if (v) {
+            double r = atof(v);
+            if (r < 0.0) r = 0.0;
+            if (r > 1.0) r = 1.0;
+            *per_check_rates[i].var = r;
+        }
     }
 
     const char* output_env = getenv("TRACE2PASS_OUTPUT");
@@ -766,9 +791,11 @@ static uint32_t portable_random_uniform(uint32_t upper_bound) {
 }
 
 // Sampling
-int trace2pass_should_sample(void) {
-    if (sample_rate >= 1.0) return 1;
-    if (sample_rate <= 0.0) return 0;
+// Internal helper: take a [0, 1) sample and compare against the supplied rate.
+// Reused by both the global trace2pass_should_sample() and per-check variants.
+static int trace2pass_sample_at_rate(double rate) {
+    if (rate >= 1.0) return 1;
+    if (rate <= 0.0) return 0;
 
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
     // BSD/macOS: arc4random_uniform returns [0, upper_bound)
@@ -796,7 +823,35 @@ int trace2pass_should_sample(void) {
     double random_double = result / (double)RAND_MAX;  // Scale by RAND_MAX, not UINT32_MAX!
 #endif
 
-    return random_double < sample_rate;
+    return random_double < rate;
+}
+
+int trace2pass_should_sample(void) {
+    return trace2pass_sample_at_rate(sample_rate);
+}
+
+// Per-check sampling. Each check honors its own rate when set, otherwise
+// falls back to the global rate. This lets the heavy checks (cross_bb,
+// sign_conversion, store_load, gep_bounds) be sampled at, e.g., 1% while
+// the cheap default checks stay at the production-default 10%.
+int trace2pass_should_sample_cross_bb(void) {
+    return trace2pass_sample_at_rate(
+        sample_rate_cross_bb >= 0.0 ? sample_rate_cross_bb : sample_rate);
+}
+
+int trace2pass_should_sample_sign_conversion(void) {
+    return trace2pass_sample_at_rate(
+        sample_rate_sign_conversion >= 0.0 ? sample_rate_sign_conversion : sample_rate);
+}
+
+int trace2pass_should_sample_store_load(void) {
+    return trace2pass_sample_at_rate(
+        sample_rate_store_load >= 0.0 ? sample_rate_store_load : sample_rate);
+}
+
+int trace2pass_should_sample_gep_bounds(void) {
+    return trace2pass_sample_at_rate(
+        sample_rate_gep_bounds >= 0.0 ? sample_rate_gep_bounds : sample_rate);
 }
 
 // Backend Checksum Accumulation
