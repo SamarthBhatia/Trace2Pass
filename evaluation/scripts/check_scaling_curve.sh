@@ -22,15 +22,16 @@ RUNS=40
 # 21 projects that passed Part 1 tool comparison
 PROJECTS="sqlite lz4 zlib cjson lua xxhash utf8proc zstd yyjson picohttpparser miniz tinyexpr monocypher dr_libs duktape jsmn stb_image stb_sprintf miniaudio snappy libyaml"
 
+OUTDIR="$PROJECT_ROOT/evaluation/results/check_scaling"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --runs) RUNS="$2"; shift 2 ;;
         --projects) PROJECTS="$2"; shift 2 ;;
+        --output-dir) OUTDIR="$2"; shift 2 ;;
         *) echo "Unknown: $1"; exit 1 ;;
     esac
 done
 
-OUTDIR="$PROJECT_ROOT/evaluation/results/check_scaling"
 mkdir -p "$OUTDIR"
 
 # The 9 optional checks, ordered cheap→expensive per Part A results.
