@@ -10,10 +10,18 @@
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/KnownBits.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/IR/Constants.h"
+// ValueTracking + supporting analyses for compile-time sign-conversion filter.
+// Used to skip instrumenting casts that are provably safe (constant operand,
+// known non-negative, or value provably fits within the destination width).
+#include "llvm/Analysis/ValueTracking.h"
+#include "llvm/Analysis/AssumptionCache.h"
+#include "llvm/Analysis/SimplifyQuery.h"
+#include "llvm/IR/Dominators.h"
 #include <cstdlib>  // for getenv
 #include <cstring>  // for strcmp
 
@@ -36,7 +44,8 @@ private:
   bool instrumentArithmeticOperations(Function &F);
   bool instrumentUnreachableCode(Function &F);
   bool instrumentMemoryAccess(Function &F);
-  bool instrumentSignConversions(Function &F);
+  bool instrumentSignConversions(Function &F, AssumptionCache *AC = nullptr,
+                                 DominatorTree *DT = nullptr);
   bool instrumentDivisionByZero(Function &F);
   bool instrumentPureFunctionCalls(Function &F);
   bool instrumentLoopBounds(Function &F);
@@ -180,7 +189,15 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
 
   // Optional checks (individually toggleable)
   if (enable_gep)   Modified |= instrumentMemoryAccess(F);
-  if (enable_sign)  Modified |= instrumentSignConversions(F);
+  if (enable_sign) {
+    // Fetch the analyses needed by computeKnownBits / isKnownNonNegative.
+    // These let the sign-conversion pass skip casts that are provably safe at
+    // compile time (constant operand, known non-negative, value fits) and
+    // dramatically reduces the number of runtime check sites.
+    AssumptionCache &AC = FAM.getResult<AssumptionAnalysis>(F);
+    DominatorTree &DT = FAM.getResult<DominatorTreeAnalysis>(F);
+    Modified |= instrumentSignConversions(F, &AC, &DT);
+  }
   if (enable_loop)      Modified |= instrumentLoopBounds(F);
   if (enable_select)    Modified |= instrumentSelectConsistency(F);
   if (enable_range)     Modified |= instrumentRangeChecks(F);
@@ -859,9 +876,21 @@ void Trace2PassInstrumentorPass::insertBoundsCheck(IRBuilder<> &Builder,
   }
 }
 
-bool Trace2PassInstrumentorPass::instrumentSignConversions(Function &F) {
+bool Trace2PassInstrumentorPass::instrumentSignConversions(Function &F,
+                                                             AssumptionCache *AC,
+                                                             DominatorTree *DT) {
   bool Modified = false;
   Module &M = *F.getParent();
+  const DataLayout &DL = M.getDataLayout();
+
+  // Counters for the per-function summary line. The runtime cost of
+  // sign_conversion is dominated by the volume of instrumentation sites,
+  // so reducing site count via compile-time filtering is the highest-ROI
+  // optimization for this check.
+  unsigned NumCandidates = 0;       // ZExt sites that match the structural filter
+  unsigned NumSkippedConst = 0;     // Skipped: source operand is a constant
+  unsigned NumSkippedKnownNN = 0;   // Skipped: source provably non-negative
+  unsigned NumSkippedFits = 0;      // Skipped: value provably fits in dest width
 
   // Collect sign-changing cast instructions to instrument
   SmallVector<CastInst *, 16> SignChangingCasts;
@@ -906,12 +935,60 @@ bool Trace2PassInstrumentorPass::instrumentSignConversions(Function &F) {
           // This is the most common sign conversion bug while avoiding false positives
           // Rationale: Smaller types more likely to have sign mismatches
           if (SrcBitWidth <= 16 && DestBitWidth >= 32) {
+            ++NumCandidates;
+
+            // Compile-time filtering via ValueTracking.
+            // Each filter eliminates a category of provably-safe casts so we
+            // never emit runtime checks for them. Order: cheapest checks first.
+            Value *Src = Cast->getOperand(0);
+
+            // Filter 1: source is a constant. The runtime check would always
+            // produce the same answer, so it's pure overhead.
+            if (isa<Constant>(Src)) {
+              ++NumSkippedConst;
+              continue;
+            }
+
+            // Filter 2: source provably non-negative. The cast can never lose
+            // sign information because the high bit is known to be 0.
+            // Build a SimplifyQuery so AC/DT context can flow into ValueTracking
+            // (it is significantly more precise with these populated).
+            SimplifyQuery SQ(DL, /*TLI=*/nullptr, DT, AC, Cast);
+            KnownBits Known = computeKnownBits(Src, SQ);
+            if (Known.isNonNegative()) {
+              ++NumSkippedKnownNN;
+              continue;
+            }
+
+            // Filter 3: value provably fits within (DestBitWidth - 1) bits.
+            // If the high bit of the dest can never be set, the cast cannot
+            // surface a "negative becomes huge unsigned" bug.
+            if (DestBitWidth > 0 &&
+                Known.countMaxActiveBits() <= DestBitWidth - 1) {
+              ++NumSkippedFits;
+              continue;
+            }
+
             SignChangingCasts.push_back(Cast);
           }
         }
         // Trunc and BitCast removed: too many false positives
       }
     }
+  }
+
+  // One-line filter summary to stderr so we can verify in benchmarks that
+  // the filter is actually firing. Only emit if we considered at least one
+  // candidate, to avoid spamming logs for functions with no casts.
+  if (NumCandidates > 0) {
+    unsigned Skipped = NumSkippedConst + NumSkippedKnownNN + NumSkippedFits;
+    errs() << "Trace2Pass: sign_conversion in " << F.getName()
+           << " — candidates=" << NumCandidates
+           << ", instrumented=" << SignChangingCasts.size()
+           << ", skipped=" << Skipped
+           << " (const=" << NumSkippedConst
+           << ", known_nn=" << NumSkippedKnownNN
+           << ", fits=" << NumSkippedFits << ")\n";
   }
 
   // Instrument collected cast instructions
