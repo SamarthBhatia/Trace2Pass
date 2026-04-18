@@ -2170,7 +2170,13 @@ bool Trace2PassInstrumentorPass::instrumentCrossBBConsistency(Function &F) {
   if (ToInstrument.empty())
     return false;
 
-  FunctionCallee CheckFunc = getCrossBBCheckFunc(M);
+  // Phase 3: we no longer call the wrapper trace2pass_check_cross_bb.
+  // Instead we inline the compare-and-maybe-report sequence in IR, so the
+  // common path (sampled, match) costs only: one opaque_read call + icmp
+  // + branch. The wrapper function call (and its return overhead) is
+  // removed from every check.
+  FunctionCallee OpaqueReadFunc = getOpaqueReadFunc(M);
+  FunctionCallee ReportFunc = getValuePropagationReportFunc(M);
 
   for (LoadInst *LI : ToInstrument) {
     Type *LoadedTy = LI->getType();
@@ -2212,12 +2218,32 @@ bool Trace2PassInstrumentorPass::instrumentCrossBBConsistency(Function &F) {
     FunctionCallee SampleFunc = getShouldSampleCrossBBFunc(M);
     Value *ShouldSample = Builder.CreateCall(SampleFunc);
     Value *DoCheck = Builder.CreateICmpNE(ShouldSample, Builder.getInt32(0), "cb_do_check");
-    Instruction *ThenTerm = SplitBlockAndInsertIfThen(DoCheck, InsertPt, false);
-    Builder.SetInsertPoint(ThenTerm);
+    Instruction *SampleThenTerm = SplitBlockAndInsertIfThen(DoCheck, InsertPt, false);
+    Builder.SetInsertPoint(SampleThenTerm);
 
+    // Phase 3: inline the opaque_read + compare + report sequence.
+    // Previously this was a single consolidated call to trace2pass_check_cross_bb,
+    // which added wrapper function-call overhead on every sampled check.
     Value *PtrCast = Builder.CreateBitCast(Ptr, Builder.getPtrTy());
-    Builder.CreateCall(CheckFunc, {PtrCast, Builder.getInt32(SizeBytes),
-                                    Loaded_i64, Loc.File, Loc.Line, Loc.Function});
+    Value *Actual_i64 = Builder.CreateCall(OpaqueReadFunc,
+                                            {PtrCast, Builder.getInt32(SizeBytes)},
+                                            "cb_actual");
+    Value *Mismatch = Builder.CreateICmpNE(Actual_i64, Loaded_i64, "cb_mismatch");
+
+    // Only enter the report path when the values disagree. Keeps the common
+    // sampled path to just: opaque_read + icmp + branch (no report call).
+    Instruction *ReportTerm = SplitBlockAndInsertIfThen(Mismatch, SampleThenTerm, false);
+    Builder.SetInsertPoint(ReportTerm);
+
+    // PC for the report (same semantics as the old wrapper used via
+    // __builtin_return_address inside the runtime).
+    Function *ReturnAddrFn = Intrinsic::getOrInsertDeclaration(
+        &M, Intrinsic::returnaddress);
+    Value *PC = Builder.CreateCall(ReturnAddrFn, {Builder.getInt32(0)});
+
+    Builder.CreateCall(ReportFunc,
+                       {PC, Loc.File, Loc.Line, Loc.Function,
+                        PtrCast, Loaded_i64, Actual_i64});
 
     Modified = true;
     NumCrossBBInstrumented++;
