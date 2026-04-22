@@ -19,8 +19,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Build Trace2PassInstrumentor as a shared library (LLVM pass plugin)
 add_library(Trace2PassInstrumentor MODULE src/Trace2PassInstrumentor.cpp)
 
-# Link against LLVM libraries
-target_link_libraries(Trace2PassInstrumentor LLVM)
+# Link against LLVM only if the dylib is available (apt's llvm-N-dev, or an
+# in-tree build configured with LLVM_BUILD_LLVM_DYLIB=ON). For plain in-tree
+# static builds the `LLVM` INTERFACE target still exists but expands to
+# `-lLLVM`, which fails at link time. Pass plugins don't actually need it:
+# their LLVM symbols are resolved at runtime by the host (opt/clang).
+if(LLVM_LINK_LLVM_DYLIB OR LLVM_BUILD_LLVM_DYLIB)
+    target_link_libraries(Trace2PassInstrumentor LLVM)
+endif()
 
 # Don't add 'lib' prefix to the output
 set_target_properties(Trace2PassInstrumentor PROPERTIES PREFIX "")

@@ -6,6 +6,8 @@
 **/*.so
 **/*.a
 **/._*
+**/.venv/
+**/.trace2pass/
 evaluation/
 demo/
 docs/
