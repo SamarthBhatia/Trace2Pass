@@ -1,0 +1,236 @@
+[curve] Stages: 10  Projects: 21  Runs: 40
+[curve] Starting 20260420T222039Z
+[curve] === sqlite ===
+[curve]   stage 0 (default_5): done
+[curve]   stage 1 (+range_check): done
+[curve]   stage 2 (+sign_conversion): done
+[curve]   stage 3 (+loop_bounds): done
+[curve]   stage 4 (+store_load): done
+[curve]   stage 5 (+cross_bb): done
+[curve]   stage 6 (+gep_bounds): done
+[curve]   stage 7 (+volatile_tracking): done
+[curve]   stage 8 (+backend_checksum): done
+[curve]   stage 9 (+select_check): done
+[curve] === lz4 ===
+[curve]   stage 0 (default_5): done
+[curve]   stage 1 (+range_check): done
+[curve]   stage 2 (+sign_conversion): done
+[curve]   stage 3 (+loop_bounds): done
+[curve]   stage 4 (+store_load): done
+[curve]   stage 5 (+cross_bb): done
+[curve]   stage 6 (+gep_bounds): done
+[curve]   stage 7 (+volatile_tracking): done
+[curve]   stage 8 (+backend_checksum): done
+[curve]   stage 9 (+select_check): done
+[curve] === zlib ===
+[curve]   stage 0 (default_5): done
+[curve]   stage 1 (+range_check): done
+[curve]   stage 2 (+sign_conversion): done
+[curve]   stage 3 (+loop_bounds): done
+[curve]   stage 4 (+store_load): done
+[curve]   stage 5 (+cross_bb): done
+[curve]   stage 6 (+gep_bounds): done
+[curve]   stage 7 (+volatile_tracking): done
+[curve]   stage 8 (+backend_checksum): done
+[curve]   stage 9 (+select_check): done
+[curve] === cjson ===
+[curve]   stage 0 (default_5): done
+[curve]   stage 1 (+range_check): done
+[curve]   stage 2 (+sign_conversion): done
+[curve]   stage 3 (+loop_bounds): done
+[curve]   stage 4 (+store_load): done
+[curve]   stage 5 (+cross_bb): done
+[curve]   stage 6 (+gep_bounds): done
+[curve]   stage 7 (+volatile_tracking): done
+[curve]   stage 8 (+backend_checksum): done
+[curve]   stage 9 (+select_check): done
+[curve] === lua ===
+[curve]   stage 0 (default_5): done
+[curve]   stage 1 (+range_check): done
+[curve]   stage 2 (+sign_conversion): done
+[curve]   stage 3 (+loop_bounds): done
+[curve]   stage 4 (+store_load): done
+[curve]   stage 5 (+cross_bb): done
+[curve]   stage 6 (+gep_bounds): done
+[curve]   stage 7 (+volatile_tracking): done
+[curve]   stage 8 (+backend_checksum): done
+[curve]   stage 9 (+select_check): done
+[curve] === xxhash ===
+[curve]   stage 0 (default_5): done
+[curve]   stage 1 (+range_check): done
+[curve]   stage 2 (+sign_conversion): done
+[curve]   stage 3 (+loop_bounds): done
+[curve]   stage 4 (+store_load): done
+[curve]   stage 5 (+cross_bb): done
+[curve]   stage 6 (+gep_bounds): done
+[curve]   stage 7 (+volatile_tracking): done
+[curve]   stage 8 (+backend_checksum): done
+[curve]   stage 9 (+select_check): done
+[curve] === utf8proc ===
+[curve]   stage 0 (default_5): done
+[curve]   stage 1 (+range_check): done
+[curve]   stage 2 (+sign_conversion): done
+[curve]   stage 3 (+loop_bounds): done
+[curve]   stage 4 (+store_load): done
+[curve]   stage 5 (+cross_bb): done
+[curve]   stage 6 (+gep_bounds): done
+[curve]   stage 7 (+volatile_tracking): done
+[curve]   stage 8 (+backend_checksum): done
+[curve]   stage 9 (+select_check): done
+[curve] === zstd ===
+[curve]   stage 0 (default_5): done
+[curve]   stage 1 (+range_check): done
+[curve]   stage 2 (+sign_conversion): done
+[curve]   stage 3 (+loop_bounds): done
+[curve]   stage 4 (+store_load): done
+[curve]   stage 5 (+cross_bb): done
+[curve]   stage 6 (+gep_bounds): done
+[curve]   stage 7 (+volatile_tracking): done
+[curve]   stage 8 (+backend_checksum): done
+[curve]   stage 9 (+select_check): done
+[curve] === yyjson ===
+[curve]   stage 0 (default_5): done
+[curve]   stage 1 (+range_check): done
+[curve]   stage 2 (+sign_conversion): done
+[curve]   stage 3 (+loop_bounds): done
+[curve]   stage 4 (+store_load): done
+[curve]   stage 5 (+cross_bb): done
+[curve]   stage 6 (+gep_bounds): done
+[curve]   stage 7 (+volatile_tracking): done
+[curve]   stage 8 (+backend_checksum): done
+[curve]   stage 9 (+select_check): done
+[curve] === picohttpparser ===
+[curve]   stage 0 (default_5): done
+[curve]   stage 1 (+range_check): done
+[curve]   stage 2 (+sign_conversion): done
+[curve]   stage 3 (+loop_bounds): done
+[curve]   stage 4 (+store_load): done
+[curve]   stage 5 (+cross_bb): done
+[curve]   stage 6 (+gep_bounds): done
+[curve]   stage 7 (+volatile_tracking): done
+[curve]   stage 8 (+backend_checksum): done
+[curve]   stage 9 (+select_check): done
+[curve] === miniz ===
+[curve]   stage 0 (default_5): done
+[curve]   stage 1 (+range_check): done
+[curve]   stage 2 (+sign_conversion): done
+[curve]   stage 3 (+loop_bounds): done
+[curve]   stage 4 (+store_load): done
+[curve]   stage 5 (+cross_bb): done
+[curve]   stage 6 (+gep_bounds): done
+[curve]   stage 7 (+volatile_tracking): done
+[curve]   stage 8 (+backend_checksum): done
+[curve]   stage 9 (+select_check): done
+[curve] === tinyexpr ===
+[curve]   stage 0 (default_5): done
+[curve]   stage 1 (+range_check): done
+[curve]   stage 2 (+sign_conversion): done
+[curve]   stage 3 (+loop_bounds): done
+[curve]   stage 4 (+store_load): done
+[curve]   stage 5 (+cross_bb): done
+[curve]   stage 6 (+gep_bounds): done
+[curve]   stage 7 (+volatile_tracking): done
+[curve]   stage 8 (+backend_checksum): done
+[curve]   stage 9 (+select_check): done
+[curve] === monocypher ===
+[curve]   stage 0 (default_5): done
+[curve]   stage 1 (+range_check): done
+[curve]   stage 2 (+sign_conversion): done
+[curve]   stage 3 (+loop_bounds): done
+[curve]   stage 4 (+store_load): done
+[curve]   stage 5 (+cross_bb): done
+[curve]   stage 6 (+gep_bounds): done
+[curve]   stage 7 (+volatile_tracking): done
+[curve]   stage 8 (+backend_checksum): done
+[curve]   stage 9 (+select_check): done
+[curve] === dr_libs ===
+[curve]   stage 0 (default_5): done
+[curve]   stage 1 (+range_check): done
+[curve]   stage 2 (+sign_conversion): done
+[curve]   stage 3 (+loop_bounds): done
+[curve]   stage 4 (+store_load): done
+[curve]   stage 5 (+cross_bb): done
+[curve]   stage 6 (+gep_bounds): done
+[curve]   stage 7 (+volatile_tracking): done
+[curve]   stage 8 (+backend_checksum): done
+[curve]   stage 9 (+select_check): done
+[curve] === duktape ===
+[curve]   stage 0 (default_5): done
+[curve]   stage 1 (+range_check): done
+[curve]   stage 2 (+sign_conversion): done
+[curve]   stage 3 (+loop_bounds): done
+[curve]   stage 4 (+store_load): done
+[curve]   stage 5 (+cross_bb): done
+[curve]   stage 6 (+gep_bounds): done
+[curve]   stage 7 (+volatile_tracking): done
+[curve]   stage 8 (+backend_checksum): done
+[curve]   stage 9 (+select_check): done
+[curve] === jsmn ===
+[curve]   stage 0 (default_5): done
+[curve]   stage 1 (+range_check): done
+[curve]   stage 2 (+sign_conversion): done
+[curve]   stage 3 (+loop_bounds): done
+[curve]   stage 4 (+store_load): done
+[curve]   stage 5 (+cross_bb): done
+[curve]   stage 6 (+gep_bounds): done
+[curve]   stage 7 (+volatile_tracking): done
+[curve]   stage 8 (+backend_checksum): done
+[curve]   stage 9 (+select_check): done
+[curve] === stb_image ===
+[curve]   stage 0 (default_5): done
+[curve]   stage 1 (+range_check): done
+[curve]   stage 2 (+sign_conversion): done
+[curve]   stage 3 (+loop_bounds): done
+[curve]   stage 4 (+store_load): done
+[curve]   stage 5 (+cross_bb): done
+[curve]   stage 6 (+gep_bounds): done
+[curve]   stage 7 (+volatile_tracking): done
+[curve]   stage 8 (+backend_checksum): done
+[curve]   stage 9 (+select_check): done
+[curve] === stb_sprintf ===
+[curve]   stage 0 (default_5): done
+[curve]   stage 1 (+range_check): done
+[curve]   stage 2 (+sign_conversion): done
+[curve]   stage 3 (+loop_bounds): done
+[curve]   stage 4 (+store_load): done
+[curve]   stage 5 (+cross_bb): done
+[curve]   stage 6 (+gep_bounds): done
+[curve]   stage 7 (+volatile_tracking): done
+[curve]   stage 8 (+backend_checksum): done
+[curve]   stage 9 (+select_check): done
+[curve] === miniaudio ===
+[curve]   stage 0 (default_5): done
+[curve]   stage 1 (+range_check): done
+[curve]   stage 2 (+sign_conversion): done
+[curve]   stage 3 (+loop_bounds): done
+[curve]   stage 4 (+store_load): done
+[curve]   stage 5 (+cross_bb): done
+[curve]   stage 6 (+gep_bounds): done
+[curve]   stage 7 (+volatile_tracking): done
+[curve]   stage 8 (+backend_checksum): done
+[curve]   stage 9 (+select_check): done
+[curve] === snappy ===
+[curve]   stage 0 (default_5): done
+[curve]   stage 1 (+range_check): done
+[curve]   stage 2 (+sign_conversion): done
+[curve]   stage 3 (+loop_bounds): done
+[curve]   stage 4 (+store_load): done
+[curve]   stage 5 (+cross_bb): done
+[curve]   stage 6 (+gep_bounds): done
+[curve]   stage 7 (+volatile_tracking): done
+[curve]   stage 8 (+backend_checksum): done
+[curve]   stage 9 (+select_check): done
+[curve] === libyaml ===
+[curve]   stage 0 (default_5): done
+[curve]   stage 1 (+range_check): done
+[curve]   stage 2 (+sign_conversion): done
+[curve]   stage 3 (+loop_bounds): done
+[curve]   stage 4 (+store_load): done
+[curve]   stage 5 (+cross_bb): done
+[curve]   stage 6 (+gep_bounds): done
+[curve]   stage 7 (+volatile_tracking): done
+[curve]   stage 8 (+backend_checksum): done
+[curve]   stage 9 (+select_check): done
+[curve] Raw JSONL written. Aggregating...
+Wrote scaling_curve.json and CHECK_SCALING_STUDY.md (21 projects, 10 stages)
+[curve] Done 20260422T155603Z
