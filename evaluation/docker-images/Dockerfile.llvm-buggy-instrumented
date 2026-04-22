@@ -1,0 +1,136 @@
+# Parameterized Dockerfile that builds LLVM at a specific buggy commit
+# AND the matching Trace2Pass instrumentor plugin inside the same image.
+#
+# This is the only reliable way to test instrumentation on bugs whose
+# only reproducer is a pre-fix trunk commit: the plugin must be ABI-
+# compatible with the exact LLVM it will load into. Cross-compiling the
+# plugin against release headers fails at dlopen time due to ABI drift.
+#
+# Usage (from project root, so the COPY paths resolve):
+#   docker build -t trace2pass-instrumented:115458 \
+#     --build-arg LLVM_COMMIT=d6d73ec8 \
+#     --build-arg BUG_ID=115458 \
+#     -f evaluation/docker-images/Dockerfile.llvm-buggy-instrumented .
+#
+# Output image layout:
+#   /usr/local/bin/clang                       — buggy compiler
+#   /usr/local/lib/Trace2PassInstrumentor.so   — plugin built against it
+#   /usr/local/lib/libTrace2PassRuntime.a      — runtime static archive
+#   /usr/local/include/trace2pass_runtime.h    — runtime header
+#
+# Build time: ~2h on 16-core x86_64 (dominated by LLVM build).
+
+ARG LLVM_COMMIT
+ARG BUG_ID=unknown
+
+# -----------------------------------------------------------------------------
+# Stage 1: build LLVM/clang at the buggy commit AND keep the build tree around
+# (the instrumentor cmake step in stage 2 needs the build-tree LLVMConfig.cmake)
+# -----------------------------------------------------------------------------
+FROM ubuntu:22.04 AS llvm-builder
+
+ARG LLVM_COMMIT
+ARG BUG_ID
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    git cmake ninja-build build-essential \
+    python3 python3-pip \
+    libz-dev libzstd-dev libxml2-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN git clone --filter=blob:none --no-checkout \
+        https://github.com/llvm/llvm-project.git /llvm-project && \
+    cd /llvm-project && \
+    git checkout ${LLVM_COMMIT} && \
+    git log -1 --oneline && \
+    echo "LLVM commit for bug #${BUG_ID}: ${LLVM_COMMIT}"
+
+WORKDIR /llvm-project/build
+
+RUN cmake -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DLLVM_ENABLE_PROJECTS="clang" \
+    -DLLVM_TARGETS_TO_BUILD="X86;AArch64" \
+    -DLLVM_INCLUDE_TESTS=OFF \
+    -DLLVM_INCLUDE_EXAMPLES=OFF \
+    -DLLVM_INCLUDE_BENCHMARKS=OFF \
+    -DLLVM_ENABLE_ASSERTIONS=OFF \
+    -DLLVM_ENABLE_ZSTD=OFF \
+    -DLLVM_ENABLE_ZLIB=ON \
+    -DCMAKE_INSTALL_PREFIX=/usr/local \
+    ../llvm
+
+ARG NINJA_JOBS=4
+# Build clang AND the LLVM libraries the plugin links against.
+RUN ninja -j${NINJA_JOBS} clang
+
+RUN ninja install-clang install-clang-headers install-clang-resource-headers 2>/dev/null || \
+    ninja install-clang install-clang-headers 2>/dev/null || \
+    ninja install-clang
+
+# -----------------------------------------------------------------------------
+# Stage 2: build the Trace2Pass plugin + runtime against the just-built LLVM
+# -----------------------------------------------------------------------------
+FROM llvm-builder AS instrumentor-builder
+
+ARG BUG_ID
+
+COPY instrumentor/ /trace2pass/instrumentor/
+COPY runtime/     /trace2pass/runtime/
+
+# Plugin: point cmake at the in-tree LLVMConfig.cmake rather than a system
+# install, because the LLVM we just built may not have its dev headers in
+# the installed prefix yet.
+RUN mkdir -p /trace2pass/instrumentor/build && \
+    cd /trace2pass/instrumentor/build && \
+    cmake -DLLVM_DIR=/llvm-project/build/lib/cmake/llvm .. && \
+    make -j$(nproc)
+
+# Runtime: pure C, no LLVM dependency.
+RUN mkdir -p /trace2pass/runtime/build && \
+    cd /trace2pass/runtime/build && \
+    cmake .. && \
+    make -j$(nproc)
+
+# -----------------------------------------------------------------------------
+# Stage 3: slim runtime image
+# -----------------------------------------------------------------------------
+FROM ubuntu:22.04
+
+ARG BUG_ID
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    libstdc++6 libzstd1 libxml2 \
+    libc6-dev binutils gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Buggy clang + standard headers
+COPY --from=llvm-builder /usr/local/bin/clang* /usr/local/bin/
+COPY --from=llvm-builder /usr/local/lib/clang  /usr/local/lib/clang
+
+# Trace2Pass plugin + runtime artefacts
+COPY --from=instrumentor-builder \
+    /trace2pass/instrumentor/build/Trace2PassInstrumentor.so \
+    /usr/local/lib/Trace2PassInstrumentor.so
+COPY --from=instrumentor-builder \
+    /trace2pass/runtime/build/libTrace2PassRuntime.a \
+    /usr/local/lib/libTrace2PassRuntime.a
+COPY --from=instrumentor-builder \
+    /trace2pass/runtime/include/trace2pass_runtime.h \
+    /usr/local/include/trace2pass_runtime.h
+
+ENV PATH="/usr/local/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/lib"
+
+LABEL trace2pass.bug_id="${BUG_ID}"
+LABEL trace2pass.instrumented="true"
+
+# Sanity check on build
+RUN clang --version && \
+    ls -l /usr/local/lib/Trace2PassInstrumentor.so \
+          /usr/local/lib/libTrace2PassRuntime.a
+
+WORKDIR /src
+CMD ["/bin/bash"]
