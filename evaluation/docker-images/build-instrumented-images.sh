@@ -44,7 +44,8 @@ BUGS=(
     "70547:29fd9bab2c9d04b90def77151961c02c940b15bb:CaptureTracking/SimplifyCFG"
     "140481:f72a8ee489368dd20c1392b122b0736aa7c8ada1:ConstraintElim"
     "122496:16aa400a2780ab21f73722875734440643f276c3:LoopVectorize"
-    "61312:HEAD~0:InstSimplify threadBinOpOverPHI"
+    # 61312 removed: bug-dataset.csv classifies it pass_bisect=no_repro,
+    # so it is not part of the bisected-40 and should not be built here.
     "80113:24a804101b67676aa9fa7f1097043ddd9e2ac1b6:BDCE poison"
 
     # Tier B: bugs bisected in March-April 2026 (need images if not already built)
@@ -58,7 +59,10 @@ BUGS=(
     "85536:f84980570d3f85bdf5c9432647c05bae04a735a0:InstCombine UB attrs"
     "62992:8d7e90c3b5d22e31c6af25c2f95b8047038590c4:IndVarSimplify"
 
-    "164617:HEAD~0:LoopFullUnroll"
+    # 164617: SKIP-NO-COMMIT - issue is still open on llvm-project; CSV marks
+    # repro_llvm21=no(fixed) but no merged fix PR is visible from the issue
+    # thread, so no parent-of-fix can be recorded. Skipped honestly.
+    "164617:HEAD~0:LoopFullUnroll (SKIP-NO-COMMIT: fix PR not identified)"
     "166496:HEAD~0:IndVarSimplify"
     "116483:HEAD~0:IndVarSimplify"
     "87534:HEAD~0:Inliner"
@@ -67,9 +71,21 @@ BUGS=(
     "124387:77c325b646301e394bcd89c2980b4c2da8af49cd:InstCombine fshl"
     "121110:f68dbbbd57dd0947730300d1e827ad16c2dfffb5:VectorCombine shuffle"
 
-    # Additional bugs from the 40-bug dataset (commit hashes to be filled)
-    # If HEAD~0 is used, the build is skipped with a WARN entry — the
-    # in-progress evaluation plan still needs commits for these.
+    # --- Batch 3 additions (2026-04-22): remaining bisected bugs from
+    # bug-dataset.csv, parent-of-fix hashes cross-referenced with
+    # build-buggy-images.sh (authoritative source used to build the
+    # existing trace2pass-buggy:* images). ---
+    "69097:47b8763f8a814c0e755e154516537d8deb57e4b0:SCEV/LV invalidation (Oct 2023)"
+    "62660:1d5651060e14eeee1323bb8ca4fb34d452c3db89:LSR wrong code (Jun 2023)"
+    "58340:b107ff485621f93df3b9b17d098375364fc4a6f6:IndVarSimplify forget exit (Oct 2022)"
+    "54112:42e8e00189be787b4d916c6d297a8315998c7687:LoopSimplifyCFG FPE (Mar 2022)"
+    "57899:76fd4bf675b5ceeeca0e4e15cf15d89c7acf4947:InstCombine zext icmp (Sep 2022)"
+    "64333:2d87319f06ef936233ba6aaa612da9586c427d68:SCEVExpander poison (Aug 2023)"
+    "64345:9c837b7d0e2e2dffae804f3df49c4aeefe4743c0:LoopVectorize IV (Aug 2023)"
+    "82243:fcd6549e5801de938935b93fd2d13020b42eebdb:IndVars poison flags (Feb 2024)"
+    "64060:1ae72c0f666beea11de7e9dea17675a89437849c:EarlyMachineLICM wrong code (Jul 2023)"
+    "60944:ff11d6b6f6e27f5de389002b8f6102b6cf3ed474:SCEV nowrap flags (Mar 2023)"
+    "63327:222d73ff7a861445c7ca33215925789426dda483:InstCombine bitwise (Jun 2023)"
 )
 
 LOG_DIR="$SCRIPT_DIR/build-logs/instrumented"

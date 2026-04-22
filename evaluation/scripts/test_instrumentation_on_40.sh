@@ -76,17 +76,30 @@ while IFS=',' read -r bug_id url status pass opt_level lang repro_llvm21 ub_verd
         echo "[SKIP $bug_id] no $test_c" ; TEST_ERROR+=1 ; continue
     fi
 
-    # Pick the image. Preference: trace2pass-instrumented:BUG_ID (has plugin),
-    # fallback to silkeh/clang:VER when parent-of-fix is the release LLVM.
+    # Pick the image. Preference: trace2pass-instrumented:BUG_ID (per-bug
+    # custom LLVM + matching plugin). If missing AND the bug reproduces on
+    # release LLVM 21 per the CSV, fall back to trace2pass-release-instrumented:21
+    # (built once from Dockerfile.trace2pass-release-instrumented).
     img="trace2pass-instrumented:${bug_id}"
+    image_kind="custom"
     if ! docker image inspect "$img" >/dev/null 2>&1; then
-        # Fallback for bugs that reproduce on release compilers: build the
-        # plugin inline against silkeh/clang:17 (LLVM 17.0.6) or similar.
-        # For now, mark as no_build and require the instrumented image.
-        echo "[NO_BUILD $bug_id] image $img missing — run build-instrumented-images.sh $bug_id"
-        NO_BUILD+=1
-        echo "{\"bug_id\":\"$bug_id\",\"verdict\":\"no_build\"}" >> "$summary_json"
-        continue
+        if [[ "$repro_llvm21" == "yes" ]]; then
+            release_img="${RELEASE_IMAGE:-trace2pass-release-instrumented:21}"
+            if docker image inspect "$release_img" >/dev/null 2>&1; then
+                img="$release_img"
+                image_kind="release"
+            else
+                echo "[NO_BUILD $bug_id] release fallback image $release_img missing"
+                NO_BUILD+=1
+                echo "{\"bug_id\":\"$bug_id\",\"verdict\":\"no_build\",\"reason\":\"release_image_missing\"}" >> "$summary_json"
+                continue
+            fi
+        else
+            echo "[NO_BUILD $bug_id] image $img missing — run build-instrumented-images.sh $bug_id"
+            NO_BUILD+=1
+            echo "{\"bug_id\":\"$bug_id\",\"verdict\":\"no_build\",\"reason\":\"custom_image_missing\"}" >> "$summary_json"
+            continue
+        fi
     fi
 
     # -O level to use (strip leading dash from csv opt_level)
@@ -115,25 +128,27 @@ while IFS=',' read -r bug_id url status pass opt_level lang repro_llvm21 ub_verd
     plain_exit="${plain_exit:-N}"
     instr_exit="${instr_exit:-N}"
 
-    # Did the instrumented binary emit a trace2pass report?
+    # Classification priority:
+    #   1. report fired → detected (strongest claim)
+    #   2. either side failed to record an EXIT line → test_error (scaffolding)
+    #   3. exit codes differ → prevented (instrumentation perturbed the bug)
+    #   4. same exit, no report → passthrough (instrumentation didn't help)
     if grep -qE 'Trace2Pass Report|trace2pass_report_|check_type":' "$inst_log"; then
         verdict="detected"
         DETECTED+=1
-    elif [[ "$plain_exit" != "$instr_exit" ]]; then
-        # Different outcome with instrumentation → bug prevented (or masked)
-        verdict="prevented"
-        PREVENTED+=1
-    elif [[ "$plain_exit" == "$instr_exit" ]] && [[ "$plain_exit" != "0" || "$plain_exit" == "0" ]]; then
-        # Same exit code AND no report → still reproducing, instrumentation passed through
-        verdict="passthrough"
-        PASSTHROUGH+=1
-    else
+    elif [[ "$plain_exit" == "N" || "$instr_exit" == "N" ]]; then
         verdict="test_error"
         TEST_ERROR+=1
+    elif [[ "$plain_exit" != "$instr_exit" ]]; then
+        verdict="prevented"
+        PREVENTED+=1
+    else
+        verdict="passthrough"
+        PASSTHROUGH+=1
     fi
 
-    echo "[$verdict $bug_id] plain_exit=$plain_exit instr_exit=$instr_exit"
-    echo "{\"bug_id\":\"$bug_id\",\"verdict\":\"$verdict\",\"plain_exit\":\"$plain_exit\",\"instr_exit\":\"$instr_exit\",\"culprit\":\"$culprit\"}" >> "$summary_json"
+    echo "[$verdict $bug_id] plain_exit=$plain_exit instr_exit=$instr_exit image_kind=$image_kind"
+    echo "{\"bug_id\":\"$bug_id\",\"verdict\":\"$verdict\",\"plain_exit\":\"$plain_exit\",\"instr_exit\":\"$instr_exit\",\"image_kind\":\"$image_kind\",\"culprit\":\"$culprit\"}" >> "$summary_json"
 done < "$CSV"
 
 # --------------------------------------------------------------------------

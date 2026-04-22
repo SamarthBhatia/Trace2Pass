@@ -1,0 +1,102 @@
+# Release-clang fallback image for bugs whose only known reproducer is
+# release LLVM N (i.e. bug-dataset.csv column reproduces_llvm21 == yes).
+# We build the Trace2Pass plugin and runtime against apt's llvm-${LLVM_VERSION}-dev
+# so the ABI matches the in-image clang-${LLVM_VERSION}.
+#
+# Usage (from project root):
+#   docker build -t trace2pass-release-instrumented:21 \
+#     --build-arg LLVM_VERSION=21 \
+#     -f evaluation/docker-images/Dockerfile.trace2pass-release-instrumented .
+#
+# Output image layout matches Dockerfile.llvm-buggy-instrumented:
+#   /usr/local/bin/clang                       -> clang-${LLVM_VERSION}
+#   /usr/local/lib/Trace2PassInstrumentor.so   plugin
+#   /usr/local/lib/libTrace2PassRuntime.a      runtime static archive
+#   /usr/local/include/trace2pass_runtime.h    runtime header
+
+ARG LLVM_VERSION=21
+
+FROM ubuntu:24.04 AS builder
+
+ARG LLVM_VERSION
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+        gnupg wget ca-certificates lsb-release software-properties-common \
+        cmake ninja-build build-essential python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# llvm.org apt repo – supports llvm-18..llvm-21 on noble
+RUN wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
+        | gpg --dearmor -o /usr/share/keyrings/llvm-snapshot.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg] http://apt.llvm.org/noble/ llvm-toolchain-noble-${LLVM_VERSION} main" \
+        > /etc/apt/sources.list.d/llvm.list \
+    && apt-get update \
+    && apt-get install -y \
+        clang-${LLVM_VERSION} \
+        llvm-${LLVM_VERSION}-dev \
+        libclang-${LLVM_VERSION}-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY instrumentor/ /trace2pass/instrumentor/
+COPY runtime/      /trace2pass/runtime/
+
+RUN rm -rf /trace2pass/instrumentor/build /trace2pass/runtime/build \
+ && mkdir -p /trace2pass/instrumentor/build /trace2pass/runtime/build
+
+RUN cd /trace2pass/instrumentor/build \
+ && cmake -G Ninja \
+        -DLLVM_DIR=/usr/lib/llvm-${LLVM_VERSION}/cmake \
+        -DCMAKE_C_COMPILER=clang-${LLVM_VERSION} \
+        -DCMAKE_CXX_COMPILER=clang++-${LLVM_VERSION} \
+        .. \
+ && ninja
+
+RUN cd /trace2pass/runtime/build \
+ && cmake -G Ninja .. \
+ && ninja Trace2PassRuntime
+
+# Runtime image: keep clang-${LLVM_VERSION} + minimal deps
+FROM ubuntu:24.04
+
+ARG LLVM_VERSION
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+        gnupg wget ca-certificates lsb-release \
+    && wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
+        | gpg --dearmor -o /usr/share/keyrings/llvm-snapshot.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg] http://apt.llvm.org/noble/ llvm-toolchain-noble-${LLVM_VERSION} main" \
+        > /etc/apt/sources.list.d/llvm.list \
+    && apt-get update \
+    && apt-get install -y \
+        clang-${LLVM_VERSION} \
+        libclang-${LLVM_VERSION}-dev \
+        libc6-dev binutils gcc libstdc++-13-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/bin/clang-${LLVM_VERSION}    /usr/local/bin/clang \
+    && ln -sf /usr/bin/clang++-${LLVM_VERSION}  /usr/local/bin/clang++
+
+COPY --from=builder \
+    /trace2pass/instrumentor/build/Trace2PassInstrumentor.so \
+    /usr/local/lib/Trace2PassInstrumentor.so
+COPY --from=builder \
+    /trace2pass/runtime/build/libTrace2PassRuntime.a \
+    /usr/local/lib/libTrace2PassRuntime.a
+COPY --from=builder \
+    /trace2pass/runtime/include/trace2pass_runtime.h \
+    /usr/local/include/trace2pass_runtime.h
+
+ENV PATH="/usr/local/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/lib"
+
+LABEL trace2pass.llvm_version="${LLVM_VERSION}"
+LABEL trace2pass.instrumented="true"
+LABEL trace2pass.image_kind="release"
+
+RUN clang --version \
+ && ls -l /usr/local/lib/Trace2PassInstrumentor.so \
+          /usr/local/lib/libTrace2PassRuntime.a
+
+WORKDIR /src
+CMD ["/bin/bash"]
