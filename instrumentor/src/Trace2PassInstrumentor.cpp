@@ -954,10 +954,15 @@ bool Trace2PassInstrumentorPass::instrumentSignConversions(Function &F,
             // Build a SimplifyQuery so AC/DT context can flow into ValueTracking
             // (it is significantly more precise with these populated).
             SimplifyQuery SQ(DL, /*TLI=*/nullptr, DT, AC, Cast);
-            // LLVM 18: computeKnownBits requires explicit bit-width + Depth arg.
             unsigned SrcBits = Src->getType()->getIntegerBitWidth();
             KnownBits Known(SrcBits);
+#if LLVM_VERSION_MAJOR >= 19
+            // LLVM 19+: (V, Known, SimplifyQuery, Depth=0).
+            computeKnownBits(Src, Known, SQ);
+#else
+            // LLVM 18: (V, Known, Depth, SimplifyQuery).
             computeKnownBits(Src, Known, /*Depth=*/0, SQ);
+#endif
             if (Known.isNonNegative()) {
               ++NumSkippedKnownNN;
               continue;
