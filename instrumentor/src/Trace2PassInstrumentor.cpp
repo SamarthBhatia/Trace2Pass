@@ -18,14 +18,11 @@
 // ValueTracking + supporting analyses for compile-time sign-conversion filter.
 // Used to skip instrumenting casts that are provably safe (constant operand,
 // known non-negative, or value provably fits within the destination width).
+// We use the DataLayout-based computeKnownBits overload (stable from LLVM 14
+// through 21), so SimplifyQuery is not needed.
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/IR/Dominators.h"
-// SimplifyQuery moved to its own header in LLVM 18. For older LLVMs we fall
-// back to the DataLayout-based computeKnownBits overload and skip SQ entirely.
-#if LLVM_VERSION_MAJOR >= 18
-#include "llvm/Analysis/SimplifyQuery.h"
-#endif
 #include <cstdlib>  // for getenv
 #include <cstring>  // for strcmp
 
