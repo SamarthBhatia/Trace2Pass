@@ -20,8 +20,12 @@
 // known non-negative, or value provably fits within the destination width).
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Analysis/AssumptionCache.h"
-#include "llvm/Analysis/SimplifyQuery.h"
 #include "llvm/IR/Dominators.h"
+// SimplifyQuery moved to its own header in LLVM 18. For older LLVMs we fall
+// back to the DataLayout-based computeKnownBits overload and skip SQ entirely.
+#if LLVM_VERSION_MAJOR >= 18
+#include "llvm/Analysis/SimplifyQuery.h"
+#endif
 #include <cstdlib>  // for getenv
 #include <cstring>  // for strcmp
 
@@ -951,18 +955,12 @@ bool Trace2PassInstrumentorPass::instrumentSignConversions(Function &F,
 
             // Filter 2: source provably non-negative. The cast can never lose
             // sign information because the high bit is known to be 0.
-            // Build a SimplifyQuery so AC/DT context can flow into ValueTracking
-            // (it is significantly more precise with these populated).
-            SimplifyQuery SQ(DL, /*TLI=*/nullptr, DT, AC, Cast);
             unsigned SrcBits = Src->getType()->getIntegerBitWidth();
             KnownBits Known(SrcBits);
-#if LLVM_VERSION_MAJOR >= 19
-            // LLVM 19+: (V, Known, SimplifyQuery, Depth=0).
-            computeKnownBits(Src, Known, SQ);
-#else
-            // LLVM 18: (V, Known, Depth, SimplifyQuery).
-            computeKnownBits(Src, Known, /*Depth=*/0, SQ);
-#endif
+            // Use the DataLayout-based overload — it is the only signature
+            // that has stayed ABI-stable from LLVM 14 through 21. We pass
+            // AC/CxtI/DT positionally so the query remains context-aware.
+            computeKnownBits(Src, Known, DL, /*Depth=*/0, AC, Cast, DT);
             if (Known.isNonNegative()) {
               ++NumSkippedKnownNN;
               continue;
