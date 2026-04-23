@@ -1,0 +1,11 @@
+test_bug.c:31:7: warning: implicit conversion from 'int' to 'char' changes value from 255 to -1 [-Wconstant-conversion]
+   31 |  *e = 255;
+      |     ~ ^~~
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: f
+Trace2Pass: Instrumenting function: l
+Trace2Pass: Instrumenting function: m
+Trace2Pass: Instrumented 1 arithmetic operations in m
+Trace2Pass: Instrumenting function: main
+1 warning generated.
+EXIT=124

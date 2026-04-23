@@ -1,0 +1,7 @@
+test_bug.c:29:18: warning: format specifies type 'int' but the argument has type 'long' [-Wformat]
+  printf("%d\n", a);
+          ~~     ^
+          %ld
+1 warning generated.
+9
+EXIT=1

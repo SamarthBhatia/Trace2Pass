@@ -12,6 +12,8 @@ ENV/
 
 # Evaluation artifacts
 results/
+!results/instrumentation_40_default/
+!results/instrumentation_40_all/
 reports/
 testcases/*.o
 testcases/test_*

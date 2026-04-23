@@ -1,0 +1,14 @@
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: c
+Trace2Pass: Instrumented 1 arithmetic operations in c
+Trace2Pass: Instrumenting function: h
+Trace2Pass: Instrumenting function: i
+Trace2Pass: Instrumented 3 arithmetic operations in i
+Trace2Pass: Instrumenting function: k
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in k
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 1 arithmetic operations in main
+Trace2Pass: Runtime initialized (sample_rate=1.000, opt_level=unknown)
+Trace2Pass: Runtime shutting down
+0
+EXIT=0

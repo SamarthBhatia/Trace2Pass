@@ -1,0 +1,7 @@
+test_bug.c:23:14: warning: expression result unused [-Wunused-value]
+      if (r) r;
+             ^
+1 warning generated.
+timeout: the monitored command dumped core
+bash: line 3:    10 Floating point exceptiontimeout 30 /tmp/plain
+EXIT=136

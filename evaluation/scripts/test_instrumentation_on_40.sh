@@ -71,10 +71,26 @@ while IFS=',' read -r bug_id url status pass opt_level lang repro_llvm21 ub_verd
 
     TOTAL+=1
     bug_dir="$REPO_ROOT/evaluation/real-bugs/llvm-${bug_id}"
-    test_c="$bug_dir/test_bug.c"
-    if [[ ! -f "$test_c" ]]; then
-        echo "[SKIP $bug_id] no $test_c" ; TEST_ERROR+=1 ; continue
+    # Locate the test source. Most dirs use test_bug.c; a few use bug-specific
+    # names (test_gvn_setjmp.c, test_miscompile_Os.c, test_bug.cpp, ...).
+    # Prefer test_bug.{c,cpp}, else first test_*.{c,cpp}.
+    test_src=""
+    for candidate in test_bug.c test_bug.cpp; do
+        [[ -f "$bug_dir/$candidate" ]] && { test_src="$candidate"; break; }
+    done
+    if [[ -z "$test_src" ]]; then
+        for f in "$bug_dir"/test_*.c "$bug_dir"/test_*.cpp; do
+            [[ -f "$f" ]] && { test_src="$(basename "$f")"; break; }
+        done
     fi
+    if [[ -z "$test_src" ]]; then
+        echo "[SKIP $bug_id] no test source in $bug_dir" ; TEST_ERROR+=1
+        echo "{\"bug_id\":\"$bug_id\",\"verdict\":\"test_error\",\"reason\":\"no_test_source\"}" >> "$summary_json"
+        continue
+    fi
+    # Use clang++ for .cpp, clang for .c.
+    compiler="clang"
+    [[ "$test_src" == *.cpp ]] && compiler="clang++"
 
     # Pick the image. Preference: trace2pass-instrumented:BUG_ID (per-bug
     # custom LLVM + matching plugin). If missing AND the bug reproduces on
@@ -110,13 +126,13 @@ while IFS=',' read -r bug_id url status pass opt_level lang repro_llvm21 ub_verd
 
     # Plain build + run (no plugin)
     docker run --rm -v "$bug_dir":/src -w /src "$img" bash -c "
-        clang $olvl test_bug.c -o /tmp/plain -lm 2>&1 ;
+        $compiler $olvl $test_src -o /tmp/plain -lm 2>&1 ;
         timeout $TIMEOUT_SEC /tmp/plain ; echo EXIT=\$?
     " > "$plain_log" 2>&1 || true
 
     # Instrumented build + run
     docker run --rm -v "$bug_dir":/src -w /src "$img" bash -c "
-        clang $olvl test_bug.c \
+        $compiler $olvl $test_src \
             -fpass-plugin=/usr/local/lib/Trace2PassInstrumentor.so \
             /usr/local/lib/libTrace2PassRuntime.a -lpthread -ldl -lm \
             -o /tmp/instr 2>&1 ;

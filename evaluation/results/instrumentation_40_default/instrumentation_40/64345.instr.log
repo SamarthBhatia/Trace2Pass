@@ -1,0 +1,5 @@
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 2 arithmetic operations in main
+-1
+EXIT=0

@@ -1,0 +1,12 @@
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: smin
+Trace2Pass: Instrumenting function: j
+Trace2Pass: Instrumenting function: safe_lshift_func_uint16_t_u_s
+Trace2Pass: Instrumented 2 arithmetic operations in safe_lshift_func_uint16_t_u_s
+Trace2Pass: Instrumenting function: safe_unary_minus_func_int16_t_s
+Trace2Pass: Instrumented 1 arithmetic operations in safe_unary_minus_func_int16_t_s
+Trace2Pass: Instrumenting function: safe_lshift_func_int32_t_s_u
+Trace2Pass: Instrumented 2 arithmetic operations in safe_lshift_func_int32_t_s_u
+Trace2Pass: Instrumenting function: k
+Trace2Pass: Instrumenting function: main
+EXIT=128
