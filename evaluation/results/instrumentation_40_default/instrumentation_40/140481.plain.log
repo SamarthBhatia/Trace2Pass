@@ -1,3 +1,0 @@
-timeout: the monitored command dumped core
-bash: line 3:    10 Aborted                 timeout 30 /tmp/plain
-EXIT=134

@@ -1,8 +1,0 @@
-Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
-Trace2Pass: Instrumenting function: _Z1fl
-Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in _Z1fl
-Trace2Pass: Instrumenting function: _ZL7convertl
-Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks in _ZL7convertl
-Trace2Pass: Instrumenting function: main
-has_value=1
-EXIT=1

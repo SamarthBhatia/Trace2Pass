@@ -1,5 +1,0 @@
-Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
-Trace2Pass: Instrumenting function: test
-Trace2Pass: Instrumenting function: main
-1
-EXIT=1

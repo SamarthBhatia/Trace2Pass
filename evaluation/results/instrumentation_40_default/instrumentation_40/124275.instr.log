@@ -1,6 +1,0 @@
-Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
-Trace2Pass: Instrumenting function: main
-Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in main
-timeout: the monitored command dumped core
-bash: line 3:    10 Aborted                 TRACE2PASS_SAMPLE_RATE=1.0 timeout 30 /tmp/instr
-EXIT=134

@@ -1,9 +1,0 @@
-=== LLVM #127511: GVN setjmp/longjmp Bug ===
-
-BUG: kPtr is NULL (GVN removed check or propagated NULL)
-trace: 1
-
-=== Test Complete ===
-If 'Flag set successfully' printed, behavior is correct.
-If 'BUG: kPtr is NULL' printed, GVN misoptimized.
-EXIT=1

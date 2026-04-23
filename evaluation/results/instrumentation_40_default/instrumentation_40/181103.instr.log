@@ -1,4 +1,0 @@
-error: invalid integral value '3+attrib' in '-O3+attrib'
-error: invalid integral value '3+attrib' in '-O3+attrib'
-timeout: failed to run command '/tmp/instr': No such file or directory
-EXIT=127

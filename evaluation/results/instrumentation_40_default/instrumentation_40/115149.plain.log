@@ -1,5 +1,0 @@
-test_bug.c:31:7: warning: implicit conversion from 'int' to 'char' changes value from 255 to -1 [-Wconstant-conversion]
-   31 |  *e = 255;
-      |     ~ ^~~
-1 warning generated.
-EXIT=124

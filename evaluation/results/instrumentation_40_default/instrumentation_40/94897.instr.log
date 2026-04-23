@@ -1,6 +1,0 @@
-Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
-Trace2Pass: Instrumenting function: b
-Trace2Pass: Instrumented 1 arithmetic operations in b
-Trace2Pass: Instrumenting function: main
-Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks in main
-EXIT=0
