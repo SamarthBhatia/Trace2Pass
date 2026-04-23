@@ -23,6 +23,11 @@
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/IR/Dominators.h"
+// ModRef.h (MemoryEffects class) was introduced in LLVM 16. Use __has_include
+// so this file still builds against pre-16 trees where it doesn't exist.
+#if __has_include("llvm/Support/ModRef.h")
+#include "llvm/Support/ModRef.h"
+#endif
 #include <cstdlib>  // for getenv
 #include <cstring>  // for strcmp
 
@@ -2001,7 +2006,11 @@ FunctionCallee Trace2PassInstrumentorPass::getCrossBBCheckFunc(Module &M) {
   // lie is intentional: we WANT GVN to fold the load (exercising its bug),
   // then the runtime compares the folded value against actual memory.
   if (Function *F = dyn_cast<Function>(FC.getCallee())) {
+#if LLVM_VERSION_MAJOR >= 17
     F->setMemoryEffects(MemoryEffects::inaccessibleMemOnly());
+#else
+    F->addFnAttr(Attribute::InaccessibleMemOnly);
+#endif
     F->addFnAttr(Attribute::NoUnwind);
     F->addFnAttr(Attribute::WillReturn);
     F->addFnAttr(Attribute::NoSync);
