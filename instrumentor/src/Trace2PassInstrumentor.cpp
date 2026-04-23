@@ -31,10 +31,23 @@
 #include <cstdlib>  // for getenv
 #include <cstring>  // for strcmp
 
-// LLVM API compatibility: getOrInsertDeclaration was added in LLVM 20,
-// replacing the older getDeclaration
+// LLVM API compatibility shims. Keep every guard keyed by LLVM_VERSION_MAJOR
+// so the file builds against every buggy LLVM trunk commit the evaluation
+// harness uses (LLVM 14 through 21).
 #if LLVM_VERSION_MAJOR < 20
+// getOrInsertDeclaration replaced the older getDeclaration in LLVM 20.
 #define getOrInsertDeclaration getDeclaration
+#endif
+#if LLVM_VERSION_MAJOR < 17
+// StringRef::starts_with replaced startswith in LLVM 17. (Also works for <17
+// if the particular trunk commit already renamed, since the macro is just a
+// rewrite; the renamed method's signature is identical.)
+#define starts_with startswith
+#endif
+#if LLVM_VERSION_MAJOR < 16
+// IRBuilder::getPtrTy() (opaque-ptr helper) was added with opaque pointers.
+// On older trees fall back to getInt8PtrTy() which yields an i8* typed ptr.
+#define getPtrTy getInt8PtrTy
 #endif
 
 using namespace llvm;
