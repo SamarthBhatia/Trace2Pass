@@ -1,0 +1,30 @@
+test_bug.c:29:18: warning: format specifies type 'int' but the argument has type 'long' [-Wformat]
+  printf("%d\n", a);
+          ~~     ^
+          %ld
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: f
+Trace2Pass: Instrumented 0 arithmetic operations, 1 return checksums in f
+Trace2Pass: Instrumenting function: h
+Trace2Pass: Instrumented 4 arithmetic operations, 1 return checksums in h
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 0 arithmetic operations, 1 return checksums in main
+1 warning generated.
+
+=== Trace2Pass Report ===
+Timestamp: 2026-04-24T11:41:40Z
+Type: prevention_detected
+Baseline (O0 plain):     0x3f2de8315018af3b
+Unstrumented (-O3 plain): 0x5d3a0bc2498bd492
+Instrumented (-O3 plugin): 0x3f2de8315018af3b
+Note: The uninstrumented optimized build diverges from the O0 baseline;
+      the Trace2Pass-instrumented build matches the baseline. The optimization
+      bug was suppressed by instrumentation — production safety signal.
+========================
+
+{"type":"prevention_detected","check_type":"prevention_detected","timestamp":"2026-04-24T11:41:40Z","baseline":"0x3f2de8315018af3b","unstrumented":"0x5d3a0bc2498bd492","instrumented":"0x3f2de8315018af3b"}
+trace2pass-cc-autoref: prevention_detected (O0=3f2de8315018af3b Ox=5d3a0bc2498bd492 inst=3f2de8315018af3b)
+Trace2Pass: Runtime initialized (sample_rate=1.000, opt_level=unknown)
+Trace2Pass: Runtime shutting down
+2
+EXIT=0

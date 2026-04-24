@@ -1,0 +1,29 @@
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: h
+Trace2Pass: Instrumented 2 arithmetic operations, 1 return checksums in h
+Trace2Pass: Instrumenting function: l
+Trace2Pass: Instrumented 0 arithmetic operations, 1 return checksums in l
+Trace2Pass: Instrumenting function: n
+Trace2Pass: Instrumented 0 arithmetic operations, 1 return checksums in n
+Trace2Pass: Instrumenting function: m
+Trace2Pass: Instrumented 2 arithmetic operations, 1 return checksums in m
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 0 arithmetic operations, 1 return checksums in main
+
+=== Trace2Pass Report ===
+Timestamp: 2026-04-24T11:31:43Z
+Type: prevention_detected
+Baseline (O0 plain):     0x0c363bcbd7cfbd85
+Unstrumented (-O1 plain): 0x6dff20ebc807b0c1
+Instrumented (-O1 plugin): 0x0c363bcbd7cfbd85
+Note: The uninstrumented optimized build diverges from the O0 baseline;
+      the Trace2Pass-instrumented build matches the baseline. The optimization
+      bug was suppressed by instrumentation — production safety signal.
+========================
+
+{"type":"prevention_detected","check_type":"prevention_detected","timestamp":"2026-04-24T11:31:43Z","baseline":"0x0c363bcbd7cfbd85","unstrumented":"0x6dff20ebc807b0c1","instrumented":"0x0c363bcbd7cfbd85"}
+trace2pass-cc-autoref: prevention_detected (O0=0c363bcbd7cfbd85 Ox=6dff20ebc807b0c1 inst=0c363bcbd7cfbd85)
+1
+Trace2Pass: Runtime initialized (sample_rate=1.000, opt_level=unknown)
+Trace2Pass: Runtime shutting down
+EXIT=0

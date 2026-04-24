@@ -56,7 +56,10 @@ class ReportSchema(Schema):
             'pure_function_inconsistency',
             'sign_conversion',
             'bounds_violation',
-            'loop_bound_exceeded'
+            'loop_bound_exceeded',
+            # Backend-checksum signals emitted by trace2pass-cc-autoref:
+            'checksum_mismatch',     # bug survived instrumentation
+            'prevention_detected',   # bug present in plain-Ox, suppressed by instrumentation
         ])
     )
     location = fields.Nested(LocationSchema, required=True)

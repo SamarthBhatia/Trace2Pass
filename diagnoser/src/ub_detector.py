@@ -906,6 +906,25 @@ int main(void) {{
 }}
 """
 
+    elif check_type in ("checksum_mismatch", "prevention_detected"):
+        # Backend-checksum signals are whole-program observables: there's no
+        # single arithmetic/memory operand to rebuild. Downstream pass-bisection
+        # and healing operate on the ORIGINAL source, not a minimal reproducer,
+        # so return an explanatory stub rather than None (which would trip the
+        # "Cannot generate reproducer" error path in the caller).
+        baseline = check_details.get('baseline', '0x0')
+        unstrumented = check_details.get('unstrumented', '0x0')
+        instrumented = check_details.get('instrumented', '0x0')
+        return f"""// {check_type}: no minimal reproducer — whole-program observable mismatch.
+// Pass bisection and healing use the original source directly.
+//
+// Baseline (O0 plain):      {baseline}
+// Unstrumented (Ox plain):  {unstrumented}
+// Instrumented (Ox plugin): {instrumented}
+
+int main(void) {{ return 0; }}
+"""
+
     else:
         # Unknown check type
         return None

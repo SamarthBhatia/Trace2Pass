@@ -1,0 +1,16 @@
+test_bug.c:31:7: warning: implicit conversion from 'int' to 'char' changes value from 255 to -1 [-Wconstant-conversion]
+   31 |  *e = 255;
+      |     ~ ^~~
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: f
+Trace2Pass: Instrumented 0 arithmetic operations, 1 return checksums in f
+Trace2Pass: Instrumenting function: l
+Trace2Pass: Instrumented 0 arithmetic operations, 1 return checksums in l
+Trace2Pass: Instrumenting function: m
+Trace2Pass: Instrumented 1 arithmetic operations, 1 return checksums in m
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 0 arithmetic operations, 1 return checksums in main
+1 warning generated.
+trace2pass-cc-autoref: warning: prevention-detection: plain--O2 run fail timeout
+Trace2Pass: Runtime initialized (sample_rate=1.000, opt_level=unknown)
+EXIT=124

@@ -1,0 +1,38 @@
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: foo
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks in foo
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 0 arithmetic operations, 1 return checksums in main
+
+=== Trace2Pass Report ===
+Timestamp: 2026-04-24T11:37:18Z
+Type: checksum_mismatch
+Baseline (O0 plain):     0x9b384fe6168d8c61
+Unstrumented (-O2 plain): 0xe7643b7bbb419fe5
+Instrumented (-O2 plugin): 0xe7643b7bbb419fe5
+Note: The instrumented optimized build diverges from the O0 baseline.
+      The bug survived instrumentation and is directly visible in the
+      observable output (return code / stdout).
+========================
+
+{"type":"checksum_mismatch","check_type":"checksum_mismatch","timestamp":"2026-04-24T11:37:18Z","baseline":"0x9b384fe6168d8c61","unstrumented":"0xe7643b7bbb419fe5","instrumented":"0xe7643b7bbb419fe5"}
+trace2pass-cc-autoref: checksum_mismatch (O0=9b384fe6168d8c61 Ox=e7643b7bbb419fe5 inst=e7643b7bbb419fe5)
+Trace2Pass: Runtime initialized (sample_rate=1.000, opt_level=unknown)
+
+=== Trace2Pass Report ===
+Timestamp: 2026-04-24T11:37:18Z
+Type: checksum_mismatch
+Expected (O0 reference): 0x00000000003305b9
+Actual   (optimized):    0x00000000003305b8
+Note: Optimized binary's accumulated function-return checksum
+      differs from the O0 reference. This indicates a backend
+      miscompilation — the two builds computed different values.
+========================
+
+Trace2Pass: Runtime shutting down
+local_val=10
+Calling function foo local_var=20
+Calling longjmp from inside function foo
+longjmp has been called local_val=10
+BUG: GVN propagated pre-setjmp value (10 instead of 20)
+EXIT=1

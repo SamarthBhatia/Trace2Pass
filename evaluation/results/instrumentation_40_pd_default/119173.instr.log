@@ -1,0 +1,28 @@
+test_bug.c:13:19: warning: implicit conversion from 'long' to 'int' changes value from 4294967295 to -1 [-Wconstant-conversion]
+   13 | static int a[] = {4294967295, 5};
+      |                  ~^~~~~~~~~~
+test_bug.c:22:6: warning: expression result unused [-Wunused-value]
+   22 |   a[c];
+      |   ~ ~^
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 2 arithmetic operations, 1 return checksums in main
+2 warnings generated.
+
+=== Trace2Pass Report ===
+Timestamp: 2026-04-24T11:31:47Z
+Type: prevention_detected
+Baseline (O0 plain):     0x83a0baa2e9a9a08b
+Unstrumented (-O3 plain): 0x523d5775697c6de2
+Instrumented (-O3 plugin): 0x83a0baa2e9a9a08b
+Note: The uninstrumented optimized build diverges from the O0 baseline;
+      the Trace2Pass-instrumented build matches the baseline. The optimization
+      bug was suppressed by instrumentation — production safety signal.
+========================
+
+{"type":"prevention_detected","check_type":"prevention_detected","timestamp":"2026-04-24T11:31:47Z","baseline":"0x83a0baa2e9a9a08b","unstrumented":"0x523d5775697c6de2","instrumented":"0x83a0baa2e9a9a08b"}
+trace2pass-cc-autoref: prevention_detected (O0=83a0baa2e9a9a08b Ox=523d5775697c6de2 inst=83a0baa2e9a9a08b)
+Trace2Pass: Runtime initialized (sample_rate=1.000, opt_level=unknown)
+Trace2Pass: Runtime shutting down
+5
+EXIT=0

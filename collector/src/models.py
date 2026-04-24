@@ -307,7 +307,12 @@ class Database:
             'pure_function_inconsistency': 0.85,
             'sign_conversion': 0.7,
             'bounds_violation': 0.95,
-            'loop_bound_exceeded': 0.6
+            'loop_bound_exceeded': 0.6,
+            # Backend checksum signals: direct observable-output mismatch
+            # between plain-Ox and O0 baseline. Higher than sign_conversion
+            # (real miscompile evidence) but below active-UB detectors.
+            'checksum_mismatch': 0.8,
+            'prevention_detected': 0.8,
         }
 
         # Fetch more than limit since we'll re-sort after computing priority

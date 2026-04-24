@@ -1,0 +1,34 @@
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: test
+Trace2Pass: Instrumented 0 arithmetic operations, 1 return checksums in test
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 0 arithmetic operations, 1 return checksums in main
+
+=== Trace2Pass Report ===
+Timestamp: 2026-04-24T11:37:16Z
+Type: checksum_mismatch
+Baseline (O0 plain):     0x3f2de8315018af3b
+Unstrumented (-O3 plain): 0x9edc5e2ef2773040
+Instrumented (-O3 plugin): 0x9edc5e2ef2773040
+Note: The instrumented optimized build diverges from the O0 baseline.
+      The bug survived instrumentation and is directly visible in the
+      observable output (return code / stdout).
+========================
+
+{"type":"checksum_mismatch","check_type":"checksum_mismatch","timestamp":"2026-04-24T11:37:16Z","baseline":"0x3f2de8315018af3b","unstrumented":"0x9edc5e2ef2773040","instrumented":"0x9edc5e2ef2773040"}
+trace2pass-cc-autoref: checksum_mismatch (O0=3f2de8315018af3b Ox=9edc5e2ef2773040 inst=9edc5e2ef2773040)
+Trace2Pass: Runtime initialized (sample_rate=1.000, opt_level=unknown)
+
+=== Trace2Pass Report ===
+Timestamp: 2026-04-24T11:37:16Z
+Type: checksum_mismatch
+Expected (O0 reference): 0x000000001b114db9
+Actual   (optimized):    0x000000001b114c38
+Note: Optimized binary's accumulated function-return checksum
+      differs from the O0 reference. This indicates a backend
+      miscompilation — the two builds computed different values.
+========================
+
+Trace2Pass: Runtime shutting down
+1
+EXIT=1

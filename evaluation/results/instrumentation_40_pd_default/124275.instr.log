@@ -1,0 +1,20 @@
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 0 arithmetic operations, 1 unreachable blocks, 1 return checksums in main
+
+=== Trace2Pass Report ===
+Timestamp: 2026-04-24T11:31:55Z
+Type: checksum_mismatch
+Baseline (O0 plain):     0xfdbdc3d0c7b40325
+Unstrumented (-O1 plain): 0xfaebc166478f6f63
+Instrumented (-O1 plugin): 0xfaebc166478f6f63
+Note: The instrumented optimized build diverges from the O0 baseline.
+      The bug survived instrumentation and is directly visible in the
+      observable output (return code / stdout).
+========================
+
+{"type":"checksum_mismatch","check_type":"checksum_mismatch","timestamp":"2026-04-24T11:31:55Z","baseline":"0xfdbdc3d0c7b40325","unstrumented":"0xfaebc166478f6f63","instrumented":"0xfaebc166478f6f63"}
+trace2pass-cc-autoref: checksum_mismatch (O0=fdbdc3d0c7b40325 Ox=faebc166478f6f63 inst=faebc166478f6f63)
+timeout: the monitored command dumped core
+bash: line 7:    66 Aborted                 TRACE2PASS_SAMPLE_RATE=1.0 timeout 30 /tmp/instr
+EXIT=134

@@ -14,6 +14,10 @@ ENV/
 results/
 !results/instrumentation_40_default/
 !results/instrumentation_40_all/
+!results/instrumentation_40_autoref_default/
+!results/instrumentation_40_autoref_all/
+!results/instrumentation_40_pd_default/
+!results/instrumentation_40_pd_all/
 reports/
 testcases/*.o
 testcases/test_*

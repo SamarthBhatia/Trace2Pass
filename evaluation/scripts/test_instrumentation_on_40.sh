@@ -59,7 +59,7 @@ csv_col() { awk -F, -v c="$1" -v r="$2" 'NR==r{print $c}' "$CSV"; }
 #   1 bug_id | 3 status | 4 pass | 5 opt_level | 6 language
 #   7 reproduces_llvm21 | 10 version_bisect | 11 pass_bisect
 HEADER_ROW=1
-declare -i TOTAL=0 DETECTED=0 PREVENTED=0 PASSTHROUGH=0 NO_BUILD=0 TEST_ERROR=0
+declare -i TOTAL=0 DETECTED=0 PREVENTION_DETECTED=0 PREVENTED=0 PASSTHROUGH=0 NO_BUILD=0 TEST_ERROR=0
 
 summary_json="$OUTDIR/summary.jsonl"
 : > "$summary_json"
@@ -157,11 +157,22 @@ while IFS=',' read -r bug_id url status pass opt_level lang repro_llvm21 ub_verd
     instr_exit="${instr_exit:-N}"
 
     # Classification priority:
-    #   1. report fired → detected (strongest claim)
-    #   2. either side failed to record an EXIT line → test_error (scaffolding)
-    #   3. exit codes differ → prevented (instrumentation perturbed the bug)
-    #   4. same exit, no report → passthrough (instrumentation didn't help)
-    if grep -qE 'Trace2Pass Report|trace2pass_report_|check_type":' "$inst_log"; then
+    #   1. checksum_mismatch / runtime Trace2Pass Report         → detected
+    #   2. prevention_detected (build-time 3-way, bug suppressed) → prevention_detected
+    #   3. either side failed to record an EXIT line             → test_error
+    #   4. exit codes differ, no report                          → prevented
+    #   5. same exit, no report                                  → passthrough
+    # NB: the prevention_detected grep has to run BEFORE the generic
+    # Trace2Pass Report grep or the report would be counted as "detected".
+    # checksum_mismatch stays ahead because it's a stronger signal (the bug
+    # survived instrumentation).
+    if grep -qE 'Type: checksum_mismatch|"check_type":"checksum_mismatch"' "$inst_log"; then
+        verdict="detected"
+        DETECTED+=1
+    elif grep -qE 'Type: prevention_detected|"check_type":"prevention_detected"' "$inst_log"; then
+        verdict="prevention_detected"
+        PREVENTION_DETECTED+=1
+    elif grep -qE 'Trace2Pass Report|trace2pass_report_|check_type":' "$inst_log"; then
         verdict="detected"
         DETECTED+=1
     elif [[ "$plain_exit" == "N" || "$instr_exit" == "N" ]]; then
@@ -192,16 +203,20 @@ sum_md="$OUTDIR/summary.md"
     echo "| Outcome | Count | % of total |"
     echo "|---|---|---|"
     [[ $TOTAL -gt 0 ]] && pct() { awk -v n="$1" -v t="$TOTAL" 'BEGIN{printf "%.1f", 100*n/t}'; } || pct() { echo 0; }
-    echo "| detected   | $DETECTED    | $(pct $DETECTED)% |"
-    echo "| prevented  | $PREVENTED   | $(pct $PREVENTED)% |"
-    echo "| passthrough| $PASSTHROUGH | $(pct $PASSTHROUGH)% |"
-    echo "| no_build   | $NO_BUILD    | $(pct $NO_BUILD)% |"
-    echo "| test_error | $TEST_ERROR  | $(pct $TEST_ERROR)% |"
-    echo "| **Total**  | **$TOTAL**   | 100% |"
+    echo "| detected              | $DETECTED              | $(pct $DETECTED)% |"
+    echo "| prevention_detected   | $PREVENTION_DETECTED   | $(pct $PREVENTION_DETECTED)% |"
+    echo "| prevented             | $PREVENTED             | $(pct $PREVENTED)% |"
+    echo "| passthrough           | $PASSTHROUGH           | $(pct $PASSTHROUGH)% |"
+    echo "| no_build              | $NO_BUILD              | $(pct $NO_BUILD)% |"
+    echo "| test_error            | $TEST_ERROR            | $(pct $TEST_ERROR)% |"
+    echo "| **Total**             | **$TOTAL**             | 100% |"
     echo
-    echo "### Involvement rate"
-    INVOLVED=$((DETECTED + PREVENTED))
-    echo "detected + prevented = $INVOLVED / $TOTAL = $(pct $INVOLVED)%"
+    echo "### Derived headlines"
+    REPORTED=$((DETECTED + PREVENTION_DETECTED))
+    INVOLVED=$((DETECTED + PREVENTION_DETECTED + PREVENTED))
+    echo "- detected                                        = $DETECTED / $TOTAL = $(pct $DETECTED)%  (runtime signal only)"
+    echo "- detected + prevention_detected                  = $REPORTED / $TOTAL = $(pct $REPORTED)%  (total reports)"
+    echo "- detected + prevention_detected + prevented      = $INVOLVED / $TOTAL = $(pct $INVOLVED)%  (total involvement)"
     echo
     echo "### Per-bug verdicts"
     echo
