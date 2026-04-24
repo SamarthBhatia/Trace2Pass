@@ -1,0 +1,19 @@
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: f
+Trace2Pass: Instrumented 4 arithmetic operations, 1 return checksums in f
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 0 arithmetic operations, 1 return checksums in main
+92
+Trace2Pass: Runtime initialized (sample_rate=1.000, opt_level=unknown)
+
+=== Trace2Pass Report ===
+Timestamp: 2026-04-24T09:45:48Z
+Type: arithmetic_overflow
+Location: unknown:0 in f
+PC: 0x5df7b9a29496
+Expression: x shl y
+Operands: 1, 4294967295
+========================
+
+Trace2Pass: Runtime shutting down
+EXIT=0

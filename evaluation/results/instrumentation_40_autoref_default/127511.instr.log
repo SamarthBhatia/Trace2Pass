@@ -1,0 +1,29 @@
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: bar
+Trace2Pass: Instrumented 1 arithmetic operations, 1 unreachable blocks, 1 return checksums in bar
+Trace2Pass: Instrumenting function: foo
+Trace2Pass: Instrumented 1 arithmetic operations, 1 return checksums in foo
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 0 arithmetic operations, 1 return checksums in main
+Trace2Pass: Runtime initialized (sample_rate=1.000, opt_level=unknown)
+
+=== Trace2Pass Report ===
+Timestamp: 2026-04-24T09:38:49Z
+Type: checksum_mismatch
+Expected (O0 reference): 0x0000000000f566b9
+Actual   (optimized):    0x0000000000f56638
+Note: Optimized binary's accumulated function-return checksum
+      differs from the O0 reference. This indicates a backend
+      miscompilation — the two builds computed different values.
+========================
+
+Trace2Pass: Runtime shutting down
+=== LLVM #127511: GVN setjmp/longjmp Bug ===
+
+BUG: kPtr is NULL (GVN removed check or propagated NULL)
+trace: 1
+
+=== Test Complete ===
+If 'Flag set successfully' printed, behavior is correct.
+If 'BUG: kPtr is NULL' printed, GVN misoptimized.
+EXIT=1

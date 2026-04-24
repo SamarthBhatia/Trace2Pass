@@ -1,0 +1,11 @@
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: _Z1fl
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks, 1 return checksums in _Z1fl
+Trace2Pass: Instrumenting function: _ZL7convertl
+Trace2Pass: Instrumented 0 arithmetic operations, 1 division checks, 1 return checksums in _ZL7convertl
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 0 arithmetic operations, 1 return checksums in main
+Trace2Pass: Runtime initialized (sample_rate=1.000, opt_level=unknown)
+Trace2Pass: Runtime shutting down
+has_value=0
+EXIT=0

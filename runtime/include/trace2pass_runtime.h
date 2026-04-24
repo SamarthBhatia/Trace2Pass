@@ -69,6 +69,16 @@ int64_t trace2pass_opaque_read(void* addr, int32_t size_bytes);
 void trace2pass_report_value_propagation(void* pc, const char* file, int line,
     const char* function, void* addr, int64_t optimized_value, int64_t actual_value);
 
+// Backend Checksum Mismatch Report
+// Emitted when the accumulated optimized-build return-value checksum differs
+// from the O0 reference. Called automatically from trace2pass_fini() when
+// __trace2pass_ref_checksum is strong-defined by the autoref wrapper.
+void trace2pass_report_checksum_mismatch(uint64_t expected, uint64_t actual);
+
+// Weak: strong-defined by tools/trace2pass-cc-autoref in a per-build stub. A
+// non-zero value enables the auto-compare path.
+extern const uint64_t __trace2pass_ref_checksum;
+
 // Sampling Control
 
 int trace2pass_should_sample(void);

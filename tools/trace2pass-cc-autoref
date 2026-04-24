@@ -1,0 +1,260 @@
+#!/usr/bin/env python3
+"""
+trace2pass-cc-autoref — instrumenting compiler wrapper with automatic
+O0-reference checksum capture.
+
+Usage:
+    trace2pass-cc-autoref [clang-args...] source.c -o binary
+
+What it does:
+    1. Compile source.c at -O0 with the Trace2Pass plugin → <binary>.t2p_ref
+    2. Run the reference binary with TRACE2PASS_CHECKSUM_MODE=record to
+       capture its accumulated return-value checksum.
+    3. Generate a tiny C stub that defines the strong symbol
+           const unsigned long long __trace2pass_ref_checksum = 0x<hash>ULL;
+    4. Compile source.c at the caller's -Olevel with the plugin AND link the
+       stub, so that at runtime trace2pass_fini() auto-compares against the
+       reference. A mismatch fires a standard '=== Trace2Pass Report ===' with
+       Type: checksum_mismatch (picked up by the evaluation harness).
+
+Environment:
+    TRACE2PASS_CLANG    path to clang (default: clang on PATH)
+    TRACE2PASS_PLUGIN   path to Trace2PassInstrumentor.so
+                        (default: /usr/local/lib/Trace2PassInstrumentor.so)
+    TRACE2PASS_RUNTIME  path to libTrace2PassRuntime.a
+                        (default: /usr/local/lib/libTrace2PassRuntime.a)
+    TRACE2PASS_AUTOREF_TIMEOUT  seconds for reference-run (default: 10)
+    TRACE2PASS_AUTOREF_VERBOSE  1 = print steps to stderr
+
+Fail-soft behaviour:
+    If the reference build or run fails (no main, timeout, crash, etc.) the
+    wrapper falls back to a plain instrumented build without the stub — the
+    runtime's weak __trace2pass_ref_checksum stays at 0 and the auto-compare
+    path is inactive. The wrapper emits a warning to stderr and exits 0 so
+    the outer build doesn't fail.
+"""
+
+import hashlib
+import os
+import shlex
+import subprocess
+import sys
+import tempfile
+
+
+PLUGIN_DEFAULT  = "/usr/local/lib/Trace2PassInstrumentor.so"
+RUNTIME_DEFAULT = "/usr/local/lib/libTrace2PassRuntime.a"
+TIMEOUT_DEFAULT = 10
+
+
+def log(msg):
+    if os.environ.get("TRACE2PASS_AUTOREF_VERBOSE") == "1":
+        sys.stderr.write(f"trace2pass-cc-autoref: {msg}\n")
+
+
+def warn(msg):
+    sys.stderr.write(f"trace2pass-cc-autoref: warning: {msg}\n")
+
+
+def find_clang():
+    env_clang = os.environ.get("TRACE2PASS_CLANG")
+    if env_clang:
+        return env_clang
+    # Prefer system clang via PATH, but skip self.
+    self_real = os.path.realpath(__file__)
+    for path in os.environ.get("PATH", "").split(os.pathsep):
+        cand = os.path.join(path, "clang")
+        if os.path.exists(cand) and os.path.realpath(cand) != self_real:
+            return cand
+    sys.stderr.write("trace2pass-cc-autoref: error: cannot find clang. Set TRACE2PASS_CLANG.\n")
+    sys.exit(1)
+
+
+def parse_args(argv):
+    """Locate the source file, output file, and optimisation level in argv.
+
+    Returns (source, output, opt_level, passthrough_args). passthrough_args is
+    argv with the source and `-o out` stripped — we need to re-inject those
+    around the plugin flags for both compilations.
+    """
+    source = None
+    output = None
+    opt_level = None
+    is_cpp = False
+    pass_through = []
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "-o" and i + 1 < len(argv):
+            output = argv[i + 1]
+            i += 2
+            continue
+        if a.startswith("-O"):
+            opt_level = a
+            pass_through.append(a)
+            i += 1
+            continue
+        if not a.startswith("-") and (a.endswith(".c") or a.endswith(".cc")
+                                      or a.endswith(".cpp") or a.endswith(".cxx")
+                                      or a.endswith(".C")):
+            source = a
+            if not a.endswith(".c"):
+                is_cpp = True
+            i += 1
+            continue
+        pass_through.append(a)
+        i += 1
+    return source, output, opt_level or "-O2", is_cpp, pass_through
+
+
+def run_build(clang, source, output, opt, plugin, runtime, pass_through, is_cpp, extra_objs=None):
+    """Invoke clang once with the plugin + runtime linkage.
+
+    Returns the subprocess.CompletedProcess. Doesn't raise — caller inspects
+    returncode so the wrapper can fall back to a plain build on failure.
+    """
+    if is_cpp:
+        compiler = clang + "++" if not clang.endswith("++") else clang
+    else:
+        compiler = clang
+    cmd = [compiler, *pass_through, source]
+    if extra_objs:
+        cmd += extra_objs
+    cmd += ["-fpass-plugin=" + plugin,
+            runtime, "-lpthread", "-ldl", "-lm",
+            "-o", output]
+    # Force the plugin to emit checksum instrumentation regardless of its
+    # default. This keeps the wrapper compatible with both old plugin builds
+    # (where backend_checksum is opt-in) and new ones (where it's always on).
+    env = os.environ.copy()
+    env["TRACE2PASS_ENABLE_BACKEND_CHECKSUM"] = "1"
+    log("run_build: " + " ".join(shlex.quote(c) for c in cmd))
+    return subprocess.run(cmd, capture_output=True, text=True, env=env)
+
+
+def capture_reference_checksum(ref_binary, timeout):
+    """Run the reference binary with CHECKSUM_MODE=record, read the hash.
+
+    Returns the 64-bit integer hash on success, None on failure.
+    """
+    with tempfile.NamedTemporaryFile("r", suffix=".hash", delete=False) as tf:
+        hash_path = tf.name
+    env = os.environ.copy()
+    env["TRACE2PASS_CHECKSUM_MODE"] = "record"
+    env["TRACE2PASS_CHECKSUM_FILE"] = hash_path
+    # Silence collector config so the ref run doesn't POST anywhere.
+    env.pop("TRACE2PASS_COLLECTOR_URL", None)
+    # subprocess.run doesn't resolve bare names against cwd (PATH lookup only),
+    # so turn a relative path like "out.t2p_ref" into "./out.t2p_ref" first.
+    ref_exec = os.path.abspath(ref_binary)
+    try:
+        proc = subprocess.run([ref_exec], env=env, capture_output=True,
+                              text=True, timeout=timeout)
+        # Exit code is not important — we only need the record-mode hash,
+        # and record mode writes the hash regardless of the main() return.
+        if not os.path.exists(hash_path) or os.path.getsize(hash_path) == 0:
+            warn(f"reference run produced no checksum file (exit={proc.returncode})")
+            return None
+        with open(hash_path) as f:
+            line = f.read().strip()
+        # Format written by runtime: "0x<16 hex digits>"
+        if line.startswith("0x") or line.startswith("0X"):
+            return int(line, 16)
+        return int(line, 16) if all(c in "0123456789abcdefABCDEF" for c in line) else None
+    except subprocess.TimeoutExpired:
+        warn(f"reference run timed out after {timeout}s — auto-ref disabled")
+        return None
+    except Exception as e:
+        warn(f"reference run failed: {e} — auto-ref disabled")
+        return None
+    finally:
+        try:
+            os.unlink(hash_path)
+        except OSError:
+            pass
+
+
+def main(argv):
+    source, output, opt_level, is_cpp, pass_through = parse_args(argv)
+
+    clang = find_clang()
+    plugin = os.environ.get("TRACE2PASS_PLUGIN", PLUGIN_DEFAULT)
+    runtime = os.environ.get("TRACE2PASS_RUNTIME", RUNTIME_DEFAULT)
+    timeout = int(os.environ.get("TRACE2PASS_AUTOREF_TIMEOUT", TIMEOUT_DEFAULT))
+
+    if not source:
+        warn("no source file found in args — falling back to bare clang")
+        return subprocess.run([clang, *argv]).returncode
+    if not output:
+        output = "a.out"
+    if not os.path.exists(plugin):
+        warn(f"plugin {plugin} not found — falling back to bare clang")
+        return subprocess.run([clang, *argv]).returncode
+    if not os.path.exists(runtime):
+        warn(f"runtime {runtime} not found — falling back to bare clang")
+        return subprocess.run([clang, *argv]).returncode
+
+    # Clone pass_through without the opt level for the reference build (we
+    # force -O0). `-disable-O0-optnone` is critical: without it, clang marks
+    # each function `optnone` at -O0 and the PassBuilder's start-EP callback
+    # (where our plugin hooks in) never fires, so the reference run produces
+    # no checksum. This flag removes the optnone attribute without enabling
+    # any -O1+ optimisations, giving us a "plugin-runs but no codegen
+    # perturbation" baseline.
+    ref_passthrough = [a for a in pass_through if not a.startswith("-O")]
+    ref_passthrough += ["-O0", "-Xclang", "-disable-O0-optnone"]
+
+    ref_binary = output + ".t2p_ref"
+    log(f"building reference at -O0 (optnone disabled) → {ref_binary}")
+    ref_build = run_build(clang, source, ref_binary, "-O0", plugin, runtime,
+                          ref_passthrough, is_cpp)
+    ref_hash = None
+    if ref_build.returncode != 0:
+        warn(f"reference (-O0) build failed rc={ref_build.returncode} — auto-ref disabled\n{ref_build.stderr}")
+    else:
+        ref_hash = capture_reference_checksum(ref_binary, timeout)
+
+    stub_obj = None
+    if ref_hash is not None and ref_hash != 0:
+        log(f"captured reference checksum 0x{ref_hash:016x}")
+        with tempfile.NamedTemporaryFile("w", suffix=".c", delete=False) as sf:
+            sf.write(
+                "/* generated by trace2pass-cc-autoref — O0 reference checksum stub */\n"
+                "#include <stdint.h>\n"
+                f"const uint64_t __trace2pass_ref_checksum = 0x{ref_hash:016x}ULL;\n"
+            )
+            stub_src = sf.name
+        stub_obj = stub_src[:-2] + ".o"
+        comp = subprocess.run([clang, "-c", stub_src, "-o", stub_obj],
+                              capture_output=True, text=True)
+        if comp.returncode != 0:
+            warn(f"stub compile failed — auto-ref disabled\n{comp.stderr}")
+            stub_obj = None
+        try:
+            os.unlink(stub_src)
+        except OSError:
+            pass
+
+    log(f"building final binary at {opt_level} → {output}")
+    extra = [stub_obj] if stub_obj else None
+    final_build = run_build(clang, source, output, opt_level, plugin, runtime,
+                            pass_through, is_cpp, extra_objs=extra)
+    # Always echo compiler output so warnings reach the caller.
+    if final_build.stdout:
+        sys.stdout.write(final_build.stdout)
+    if final_build.stderr:
+        sys.stderr.write(final_build.stderr)
+
+    # Tidy up
+    for p in (ref_binary, stub_obj):
+        if p and os.path.exists(p):
+            try:
+                os.unlink(p)
+            except OSError:
+                pass
+
+    return final_build.returncode
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

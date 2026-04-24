@@ -1,0 +1,15 @@
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: h
+Trace2Pass: Instrumented 2 arithmetic operations, 1 return checksums in h
+Trace2Pass: Instrumenting function: l
+Trace2Pass: Instrumented 0 arithmetic operations, 1 return checksums in l
+Trace2Pass: Instrumenting function: n
+Trace2Pass: Instrumented 0 arithmetic operations, 1 return checksums in n
+Trace2Pass: Instrumenting function: m
+Trace2Pass: Instrumented 2 arithmetic operations, 1 return checksums in m
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 0 arithmetic operations, 1 return checksums in main
+Trace2Pass: Runtime initialized (sample_rate=1.000, opt_level=unknown)
+Trace2Pass: Runtime shutting down
+1
+EXIT=0

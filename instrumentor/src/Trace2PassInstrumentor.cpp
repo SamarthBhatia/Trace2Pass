@@ -175,14 +175,17 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
 
   // Configuration: Per-check toggles for fine-grained control
   //
-  // Always-on checks (production mode, ~4% overhead):
-  //   Arithmetic overflow, unreachable code, division-by-zero, pure functions, shift
+  // Always-on checks (production mode, ~4-5% overhead):
+  //   Arithmetic overflow, unreachable code, division-by-zero, pure functions,
+  //   backend_checksum (accumulator-only; auto-compares against O0 reference
+  //   when trace2pass-cc-autoref linked a strong __trace2pass_ref_checksum)
   //
   // Optional checks (disabled by default due to higher overhead):
-  //   TRACE2PASS_ENABLE_GEP_BOUNDS=1       GEP bounds checking (~18% overhead)
-  //   TRACE2PASS_ENABLE_SIGN_CONVERSION=1  Sign conversion detection (~280% overhead)
-  //   TRACE2PASS_ENABLE_LOOP_BOUNDS=1      Loop iteration bounds (~12.7% overhead)
-  //   TRACE2PASS_ENABLE_ALL_CHECKS=1       Enable ALL checks (overrides above)
+  //   TRACE2PASS_ENABLE_GEP_BOUNDS=1           GEP bounds checking (~18% overhead)
+  //   TRACE2PASS_ENABLE_SIGN_CONVERSION=1      Sign conversion detection (~280% overhead)
+  //   TRACE2PASS_ENABLE_LOOP_BOUNDS=1          Loop iteration bounds (~12.7% overhead)
+  //   TRACE2PASS_ENABLE_ALL_CHECKS=1           Enable ALL checks (overrides above)
+  //   TRACE2PASS_DISABLE_BACKEND_CHECKSUM=1    Opt OUT of the default checksum
   //
   auto envIsSet = [](const char *name) -> bool {
     const char *val = getenv(name);
@@ -198,7 +201,12 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
   bool enable_storeload = all_checks || envIsSet("TRACE2PASS_ENABLE_STORE_LOAD_CHECK");
   bool enable_volatile  = all_checks || envIsSet("TRACE2PASS_ENABLE_VOLATILE_TRACKING");
   bool enable_crossbb   = all_checks || envIsSet("TRACE2PASS_ENABLE_CROSS_BB_CHECK");
-  bool enable_backend_checksum = all_checks || envIsSet("TRACE2PASS_ENABLE_BACKEND_CHECKSUM");
+  // Backend checksum is on by default — it accumulates a return-value checksum
+  // at O(1) per returned function, and the runtime compares against a weak
+  // symbol filled in by the trace2pass-cc-autoref wrapper. When no wrapper is
+  // used the accumulator runs but the compare stays dormant. Escape hatch for
+  // extra-tight-overhead setups: TRACE2PASS_DISABLE_BACKEND_CHECKSUM=1.
+  bool enable_backend_checksum = !envIsSet("TRACE2PASS_DISABLE_BACKEND_CHECKSUM");
 
   // Always-on checks (production)
   Modified |= instrumentArithmeticOperations(F);

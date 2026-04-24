@@ -1,0 +1,22 @@
+Trace2Pass: Injected build metadata: opt_level=unknown, flags=(none)
+Trace2Pass: Instrumenting function: bar
+Trace2Pass: Instrumented 1 arithmetic operations, 1 return checksums in bar
+Trace2Pass: Instrumenting function: foo
+Trace2Pass: Instrumented 0 arithmetic operations, 1 return checksums in foo
+Trace2Pass: Instrumenting function: main
+Trace2Pass: Instrumented 0 arithmetic operations, 1 return checksums in main
+Trace2Pass: Runtime initialized (sample_rate=1.000, opt_level=unknown)
+5882352
+
+=== Trace2Pass Report ===
+Timestamp: 2026-04-24T09:45:36Z
+Type: checksum_mismatch
+Expected (O0 reference): 0x02040aedfdb1e638
+Actual   (optimized):    0x66cd9b891bfd7f0b
+Note: Optimized binary's accumulated function-return checksum
+      differs from the O0 reference. This indicates a backend
+      miscompilation — the two builds computed different values.
+========================
+
+Trace2Pass: Runtime shutting down
+EXIT=1

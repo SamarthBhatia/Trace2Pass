@@ -130,12 +130,24 @@ while IFS=',' read -r bug_id url status pass opt_level lang repro_llvm21 ub_verd
         timeout $TIMEOUT_SEC /tmp/plain ; echo EXIT=\$?
     " > "$plain_log" 2>&1 || true
 
-    # Instrumented build + run
+    # Instrumented build + run. Uses the trace2pass-cc-autoref wrapper when
+    # available in the image (images are refreshed via
+    # evaluation/docker-images/deploy-autoref.sh). The wrapper builds an
+    # O0 reference, captures its checksum, links a stub with the hash, and
+    # produces the final instrumented binary. The runtime auto-compares at
+    # exit and fires 'Type: checksum_mismatch' when they differ.
+    #
+    # If the wrapper isn't present (image predates deploy-autoref), fall back
+    # to the old direct plugin invocation.
     docker run --rm -v "$bug_dir":/src -w /src "$img" bash -c "
-        $compiler $olvl $test_src \
-            -fpass-plugin=/usr/local/lib/Trace2PassInstrumentor.so \
-            /usr/local/lib/libTrace2PassRuntime.a -lpthread -ldl -lm \
-            -o /tmp/instr 2>&1 ;
+        if command -v trace2pass-cc-autoref >/dev/null 2>&1; then
+            TRACE2PASS_CLANG=$compiler trace2pass-cc-autoref $olvl $test_src -o /tmp/instr 2>&1
+        else
+            $compiler $olvl $test_src \
+                -fpass-plugin=/usr/local/lib/Trace2PassInstrumentor.so \
+                /usr/local/lib/libTrace2PassRuntime.a -lpthread -ldl -lm \
+                -o /tmp/instr 2>&1
+        fi
         $ENV_FLAGS timeout $TIMEOUT_SEC /tmp/instr ; echo EXIT=\$?
     " > "$inst_log" 2>&1 || true
 

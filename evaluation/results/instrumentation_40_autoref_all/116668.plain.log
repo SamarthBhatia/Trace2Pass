@@ -1,0 +1,6 @@
+local_val=10
+Calling function foo local_var=20
+Calling longjmp from inside function foo
+longjmp has been called local_val=10
+BUG: GVN propagated pre-setjmp value (10 instead of 20)
+EXIT=1
