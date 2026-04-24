@@ -86,6 +86,14 @@ BUGS=(
     "64060:1ae72c0f666beea11de7e9dea17675a89437849c:EarlyMachineLICM wrong code (Jul 2023)"
     "60944:ff11d6b6f6e27f5de389002b8f6102b6cf3ed474:SCEV nowrap flags (Mar 2023)"
     "63327:222d73ff7a861445c7ca33215925789426dda483:InstCombine bitwise (Jun 2023)"
+
+    # --- Batch 4 (Apr 2026 session): new-pass-bias expansion. LoopInterchange
+    # is not in the 21 culprit passes currently represented; these three bugs
+    # broaden the pass-coverage and are pulled from the issue tracker under
+    # label:miscompilation, reporters kasuga-fj / mshockwave. ---
+    "123920:89ca3e72ca03efbbfb5ae9b1c71d81f2d1753521:LoopInterchange LE/GE dep (Jan 2025)"
+    "140238:0c89cbb484ca0df7678e16b710331a95314fbd61:LoopInterchange confused dep (May 2025)"
+    "148228:9eb0fc8e57679c5539173bdd13057b523209a596:LoopInterchange reduction nuw/nsw (Jul 2025)"
 )
 
 LOG_DIR="$SCRIPT_DIR/build-logs/instrumented"

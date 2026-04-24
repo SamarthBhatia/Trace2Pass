@@ -66,6 +66,10 @@ BUGS=(
     "63893:b7836d856206ec39509d42529f958c920368166b:Two-Address isCopyInstrImpl (Jul 2023)"
     "54112:42e8e00189be787b4d916c6d297a8315998c7687:LoopSimplifyCFG FPE (Mar 2022)"
     "57899:76fd4bf675b5ceeeca0e4e15cf15d89c7acf4947:InstCombine zext icmp (Sep 2022)"
+    # --- Batch 4: new-pass-bias expansion (Apr 2026 session) ---
+    "123920:89ca3e72ca03efbbfb5ae9b1c71d81f2d1753521:LoopInterchange LE/GE dep (Jan 2025)"
+    "140238:0c89cbb484ca0df7678e16b710331a95314fbd61:LoopInterchange confused dep (May 2025)"
+    "148228:9eb0fc8e57679c5539173bdd13057b523209a596:LoopInterchange reduction nuw/nsw (Jul 2025)"
 )
 
 MAX_PARALLEL=1
