@@ -61,10 +61,27 @@ with instrumented-image builds:
 - `diagnoser/diagnose.py` — wired to dispatch `trace2pass-gcc-buggy:*` docker images to `GccPassBisector`. LLVM path untouched and regression-tested (#79861 still bisects+heals correctly).
 - 7 GCC candidate test_bug.c files staged at `evaluation/real-bugs/gcc-{113756,109925,115092,115492,116588,117095,121382}/`.
 
+**End-to-end validation (Phase 3, evening):**
+- `trace2pass-gcc-buggy:113756` built successfully (~1h, faster than the 3h estimate; image size 633MB; gcc 14.0.1 commit `6e308d5f71a91`).
+- Direct repro confirmed in image: -O0 exit 0 (correct), -O2 exit 134 (abort, bug fires), -O3 exit 0.
+- `diagnose.py heal --docker-image trace2pass-gcc-buggy:113756` correctly **routed to `GccPassBisector`** via the new dispatch hook. JSON output `mode: gcc_fdisable` confirms.
+- `discover_passes` in Docker mode found 230 disposable instances (vs 224 on host gcc 13.3 — minor version drift, expected).
+- Pipeline ran end-to-end (verdict=bisected, healed=skipped because verdict was first reported as error).
+
+**Known accuracy bug (not a blocker for the framework, but blocks adding GCC keepers):**
+- The bisector converges on the WRONG culprit (`rtl-dfinish@229` — the last pass in the pipeline) on PR113756.
+- Root cause: GCC's "disposable" pass list (everything that isn't `*`-prefixed in `-fdump-passes`) includes essential pre-SSA lowering passes (omplower, lower, eh, cfg, ompexp, ssa, fixup_cfg*, walloca*) AND late code-gen passes (alignments, asmcons, cprop_hardreg, dfinish, final). Disabling these causes gcc to fail compilation, NOT just produce non-optimized code. So compile-failure events appear non-monotonically during binary search and mislead the algorithm.
+- The brief's algorithm description (`-fdisable-tree-PASS / -fdisable-rtl-PASS` over the dump-passes ordering) implicitly assumed the LLVM pattern (`opt-bisect-limit` is a true ordering knob); GCC's per-pass disable is NOT a true ordering knob in this sense.
+
+**Algorithm fix sketches (for follow-up):**
+1. **Pre-filter the disposable list** with a static deny-list of GCC pre-SSA + late-codegen passes (`omplower lower eh cfg ompexp ssa fixup_cfg1 fixup_cfg2 walloca1 walloca2 waccess1 waccess2 nothrow alignments asmcons cprop_hardreg subreg1 subreg2 alignments dfinish final dwarf2`). Quick to implement, GCC-version-fragile.
+2. **Probe each pass individually** (one extra compile per pass) to filter to truly-disposable ones. ~230 extra compiles; 1-2h. Robust.
+3. **Switch to `--enable-checking=release` + skip RTL passes entirely**; bisect only `-fdisable-tree-*` instances. The cited culprit pass for PR113756 is `range-op` (a tree-VRP component); RTL passes are unlikely to host these miscompiles.
+
 **Still TODO before GCC keepers can be added to the dataset:**
-- Build first GCC docker image (~3h, deferred — disk constrained at 18GB free during instrumented build).
-- End-to-end validate `GccPassBisector` Docker mode against a real `trace2pass-gcc-buggy:<id>` image. Host-mode `discover_passes` confirmed working (224 passes); the bisect+test loop in Docker hasn't been smoke-tested against a known-good fail/pass case.
-- Once first GCC image succeeds + bisector validates: append CSV rows with `origin=gcc`.
+- Implement one of the fixes above and re-run on PR113756 — should converge on a tree-VRP-related pass like `vrp1` or `evrp`.
+- Smoke-test the same logic on PR115092 (rtl-optimization/combine — would test the RTL-bisect path).
+- If both work: build remaining 5 GCC images and add CSV rows with `origin=gcc`.
 
 **GCC candidates' parent-of-fix SHAs (verified):**
 | PR | parent-of-fix |
