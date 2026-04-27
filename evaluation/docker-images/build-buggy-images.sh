@@ -66,6 +66,19 @@ BUGS=(
     "63893:b7836d856206ec39509d42529f958c920368166b:Two-Address isCopyInstrImpl (Jul 2023)"
     "54112:42e8e00189be787b4d916c6d297a8315998c7687:LoopSimplifyCFG FPE (Mar 2022)"
     "57899:76fd4bf675b5ceeeca0e4e15cf15d89c7acf4947:InstCombine zext icmp (Sep 2022)"
+    # --- Batch 4: Apr 2026 expansion (39->60 target) ---
+    "79861:6deb7cfd74cacda4b460a7f8e1e7a1be012b1b9e:IndVarSimplify poison-safety reuse (Feb 2024)"
+    "105785:39986f0b4d797e4ad3c12607f2b4abe2322b82bb:ConstraintElim samesign regression / Alive2 (Aug 2024)"
+    # Csmith-era keepers (shao-hua-li reports, 2023)
+    "71330:5cc9347aa3f13e3bcea92640771f6352e2181ef4:InstCombine foldNestedSelects (Nov 2023)"
+    "64669:1991da9a837dcb083a2a960fbd6a3389da8cc6c1:InstCombine select+cast w/ ConstExpr (Aug 2023)"
+    "64259:2cb6d0c70bff616cce4dbd4cbdffc085175c739f:InstCombine irreducible-loop handling (Jul 2023)"
+    "74739:0bd0d721cd71138d0d538b0a131e013ccb27ba4b:InstCombine simplifyAssocCastAssoc poison (Dec 2023)"
+    "70509:703895b131720682a3ca596a96a7c94fb281c0e4:InstCombine shr+cmp constant fold (revert, Oct 2023)"
+    "75298:8d893f28f2a7978e192bbdef68c73896dc721a74:LoopVectorize VPlan Select side-effects (revert, Dec 2023)"
+    "68260:2a2b426f13dfd33c7495da1c54ab9d1a8e625d87:SCEV invalidate-past-dep (revert, Oct 2023)"
+    "63645:8fc6b1a18f4d9cc4d481c38bbc503a27acc7e461:X86 SDAG TargetFrameIndex alias (Jul 2023)"
+    "76162:4cdeef510e136865c2445dedb5a0f72cd11d4527:InstCombine foldICmpBinOp or-add (revert, Dec 2023)"
 )
 
 MAX_PARALLEL=1

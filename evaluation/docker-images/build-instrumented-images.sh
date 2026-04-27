@@ -86,6 +86,20 @@ BUGS=(
     "64060:1ae72c0f666beea11de7e9dea17675a89437849c:EarlyMachineLICM wrong code (Jul 2023)"
     "60944:ff11d6b6f6e27f5de389002b8f6102b6cf3ed474:SCEV nowrap flags (Mar 2023)"
     "63327:222d73ff7a861445c7ca33215925789426dda483:InstCombine bitwise (Jun 2023)"
+
+    # --- Batch 4: Apr 2026 expansion (39->60 target) ---
+    "79861:6deb7cfd74cacda4b460a7f8e1e7a1be012b1b9e:IndVarSimplify poison-safety reuse (Feb 2024)"
+    "105785:39986f0b4d797e4ad3c12607f2b4abe2322b82bb:ConstraintElim samesign regression / Alive2 (Aug 2024)"
+    # Csmith-era keepers
+    "71330:5cc9347aa3f13e3bcea92640771f6352e2181ef4:InstCombine foldNestedSelects"
+    "64669:1991da9a837dcb083a2a960fbd6a3389da8cc6c1:InstCombine select+cast w/ ConstExpr"
+    "64259:2cb6d0c70bff616cce4dbd4cbdffc085175c739f:InstCombine irreducible-loop handling"
+    "74739:0bd0d721cd71138d0d538b0a131e013ccb27ba4b:InstCombine simplifyAssocCastAssoc poison"
+    "70509:703895b131720682a3ca596a96a7c94fb281c0e4:InstCombine shr+cmp constant fold (revert)"
+    "75298:8d893f28f2a7978e192bbdef68c73896dc721a74:LoopVectorize VPlan Select side-effects (revert)"
+    "68260:2a2b426f13dfd33c7495da1c54ab9d1a8e625d87:SCEV invalidate-past-dep (revert)"
+    "63645:8fc6b1a18f4d9cc4d481c38bbc503a27acc7e461:X86 SDAG TargetFrameIndex alias"
+    "76162:4cdeef510e136865c2445dedb5a0f72cd11d4527:InstCombine foldICmpBinOp or-add (revert)"
 )
 
 LOG_DIR="$SCRIPT_DIR/build-logs/instrumented"

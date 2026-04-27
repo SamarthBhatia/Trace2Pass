@@ -56,3 +56,4 @@ synthetic-dse,n/a,Synthetic,DSE,-O2,c,no,pattern_demo,100,n/a,n/a,DSEPass,yes,st
 synthetic-simplifycfg,n/a,Synthetic,SimplifyCFG,-O1,c,no,pattern_demo,100,n/a,n/a,SimplifyCFGPass,yes,control_flow,n/a,n/a,llvm
 synthetic-loopvec,n/a,Synthetic,LoopVectorize,-O2,c,no,pattern_demo,100,n/a,n/a,LoopVectorizePass,yes,loop_bounds,n/a,n/a,llvm
 synthetic-tbaa,n/a,Synthetic,TBAA/InstCombine,-O2,c,no,pattern_demo,100,n/a,n/a,InstCombinePass,yes,value_propagation,n/a,n/a,llvm
+79861,https://github.com/llvm/llvm-project/issues/79861,Closed,IndVarSimplify,-O3,c,no(fixed),compiler_bug,90,all_fail,bisected,IndVarSimplifyPass@210,n/a,n/a,yes,function_optnone,llvm
