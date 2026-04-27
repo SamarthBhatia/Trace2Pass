@@ -262,23 +262,20 @@ class GccPassBisector:
                     None, None, None, [n], 1, "full_passes", passes,
                     details={"reason": "test passes with full pipeline; bug not reproducible"})
 
-            # Sanity 2: all disabled must PASS.
-            try:
-                bin_none = self._compile_with_disabled(
-                    source_file, passes, list(range(n)), tmpdir, "none")
-            except RuntimeError as e:
-                return PassBisectionResult(
-                    None, None, None, [n, 0], 2, "error", passes,
-                    details={"reason": "all-disabled compile failed", "error": str(e)})
-            if not test_func(bin_none):
-                return PassBisectionResult(
-                    None, None, None, [n, 0], 2, "baseline_fails", passes,
-                    details={"reason": "test fails even with all disposable passes disabled — likely UB or non-disposable pass"})
+            # Sanity 2 (all-disabled = correct) is SKIPPED. In GCC, some
+            # "disposable" passes (omplower, lower, eh, cfg, ssa, ...) are
+            # actually pre-SSA lowering passes that gcc needs to function;
+            # disabling them all causes the compile itself to fail rather
+            # than produce correct code. The binary-search loop below
+            # handles compile failures at intermediate k values gracefully.
+            # We thus invariant: f(N) = FAIL (verified) and conservatively
+            # assume f(0) is PASS-equivalent (the worst case is the bisector
+            # narrows to the first compilable k where the test still passes).
 
             # Binary search: f(k) = test result with first k passes enabled
             # (last n-k disabled). Find smallest k where f(k) = False (bug).
-            lo, hi = 0, n   # f(lo)=True, f(hi)=False
-            tested = [n, 0]
+            lo, hi = 0, n   # f(lo) assumed True (or compile fails); f(hi)=False
+            tested = [n]
             while hi - lo > 1:
                 mid = (lo + hi) // 2
                 disable_idx = list(range(mid, n))
@@ -287,9 +284,11 @@ class GccPassBisector:
                     bin_mid = self._compile_with_disabled(
                         source_file, passes, disable_idx, tmpdir, tag)
                 except RuntimeError as e:
-                    self._log(f"compile failed at k={mid}: {e}")
-                    # Skip this k by widening; conservative: assume FAIL.
-                    hi = mid
+                    self._log(f"compile failed at k={mid}: {str(e)[:100]}")
+                    # Compile failed at this k — treat as PASS-equivalent
+                    # (the bug-introducing pass isn't yet enabled, AND some
+                    # required infra was disabled). Move lo forward.
+                    lo = mid
                     tested.append(mid)
                     continue
                 tested.append(mid)
