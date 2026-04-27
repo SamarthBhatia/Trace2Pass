@@ -1,0 +1,99 @@
+# Parameterized Dockerfile for building GCC at a specific buggy commit.
+#
+# Usage:
+#   docker build -t trace2pass-gcc-buggy:113756 \
+#     --build-arg GCC_COMMIT=29998cc8a21b \
+#     --build-arg BUG_ID=113756 \
+#     --build-arg NINJA_JOBS=4 \
+#     -f Dockerfile.gcc-buggy .
+#
+# The image contains a gcc binary built from the specified commit
+# (typically parent-of-fix, which still has the bug). C frontend only.
+#
+# Build time: ~2.5-3h on 16-core x86_64 (--disable-bootstrap is critical;
+# bootstrap would 3x the time). Image size ~1.5GB after slim stage.
+
+ARG GCC_COMMIT
+ARG BUG_ID=unknown
+
+FROM ubuntu:22.04 AS builder
+
+ARG GCC_COMMIT
+ARG BUG_ID
+ARG NINJA_JOBS=4
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# GCC build deps. Mirrors LLVM image set + GCC-specific (gmp/mpfr/mpc/isl/flex/bison).
+# binutils-source provides assembler/linker. texinfo needed for makeinfo (build target).
+RUN apt-get update && apt-get install -y \
+    git \
+    build-essential \
+    flex bison \
+    libgmp-dev libmpfr-dev libmpc-dev libisl-dev \
+    libzstd-dev libxml2-dev \
+    texinfo \
+    file \
+    python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Clone GCC and checkout the buggy commit.
+# gcc-mirror on GitHub mirrors gcc.gnu.org/git/gcc.git and supports blobless clone.
+# Blobless = fast metadata-only clone, blobs fetched on checkout.
+RUN git clone --filter=blob:none --no-checkout \
+        https://github.com/gcc-mirror/gcc.git /gcc && \
+    cd /gcc && \
+    git checkout ${GCC_COMMIT} && \
+    git log -1 --oneline && \
+    echo "GCC commit for bug #${BUG_ID}: ${GCC_COMMIT}"
+
+# Out-of-tree build directory (recommended by GCC docs).
+WORKDIR /gcc/build
+
+# Configure: c-only, no bootstrap (single-stage), no multilib (x86_64 only),
+# minimal feature set to speed up. --enable-checking=release matches GCC's
+# release builds.
+RUN ../configure \
+    --prefix=/usr/local \
+    --enable-languages=c \
+    --disable-bootstrap \
+    --disable-multilib \
+    --disable-nls \
+    --disable-libsanitizer \
+    --enable-checking=release \
+    --without-isl-version-check
+
+# Build. -j${NINJA_JOBS} despite "ninja" name — gnu make parallelism.
+# Each cc1/g++ link step needs ~2GB RAM; tune NINJA_JOBS based on host memory.
+RUN make -j${NINJA_JOBS}
+
+RUN make install-strip || make install
+
+# --- Runtime stage ---
+FROM ubuntu:22.04
+
+ARG BUG_ID
+
+# Runtime deps for compiling C with the built gcc.
+# libc6-dev provides headers; binutils provides ld; gcc package only for crt files.
+RUN apt-get update && apt-get install -y \
+    libgmp10 libmpfr6 libmpc3 libisl23 \
+    libzstd1 libxml2 \
+    libc6-dev \
+    binutils \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /usr/local /usr/local
+
+ENV PATH="/usr/local/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/lib64:/usr/local/lib"
+
+LABEL trace2pass.bug_id="${BUG_ID}"
+LABEL trace2pass.compiler="gcc"
+
+# Verify
+RUN gcc --version
+
+WORKDIR /src
+CMD ["/bin/bash"]
