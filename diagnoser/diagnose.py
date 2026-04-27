@@ -574,6 +574,32 @@ def pass_bisect_cmd(source_file: str, test_command: str,
         llc_path = "llc"
         print("Using system default compiler")
 
+    # GCC dispatch: route trace2pass-gcc-buggy:* images to GccPassBisector.
+    # Independent code path; does not touch the LLVM bisector below.
+    if docker_image and docker_image.startswith("trace2pass-gcc-buggy:"):
+        from gcc_pass_bisector import GccPassBisector
+        print(f"Routing to GccPassBisector (docker image {docker_image})")
+        gcc_bisector = GccPassBisector(
+            opt_level=optimization_level,
+            verbose=True,
+            use_docker=True,
+            docker_image=docker_image,
+        )
+        gcc_result = gcc_bisector.bisect(source_file, test_func)
+        print("=== Pass Bisection Result (gcc -fdisable-{tree,rtl}-PASSn) ===")
+        print(f"Verdict: {gcc_result.verdict}")
+        print(f"Culprit pass: {gcc_result.culprit_pass or 'Not found'}")
+        print(f"Culprit index: {gcc_result.culprit_index}")
+        print(f"Total tests: {gcc_result.total_tests}")
+        return {
+            "verdict": gcc_result.verdict,
+            "culprit_pass": gcc_result.culprit_pass,
+            "culprit_index": gcc_result.culprit_index,
+            "total_passes": len(gcc_result.pass_pipeline),
+            "total_tests": gcc_result.total_tests,
+            "mode": "gcc_fdisable",
+        }
+
     # Wrap PassBisector creation and bisection in try/except to catch tool errors
     # (e.g., LLVM tool version mismatches, missing binaries, etc.)
     try:
