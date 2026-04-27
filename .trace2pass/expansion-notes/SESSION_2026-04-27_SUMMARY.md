@@ -49,17 +49,43 @@ Brief tier classification: **above minimum (49), below acceptable (55).**
 4. **--no-docker shortcut**: 2 bugs (#64047, #63764) are latent on system clang 18, so they pipeline locally without needing a Docker image — saves 1-2h per bug.
 5. **Disk pressure**: with 5 parallel buggy builds the disk filled (191G/193G) and 4 of 5 in-flight builds aborted mid-compile. Cleared with `docker image prune -f` (reclaimed 18 GB). Future runs should cap at 3 parallel builds OR pre-clean dangling images.
 
+## Update: GCC infrastructure now scaffolded (2026-04-27 evening)
+
+Phase 2 of the session built out the GCC source infrastructure in parallel
+with instrumented-image builds:
+
+**Completed:**
+- `evaluation/docker-images/Dockerfile.gcc-buggy` — Ubuntu 22.04 base, gcc-mirror blobless clone, c-only build, --disable-bootstrap (saves ~3x time vs bootstrapped).
+- `evaluation/docker-images/build-gcc-buggy-images.sh` — driver matching `build-buggy-images.sh` CLI surface. **All 7 candidate parent-of-fix SHAs resolved** via gcc-mirror commits API (verified, full hashes baked into the BUGS array).
+- `diagnoser/src/gcc_pass_bisector.py` — `GccPassBisector` class with `bisect(source, test_func) → PassBisectionResult`. **Both host and Docker modes implemented.** Algorithm: `gcc -fdump-passes` enumerates 224 disposable tree-/rtl- pass instances; binary search disabling trailing N via `-fdisable-tree-PASSn` / `-fdisable-rtl-PASSn`. Inverted semantics vs LLVM (disable-trailing-suffix vs limit-leading-prefix) documented in module header.
+- `diagnoser/diagnose.py` — wired to dispatch `trace2pass-gcc-buggy:*` docker images to `GccPassBisector`. LLVM path untouched and regression-tested (#79861 still bisects+heals correctly).
+- 7 GCC candidate test_bug.c files staged at `evaluation/real-bugs/gcc-{113756,109925,115092,115492,116588,117095,121382}/`.
+
+**Still TODO before GCC keepers can be added to the dataset:**
+- Build first GCC docker image (~3h, deferred — disk constrained at 18GB free during instrumented build).
+- End-to-end validate `GccPassBisector` Docker mode against a real `trace2pass-gcc-buggy:<id>` image. Host-mode `discover_passes` confirmed working (224 passes); the bisect+test loop in Docker hasn't been smoke-tested against a known-good fail/pass case.
+- Once first GCC image succeeds + bisector validates: append CSV rows with `origin=gcc`.
+
+**GCC candidates' parent-of-fix SHAs (verified):**
+| PR | parent-of-fix |
+|----|---------------|
+| 113756 | 6e308d5f71a91225946c199e69708adc92404975 |
+| 109925 | 9aaafcb342da56a2bbbc2e9db0dceac3faa5de3b |
+| 115092 | 7fdbefc575c24881356b5f4091fa57b5f7166a90 |
+| 115492 | b100488bfca3c3ca67e9e807d6e4e03dd0e3f6db |
+| 116588 | 6749c69ae143ed808e0d0aa9097f0c9b7c6a785d |
+| 117095 | b8314ebff2495ee22f9e2203093bdada9843a0f5 |
+| 121382 | afafae097232e700bb7a74a453a048b83ebefccd |
+
 ## Deferred work (for follow-up session)
 
 ### High-value (would push toward 55-60 acceptable tier)
 
-1. **GCC source — 7 candidates ready** (see `gcc-candidates.md`). Requires net-new infrastructure:
-   - `evaluation/docker-images/Dockerfile.gcc-buggy` (Ubuntu 22.04 + gcc clone + checkout parent-of-fix + configure --enable-languages=c)
-   - `evaluation/docker-images/build-gcc-buggy-images.sh`
-   - `diagnoser/src/gcc_pass_bisector.py` — algorithm validated on host: `-fdisable-tree-PASSn` (numbered instances) works. ~300 disposable instances exposed by `-fdump-passes`.
-   - Wire `diagnose.py` dispatch (or add `--compiler={clang,gcc}` flag).
-   - Estimated: ~10h dev + ~5h GCC build × 5 bugs (CONCURRENT=2 NINJA_JOBS=4).
-   - Hard guardrail per brief: drop if bisector doesn't work in 1 day.
+1. **GCC source — 7 candidates ready, infra scaffolded.** Need to:
+   - Build first GCC docker image (`bash evaluation/docker-images/build-gcc-buggy-images.sh 113756` — single build, ~3h).
+   - Smoke-test `GccPassBisector` Docker mode against it.
+   - If bisector fires correctly, fan out to the remaining 6 builds (CONCURRENT=2, ~9h wall-clock).
+   - Per brief hard guardrail: drop if bisector doesn't work in 1 day of trying.
 
 2. **Instrumented images for the 12 new bugs** (needed for Task 5 eval re-run). Build queue is ready in `build-instrumented-images.sh`; just needs runtime. Each ~1.5-2h, CONCURRENT=2 → ~10h total.
 
