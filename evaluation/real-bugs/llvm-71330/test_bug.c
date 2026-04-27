@@ -1,9 +1,11 @@
-// LLVM Bug #71330: foldNestedSelects miscompile at -O3
+// LLVM bug #71330: InstCombine foldNestedSelects miscompile
 // https://github.com/llvm/llvm-project/issues/71330
-// Status: CLOSED (fixed by commit 9ef8290)
+// Reporter: shao-hua-li (Csmith fuzzer)
+// Fix commit:    9ef829097bbc4cf908698e3891af11a154e1d3e2
+// Parent-of-fix: 5cc9347aa3f13e3bcea92640771f6352e2181ef4
 //
-// Expected: prints 1
-// Buggy:    prints 0 at -O3
+// -O0 output: see issue body.
+// -OX output: differs (the bug).
 
 int printf(const char *, ...);
 char a, e = 5, g, k, l;
@@ -13,7 +15,7 @@ long c;
 unsigned short(q)(short d) { return d + b; }
 int r(int *f) {
   if ((f[0] & 8) == 0)
-    return 0;
+  return 0;
   if ((f[0] & 12) == 0)
     return 1;
   if ((f[0] & 14) == 0)
@@ -49,4 +51,5 @@ void t() {
 int main() {
   t();
   printf("%d\n", k);
+  if (k != 1) __builtin_abort();
 }

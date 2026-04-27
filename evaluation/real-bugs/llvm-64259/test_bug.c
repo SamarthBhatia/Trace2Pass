@@ -21,7 +21,6 @@ void l(int *m) {
         ;
     }
   }
-  if (a != 0) __builtin_abort();
 }
 int main() {
   int *i = &c;
@@ -38,4 +37,5 @@ int main() {
   if (b)
     goto k;
   printf("%d\n", a);
+  if (a != 0) __builtin_abort();
 }
