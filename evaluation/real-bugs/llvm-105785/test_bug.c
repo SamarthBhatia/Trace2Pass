@@ -23,5 +23,6 @@ void h() {
 int main() {
   h();
   printf("%d\n", (int)g);
+  if ((int)g != 1) __builtin_abort();
   return 0;
 }
