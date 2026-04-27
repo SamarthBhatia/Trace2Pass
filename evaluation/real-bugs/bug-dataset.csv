@@ -63,3 +63,5 @@ synthetic-tbaa,n/a,Synthetic,TBAA/InstCombine,-O2,c,no,pattern_demo,100,n/a,n/a,
 71330,https://github.com/llvm/llvm-project/issues/71330,Closed,InstCombine,-O3,c,no(fixed),compiler_bug,90,all_fail,bisected,InstCombinePass@275,n/a,n/a,yes,function_optnone,llvm
 70509,https://github.com/llvm/llvm-project/issues/70509,Closed,InstCombine,-O1,c,no(fixed),compiler_bug,90,all_fail,bisected,InstCombinePass@175,n/a,n/a,yes,function_optnone,llvm
 75298,https://github.com/llvm/llvm-project/issues/75298,Closed,LoopVectorize,-Os,c,no(fixed),compiler_bug,90,all_fail,bisected,LoopVectorizePass@81,n/a,n/a,yes,function_optnone,llvm
+68260,https://github.com/llvm/llvm-project/issues/68260,Closed,SCEV/IndVarSimplify,-O2,c,no(fixed),compiler_bug,90,all_fail,bisected,IndVarSimplifyPass@92,n/a,n/a,yes,function_optnone,llvm
+63645,https://github.com/llvm/llvm-project/issues/63645,Closed,X86_SDAG,-O3,c,no(fixed),compiler_bug,90,all_fail,bisected,X86_DAG_to_DAG_Instruction_Selection@527,n/a,n/a,yes,function_optnone,llvm
