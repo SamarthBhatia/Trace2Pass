@@ -1,9 +1,11 @@
-// LLVM Bug #74739: InstCombine simplifyAssocCastAssoc miscompile
+// LLVM bug #74739: InstCombine simplifyAssocCastAssoc poison flags
 // https://github.com/llvm/llvm-project/issues/74739
-// Status: CLOSED (fixed by PR #74763)
+// Reporter: shao-hua-li (Csmith fuzzer)
+// Fix commit:    09a05f5dcb79... (Drop poison gen flags on Or)
+// Parent-of-fix: c54cbf82b865a266216475e9d82ab0c0a250b235
 //
-// Expected: prints 0
-// Buggy:    prints 1 at -O1 and above
+// -O0 output: see issue body.
+// -OX output: differs (the bug).
 
 int printf(const char *, ...);
 int a;
@@ -17,4 +19,5 @@ int main() {
     a = 2;
   *e = f ^ a + h + i + g + h;
   printf("%d\n", b);
+  if (b != 0) __builtin_abort();
 }

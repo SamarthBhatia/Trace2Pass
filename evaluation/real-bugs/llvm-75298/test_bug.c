@@ -1,13 +1,11 @@
-// LLVM Bug #75298: LoopVectorize/VPlan select miscompile at -Os
+// LLVM bug #75298: LoopVectorize VPlan Select side-effects (revert)
 // https://github.com/llvm/llvm-project/issues/75298
-// Status: CLOSED (fixed by revert 17303290)
+// Reporter: shao-hua-li (Csmith fuzzer)
+// Fix commit:    173032902c960d4d0d67b521d8c149553d8e8ba3
+// Parent-of-fix: 8d893f28f2a7978e192bbdef68c73896dc721a74
 //
-// Expected: prints 1
-// Buggy:    prints 0 at -Os
-//
-// Build:
-//   clang -O0 test_bug.c -o test_O0 && ./test_O0  # prints 1
-//   clang -Os test_bug.c -o test_Os && ./test_Os  # prints 0 (BUG)
+// -O0 output: see issue body.
+// -OX output: differs (the bug).
 
 int printf(const char *, ...);
 int a, c = 1, e;
@@ -21,4 +19,5 @@ int main() {
   int **h = &d;
   b = &g == &h;
   printf("%d\n", a);
+  if (a != 1) __builtin_abort();
 }

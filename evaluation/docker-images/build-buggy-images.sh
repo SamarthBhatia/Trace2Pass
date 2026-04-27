@@ -73,7 +73,7 @@ BUGS=(
     "71330:5cc9347aa3f13e3bcea92640771f6352e2181ef4:InstCombine foldNestedSelects (Nov 2023)"
     "64669:1991da9a837dcb083a2a960fbd6a3389da8cc6c1:InstCombine select+cast w/ ConstExpr (Aug 2023)"
     "64259:2cb6d0c70bff616cce4dbd4cbdffc085175c739f:InstCombine irreducible-loop handling (Jul 2023)"
-    "74739:0bd0d721cd71138d0d538b0a131e013ccb27ba4b:InstCombine simplifyAssocCastAssoc poison (Dec 2023)"
+    "74739:c54cbf82b865a266216475e9d82ab0c0a250b235:InstCombine simplifyAssocCastAssoc Or poison (Dec 2023)"
     "70509:703895b131720682a3ca596a96a7c94fb281c0e4:InstCombine shr+cmp constant fold (revert, Oct 2023)"
     "75298:8d893f28f2a7978e192bbdef68c73896dc721a74:LoopVectorize VPlan Select side-effects (revert, Dec 2023)"
     "68260:2a2b426f13dfd33c7495da1c54ab9d1a8e625d87:SCEV invalidate-past-dep (revert, Oct 2023)"
