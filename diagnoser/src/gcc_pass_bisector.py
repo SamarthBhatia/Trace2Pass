@@ -89,18 +89,40 @@ class GccPassBisector:
         self.docker_image = docker_image
         self.extra_compile_flags = extra_compile_flags or []
 
-        if self.use_docker:
-            # TODO: implement Docker wrapper analogous to PassBisector._run_command.
-            # For now, raise so callers don't silently degrade to host gcc.
-            raise NotImplementedError(
-                "GccPassBisector Docker mode not yet implemented. "
-                "Run host gcc against trace2pass-gcc-buggy:<id>'s gcc by "
-                "first 'docker cp' or by mounting the binary."
-            )
+        if self.use_docker and not self.docker_image:
+            raise ValueError("use_docker=True requires docker_image to be set")
 
     def _log(self, msg: str) -> None:
         if self.verbose:
             print(f"[GccPassBisector] {msg}")
+
+    def _run_command(
+        self,
+        cmd: List[str],
+        work_dir: Optional[str] = None,
+        extra_mounts: Optional[List[str]] = None,
+        **kwargs,
+    ) -> subprocess.CompletedProcess:
+        """Run a command, optionally inside the configured Docker image.
+
+        Mirrors PassBisector._run_command (pass_bisector.py:112-152) so
+        path semantics stay uniform between LLVM and GCC pipelines.
+        """
+        if self.use_docker and self.docker_image:
+            mount_dir = os.path.abspath(work_dir) if work_dir else os.getcwd()
+            docker_cmd = [
+                "docker", "run", "--rm",
+                "-v", f"{mount_dir}:{mount_dir}",
+            ]
+            if extra_mounts:
+                for extra in extra_mounts:
+                    extra_abs = os.path.abspath(extra)
+                    if extra_abs != mount_dir:
+                        docker_cmd.extend(["-v", f"{extra_abs}:{extra_abs}"])
+            docker_cmd.extend(["-w", mount_dir, self.docker_image])
+            docker_cmd.extend(cmd)
+            return subprocess.run(docker_cmd, **kwargs)
+        return subprocess.run(cmd, **kwargs)
 
     # ------------------------------------------------------------------
     # Pass enumeration
@@ -116,13 +138,15 @@ class GccPassBisector:
         list internally; see `_pass_phases`.
         """
         cmd = [self.gcc_path, self.opt_level, "-fdump-passes",
-               "-c", source_file, "-o", os.devnull]
+               "-c", source_file, "-o", "/dev/null"]
         cmd.extend(self.extra_compile_flags)
 
         self._log(f"discover_passes: {' '.join(shlex.quote(c) for c in cmd)}")
         try:
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=self.timeout_sec
+            result = self._run_command(
+                cmd,
+                work_dir=os.path.dirname(os.path.abspath(source_file)),
+                capture_output=True, text=True, timeout=self.timeout_sec,
             )
         except subprocess.TimeoutExpired:
             raise RuntimeError("Timeout while discovering GCC passes")
@@ -188,8 +212,11 @@ class GccPassBisector:
         cmd.extend(self.extra_compile_flags)
 
         try:
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=self.timeout_sec
+            result = self._run_command(
+                cmd,
+                work_dir=tmpdir,
+                extra_mounts=[os.path.dirname(os.path.abspath(source_file))],
+                capture_output=True, text=True, timeout=self.timeout_sec,
             )
         except subprocess.TimeoutExpired:
             raise RuntimeError(f"Timeout compiling tag={tag}")
