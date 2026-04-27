@@ -66,3 +66,4 @@ synthetic-tbaa,n/a,Synthetic,TBAA/InstCombine,-O2,c,no,pattern_demo,100,n/a,n/a,
 68260,https://github.com/llvm/llvm-project/issues/68260,Closed,SCEV/IndVarSimplify,-O2,c,no(fixed),compiler_bug,90,all_fail,bisected,IndVarSimplifyPass@92,n/a,n/a,yes,function_optnone,llvm
 63645,https://github.com/llvm/llvm-project/issues/63645,Closed,X86_SDAG,-O3,c,no(fixed),compiler_bug,90,all_fail,bisected,X86_DAG_to_DAG_Instruction_Selection@527,n/a,n/a,yes,function_optnone,llvm
 76162,https://github.com/llvm/llvm-project/issues/76162,Closed,InstCombine,-O1,c,no(fixed),compiler_bug,90,all_fail,bisected,InstCombinePass@21,n/a,n/a,yes,function_optnone,llvm
+74739,https://github.com/llvm/llvm-project/issues/74739,Closed,InstCombine,-O1,c,no(fixed),compiler_bug,90,all_fail,bisected,InstCombinePass@22,n/a,n/a,yes,function_optnone,llvm
