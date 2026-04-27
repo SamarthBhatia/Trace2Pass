@@ -61,3 +61,4 @@ synthetic-tbaa,n/a,Synthetic,TBAA/InstCombine,-O2,c,no,pattern_demo,100,n/a,n/a,
 64669,https://github.com/llvm/llvm-project/issues/64669,Closed,InstCombine,-O1,c,no(fixed),compiler_bug,90,all_fail,bisected,InstCombinePass@14,n/a,n/a,yes,function_optnone,llvm
 64259,https://github.com/llvm/llvm-project/issues/64259,Closed,InstCombine,-O1,c,no(fixed),compiler_bug,80,all_fail,no_repro,n/a,n/a,n/a,n/a,n/a,llvm
 71330,https://github.com/llvm/llvm-project/issues/71330,Closed,InstCombine,-O3,c,no(fixed),compiler_bug,90,all_fail,bisected,InstCombinePass@275,n/a,n/a,yes,function_optnone,llvm
+70509,https://github.com/llvm/llvm-project/issues/70509,Closed,InstCombine,-O1,c,no(fixed),compiler_bug,90,all_fail,bisected,InstCombinePass@175,n/a,n/a,yes,function_optnone,llvm
