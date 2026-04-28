@@ -11,10 +11,10 @@
 #   no_build   — image missing or plugin could not load
 #   test_error — scaffolding error, not a real result
 #
-# Output: evaluation/results/instrumentation_40/<bug_id>.json + summary.md
+# Output: evaluation/results/instrumentation_51/<bug_id>.json + summary.md
 #
 # Run from the project root:
-#   bash evaluation/scripts/test_instrumentation_on_40.sh
+#   bash evaluation/scripts/test_instrumentation_on_51.sh
 #
 # Environment:
 #   BUGS_CSV       path to bug-dataset.csv (default: evaluation/real-bugs/bug-dataset.csv)
@@ -27,7 +27,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 CSV="${BUGS_CSV:-$REPO_ROOT/evaluation/real-bugs/bug-dataset.csv}"
-OUTDIR="$REPO_ROOT/evaluation/results/instrumentation_40"
+OUTDIR="$REPO_ROOT/evaluation/results/instrumentation_51"
 SAMPLE_RATE="${SAMPLE_RATE:-1.0}"
 MINIMAL_MODE_FLAG="${MINIMAL_MODE:-0}"
 TIMEOUT_SEC="${TIMEOUT_SEC:-30}"
@@ -195,7 +195,7 @@ done < "$CSV"
 # --------------------------------------------------------------------------
 sum_md="$OUTDIR/summary.md"
 {
-    echo "# Instrumentation evaluation on the full 40 bugs"
+    echo "# Instrumentation evaluation on the full 51 bugs"
     echo
     echo "Configuration: checks=$CHECKS, sample_rate=$SAMPLE_RATE, minimal_mode=$MINIMAL_MODE_FLAG, timeout=${TIMEOUT_SEC}s"
     echo "Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
