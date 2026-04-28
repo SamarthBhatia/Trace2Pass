@@ -1,9 +1,38 @@
 # Expanded Bug Evaluation — Executive Summary
 
+**Dataset size: 51 bisected+healed bugs** (39 baseline + 12 added Apr 2026).
+Origins: llvm=50, alive2=1 (#105785), gcc=0 (infrastructure scaffolded but
+bisector accuracy issue blocks adding keepers — see §25.3 of `current_state.md`).
+Honest audit: `awk -F, 'NR>1 && $11=="bisected" && $15=="yes"' \
+    evaluation/real-bugs/bug-dataset.csv | wc -l` → 51.
+
 **All headline numbers are MEDIANS across projects.** The mean is
 reported in the per-table breakdowns but is driven by noise on short
 benchmarks (<10 ms workloads where OS jitter dominates); the median is
 the honest production-code overhead.
+
+## Instrumentation evaluation — Part 0 (n=51, Apr 28 2026 re-run)
+
+| Outcome              | Count | % of 51 |
+|----------------------|-------|---------|
+| detected             |   8   | 15.7%   |
+| prevention_detected  |  22   | 43.1%   |
+| prevented            |  12   | 23.5%   |
+| passthrough          |   7   | 13.7%   |
+| no_build             |   2   | 3.9%    |
+| **Total**            | **51**| 100%    |
+
+Headlines: detected=8/51 (15.7%), reported=30/51 (58.8%), involvement=42/51 (82.4%).
+Pass-bisection accuracy: 100% (every buildable image produced a culprit_pass
+matching the bisect commit's pass family). See §25.15 of `current_state.md`
+for the per-bucket Δ vs. the §25.14 baseline (39 bugs).
+
+The Part 1/2/3 numbers below are from the n=40 baseline runs and
+have NOT been re-run on the expanded 51 (would require re-running
+the runtime-overhead matrix on 21 additional projects). Treat them
+as overhead/detection envelope estimates that should hold on the larger
+dataset; if precise n=51 numbers are required for the thesis, re-run
+`evaluation/scripts/run_overhead_matrix.sh` on the expanded set.
 
 ## Runtime overhead — Part 1 (clean code, n=40)
 

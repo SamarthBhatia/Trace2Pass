@@ -169,3 +169,105 @@ release-fallback bugs).
 - `evaluation/results/instrumentation_40_pd_all/` — same for CHECKS=all.
 - `evaluation/results/instrumentation_40_default/root_cause_audit.md` —
   the audit that predicted the movement (from the §25.12 iteration).
+
+## §25.3 Bug dataset — expansion to 51 (Apr 2026)
+
+Dataset grew from 39 → 51 bisected+healed bugs (+12). Honest tally:
+
+```
+$ awk -F, 'NR>1 && $11=="bisected" && $15=="yes"' \
+      evaluation/real-bugs/bug-dataset.csv | wc -l
+51
+```
+
+Origin breakdown (new `origin` column appended at position 17):
+
+| origin | count |
+|--------|-------|
+| llvm   | 50 (39 baseline + 11 new) |
+| alive2 | 1 (#105785, explicit Alive2 link in body) |
+| gcc    | 0 (infrastructure scaffolded, bisector accuracy issue blocks adding keepers) |
+
+LLVM additions (11): #79861, #64669, #71330, #70509, #75298, #68260, #63645,
+#76162, #74739, #64047 (--no-docker, latent on clang 18), #63764 (--no-docker,
+latent since clang-9). Alive2 (1): #105785.
+
+Documented failures (kept in CSV as `pass_bisect=no_repro`):
+- #64259 — bug elides printf side-effect; abort-oracle can't detect since
+  the value being printed is unchanged.
+
+GCC source (deferred, scaffolded): see
+`.trace2pass/expansion-notes/SESSION_2026-04-27_SUMMARY.md`. Dockerfile +
+build script + GccPassBisector + diagnose.py dispatch are all committed and
+end-to-end validated against `trace2pass-gcc-buggy:113756`. Bisector accuracy
+needs algorithm fix (compile-failures non-monotonic across `-fdisable-tree-X`
+range mislead binary search; converges on last pass `rtl-dfinish@229` instead
+of true VRP culprit). 7 candidates with verified parent-of-fix SHAs ready.
+
+## §25.15 Re-evaluation on expanded 51-bug dataset (Apr 28 2026)
+
+Re-ran `evaluation/scripts/test_instrumentation_on_51.sh` (renamed from
+`_on_40.sh`; CSV-driven, auto-picks up new rows) on the full 51 bugs.
+
+### Headline (CHECKS=default)
+
+| Outcome              | Count | % of 51 |
+|----------------------|-------|---------|
+| detected             |   8   | 15.7%   |
+| prevention_detected  |  22   | 43.1%   |
+| prevented            |  12   | 23.5%   |
+| passthrough          |   7   | 13.7%   |
+| no_build             |   2   | 3.9%    |
+| test_error           |   0   | 0.0%    |
+| **Total**            | **51**| 100%    |
+
+Derived headlines:
+- `detected = 8 / 51 (15.7%)` — runtime signal only; held steady from §25.14
+  (the 8 detection-class bugs were all in the baseline 39).
+- `detected + prevention_detected = 30 / 51 (58.8%)` — total reports.
+- `detected + prevention_detected + prevented = 42 / 51 (82.4%)` — total
+  involvement.
+
+### Δ vs. §25.14 baseline (39 bugs)
+
+| metric                               | §25.14 | §25.15 | Δ      |
+|--------------------------------------|--------|--------|--------|
+| detected (runtime)                   |   8    |   8    |   0    |
+| prevention_detected                  |  21    |  22    |  +1    |
+| prevented                            |   4    |  12    |  +8    |
+| passthrough                          |   5    |   7    |  +2    |
+| no_build                             |   1    |   2    |  +1    |
+| reported  (detected + prev_detected) |  29    |  30    |  +1    |
+| involvement                          |  33    |  42    |  +9    |
+
+The +12 new bugs distributed as: 8 prevented, 1 prevention_detected (#63764),
+2 passthrough (#75298, #64047), 1 no_build (#105785 — instrumentor incompat
+with LLVM 20.0.0git pre-API-rename, see
+`.trace2pass/expansion-notes/SESSION_2026-04-27_SUMMARY.md`).
+
+The new 11 LLVM bugs (mostly InstCombine-pass miscompiles on Csmith-style C
+reproducers) skew heavily toward `prevented`: the buggy clang miscompiles to
+abort/segfault (exit 134/139) but the instrumentation IR perturbs the
+optimizer enough to suppress the bug. This pattern matches §25.13's
+documented behavior — these bugs would benefit from prevention-detection
+becoming available for `repro_llvm21=no(fixed)` images (which currently
+cannot use the autoref wrapper because the buggy clang version is only
+present inside the per-bug Docker image, not on the host).
+
+### Pass-bisection accuracy
+
+100% on the expanded 51 (matches the §25.12 baseline). Every bug whose
+custom or release-fallback image was buildable produced a culprit_pass; all
+culprits matched the expected pass family per the issue body's bisect
+commit. Two `no_build` cases are honest: #164617 (no fix PR identifiable)
+and #105785 (instrumentor LLVM 20 pre-rename incompat — buggy image exists,
+instrumented does not).
+
+### Pointers
+
+- `.trace2pass/expansion-notes/SESSION_2026-04-27_SUMMARY.md` — full
+  expansion narrative + GCC scaffolding status.
+- `.trace2pass/expansion-notes/instrumentation_eval_on_51.md` — verbatim
+  per-bug verdicts (the OUTDIR `evaluation/results/instrumentation_51/`
+  is gitignored).
+- `evaluation/scripts/test_instrumentation_on_51.sh` — eval driver.
