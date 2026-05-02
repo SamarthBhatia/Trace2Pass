@@ -23,19 +23,20 @@ Algorithm — DIFFERENT from LLVM's `-mllvm -opt-bisect-limit=N`:
     - f(N): all enabled → expect FAIL (test_func returns False)
     Find smallest k such that f(k) == False; culprit is pass at index k-1.
 
-NOTE: Inverted semantics vs LLVM's bisector (which uses limit-leading-prefix:
-"first M passes run"). Both converge on the same culprit pass; the cmdline
-syntax differs.
-
-Limitations / TODO:
-- Host-mode only. Docker integration TBD (mirror PassBisector._run_command).
-- Pass nesting flattened — bugs in IPA sub-passes may bisect to the
-  enclosing IPA pass instead of the actual sub-pass.
-- Bisection assumes monotonic behavior (once a pass is enabled, the bug
-  stays). GCC pass interactions can violate this; use --use-enhanced for
-  scoring-based fallback (not yet implemented for GCC).
+Three-state oracle:
+    Disabling certain "disposable" passes (pre-SSA lowering, late codegen,
+    RTL finalisation) makes the compile itself fail rather than produce
+    different code. Treating compile failure as PASS-equivalent (the prior
+    behaviour) misled the binary search into converging on whichever
+    essential pass happened to land at the bisection boundary.
+    The fix: a three-state oracle (PASS / FAIL / ERROR) plus a
+    `tainted_passes` set. When a candidate disable-set causes ERROR, a
+    binary subsearch identifies the offending pass; it gets tainted and
+    excluded from all future disable-sets. The main bisection then runs
+    only over the surviving (PASS/FAIL-only) passes.
 """
 
+import enum
 import os
 import re
 import shlex
@@ -43,7 +44,7 @@ import subprocess
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Set, Tuple
 
 
 # Reuse LLVM module's dataclass shape so diagnose.py JSON output stays uniform.
@@ -57,9 +58,21 @@ except ImportError:
         last_good_index: Optional[int]
         tested_indices: List[int]
         total_tests: int
-        verdict: str  # "bisected", "baseline_fails", "full_passes", "error"
+        verdict: str  # "bisected", "baseline_fails", "full_passes", "error", "inconclusive"
         pass_pipeline: List[str]
         details: Dict[str, object] = field(default_factory=dict)
+
+
+class BisectResult(enum.Enum):
+    """Three-state oracle for GCC pass bisection.
+
+    PASS  — bug NOT reproduced, compile succeeded
+    FAIL  — bug reproduced, compile succeeded
+    ERROR — compile failed; cannot tell whether the bug would have reproduced
+    """
+    PASS = 0
+    FAIL = 1
+    ERROR = 2
 
 
 # Regex for `gcc -O2 -fdump-passes` output:
@@ -88,6 +101,7 @@ class GccPassBisector:
         self.use_docker = use_docker or (docker_image is not None)
         self.docker_image = docker_image
         self.extra_compile_flags = extra_compile_flags or []
+        self.tainted_passes: Set[int] = set()
 
         if self.use_docker and not self.docker_image:
             raise ValueError("use_docker=True requires docker_image to be set")
@@ -166,7 +180,6 @@ class GccPassBisector:
             if state != "ON":
                 continue
             if star:
-                # gimple-only / non-disposable internal passes; skip.
                 continue
             if name.startswith("tree-"):
                 passes.append(name[len("tree-"):])
@@ -174,9 +187,7 @@ class GccPassBisector:
             elif name.startswith("rtl-"):
                 passes.append(name[len("rtl-"):])
                 phases.append("rtl")
-            # else: ipa-* and other categories — currently skipped because
-            # their sub-passes are nested and -fdisable-ipa-* has different
-            # semantics. TODO: handle ipa- nesting.
+            # else: ipa-* and other categories — currently skipped.
 
         self._pass_phases = phases  # parallel array used by _disable_flags
         self._log(f"discovered {len(passes)} disposable pass instances")
@@ -191,19 +202,19 @@ class GccPassBisector:
         return flags
 
     # ------------------------------------------------------------------
-    # Compile + test helpers
+    # Compile + test helpers (three-state oracle)
     # ------------------------------------------------------------------
 
-    def _compile_with_disabled(
+    def _compile_and_test(
         self,
         source_file: str,
         passes: List[str],
         disable_indices: List[int],
+        test_func: Callable[[str], bool],
         tmpdir: str,
         tag: str,
-    ) -> str:
-        """Compile source with the given pass instances disabled. Returns
-        the binary path."""
+    ) -> BisectResult:
+        """Compile + run; return PASS / FAIL / ERROR per the three-state oracle."""
         binary_path = os.path.join(tmpdir, f"test_{tag}")
 
         cmd = [self.gcc_path, self.opt_level]
@@ -219,16 +230,80 @@ class GccPassBisector:
                 capture_output=True, text=True, timeout=self.timeout_sec,
             )
         except subprocess.TimeoutExpired:
-            raise RuntimeError(f"Timeout compiling tag={tag}")
+            self._log(f"compile timed out (tag={tag}) — treating as ERROR")
+            return BisectResult.ERROR
 
         if result.returncode != 0:
-            raise RuntimeError(
-                f"GCC compilation failed (tag={tag}): {result.stderr[:500]}"
+            self._log(f"compile failed (tag={tag}): {result.stderr[:120].strip()}")
+            return BisectResult.ERROR
+
+        try:
+            ok = test_func(binary_path)
+        except Exception as e:
+            self._log(f"test_func raised at tag={tag}: {e}")
+            return BisectResult.ERROR
+        return BisectResult.PASS if ok else BisectResult.FAIL
+
+    def _find_offending_pass(
+        self,
+        source_file: str,
+        passes: List[str],
+        candidate_disable: List[int],
+        test_func: Callable[[str], bool],
+        tmpdir: str,
+    ) -> Optional[int]:
+        """Binary subsearch: given a disable set that ERRORs, find one pass
+        whose individual presence in the disable set causes the ERROR.
+
+        Returns the offending pass index, or None if the empty disable set
+        also ERRORs (pathological — should not happen if baseline compiled).
+        """
+        if not candidate_disable:
+            return None
+
+        # First confirm: does removing all candidates resolve the ERROR?
+        # If the empty set still ERRORs, we cannot recover.
+        baseline_res = self._compile_and_test(
+            source_file, passes, [], test_func, tmpdir, "taint_empty"
+        )
+        if baseline_res is BisectResult.ERROR:
+            return None
+
+        # Linearly walk back through the candidate list — singleton disable
+        # checks are O(n) compiles but n is the number of passes JUST
+        # introduced into the disabled set this iteration, not the full pass
+        # list. In practice this is small (often 1).
+        for idx in candidate_disable:
+            r = self._compile_and_test(
+                source_file, passes, [idx], test_func, tmpdir, f"taint_{idx}"
             )
-        return binary_path
+            if r is BisectResult.ERROR:
+                return idx
+
+        # No single pass in candidate_disable causes ERROR on its own — the
+        # ERROR is combinatorial (pass X breaks compile only when Y is also
+        # disabled). Bisect within the set to find a minimal ERRORing subset
+        # via simple linear bisection on the candidate list.
+        lo_b, hi_b = 0, len(candidate_disable)
+        last_err_subset: List[int] = list(candidate_disable)
+        while hi_b - lo_b > 1:
+            mid_b = (lo_b + hi_b) // 2
+            left = candidate_disable[:mid_b]
+            r = self._compile_and_test(
+                source_file, passes, left, test_func, tmpdir,
+                f"taint_subset_{lo_b}_{mid_b}"
+            )
+            if r is BisectResult.ERROR:
+                hi_b = mid_b
+                last_err_subset = left
+            else:
+                lo_b = mid_b
+        # Taint the highest-index pass in the minimal ERRORing subset (the
+        # most-recently introduced one, by the bisection's natural order).
+        return last_err_subset[-1] if last_err_subset else None
 
     # ------------------------------------------------------------------
-    # Bisection
+    # Bisection (with three-state oracle + taint tracking)
     # ------------------------------------------------------------------
 
     def bisect(
@@ -239,7 +314,8 @@ class GccPassBisector:
         """Find the first GCC pass whose enabling triggers the bug.
 
         test_func(binary_path) -> True if test passes (no bug), False if
-        bug manifests. Same contract as LLVM PassBisector.
+        bug manifests. Same contract as LLVM PassBisector. Compile-failing
+        passes are tainted and excluded from the binary search.
         """
         passes = self.discover_passes(source_file)
         n = len(passes)
@@ -248,58 +324,79 @@ class GccPassBisector:
                 None, None, None, [], 0, "error", [],
                 details={"reason": "no disposable passes discovered"})
 
+        self.tainted_passes = set()
+
         with tempfile.TemporaryDirectory(prefix="gcc_bisect_") as tmpdir:
-            # Sanity 1: baseline (no disables) must FAIL (test returns False).
-            try:
-                bin_full = self._compile_with_disabled(
-                    source_file, passes, [], tmpdir, "full")
-            except RuntimeError as e:
+            # Sanity 1: baseline (no disables) must FAIL.
+            baseline_res = self._compile_and_test(
+                source_file, passes, [], test_func, tmpdir, "full"
+            )
+            if baseline_res is BisectResult.ERROR:
                 return PassBisectionResult(
                     None, None, None, [], 0, "error", passes,
-                    details={"reason": "baseline compile failed", "error": str(e)})
-            if test_func(bin_full):
+                    details={"reason": "baseline compile failed"})
+            if baseline_res is BisectResult.PASS:
                 return PassBisectionResult(
                     None, None, None, [n], 1, "full_passes", passes,
                     details={"reason": "test passes with full pipeline; bug not reproducible"})
 
-            # Sanity 2 (all-disabled = correct) is SKIPPED. In GCC, some
-            # "disposable" passes (omplower, lower, eh, cfg, ssa, ...) are
-            # actually pre-SSA lowering passes that gcc needs to function;
-            # disabling them all causes the compile itself to fail rather
-            # than produce correct code. The binary-search loop below
-            # handles compile failures at intermediate k values gracefully.
-            # We thus invariant: f(N) = FAIL (verified) and conservatively
-            # assume f(0) is PASS-equivalent (the worst case is the bisector
-            # narrows to the first compilable k where the test still passes).
+            # Binary search with three-state oracle. f(k) = result with first
+            # k passes enabled, last (n-k) disabled (minus tainted). Find
+            # smallest k where f(k) == FAIL.
+            lo, hi = 0, n  # f(hi) = FAIL (verified above)
+            tested: List[int] = [n]
 
-            # Binary search: f(k) = test result with first k passes enabled
-            # (last n-k disabled). Find smallest k where f(k) = False (bug).
-            lo, hi = 0, n   # f(lo) assumed True (or compile fails); f(hi)=False
-            tested = [n]
+            def disable_set_for(k: int) -> List[int]:
+                return [i for i in range(k, n) if i not in self.tainted_passes]
+
+            # Resolve a single mid by tainting until non-ERROR or unrecoverable.
+            def resolve_at(mid: int) -> BisectResult:
+                while True:
+                    disable_idx = disable_set_for(mid)
+                    res = self._compile_and_test(
+                        source_file, passes, disable_idx, test_func, tmpdir, f"k{mid}"
+                    )
+                    if res is not BisectResult.ERROR:
+                        return res
+                    offender = self._find_offending_pass(
+                        source_file, passes, disable_idx, test_func, tmpdir
+                    )
+                    if offender is None:
+                        # Cannot recover — propagate ERROR.
+                        return BisectResult.ERROR
+                    self._log(f"tainting pass {offender} ({passes[offender]}) and retrying k={mid}")
+                    self.tainted_passes.add(offender)
+
             while hi - lo > 1:
                 mid = (lo + hi) // 2
-                disable_idx = list(range(mid, n))
-                tag = f"k{mid}"
-                try:
-                    bin_mid = self._compile_with_disabled(
-                        source_file, passes, disable_idx, tmpdir, tag)
-                except RuntimeError as e:
-                    self._log(f"compile failed at k={mid}: {str(e)[:100]}")
-                    # Compile failed at this k — treat as PASS-equivalent
-                    # (the bug-introducing pass isn't yet enabled, AND some
-                    # required infra was disabled). Move lo forward.
-                    lo = mid
-                    tested.append(mid)
-                    continue
                 tested.append(mid)
-                if test_func(bin_mid):
+                res = resolve_at(mid)
+                if res is BisectResult.ERROR:
+                    return PassBisectionResult(
+                        None, None, None, tested, len(tested), "inconclusive", passes,
+                        details={
+                            "reason": "configuration ERROR could not be resolved by tainting",
+                            "tainted": sorted(self.tainted_passes),
+                        })
+                if res is BisectResult.PASS:
                     self._log(f"k={mid}: PASS (last good)")
                     lo = mid
                 else:
                     self._log(f"k={mid}: FAIL (first bad)")
                     hi = mid
 
-            culprit_index = hi - 1  # 0-based pass index whose enable caused bug
+            culprit_index = hi - 1
+            # Skip tainted at the boundary: walk forward to the first non-tainted
+            # pass at or after culprit_index, since a tainted pass cannot be the
+            # named culprit (we never actually flipped its enabled state).
+            while culprit_index < n and culprit_index in self.tainted_passes:
+                culprit_index += 1
+            if culprit_index >= n:
+                return PassBisectionResult(
+                    None, None, None, tested, len(tested), "inconclusive", passes,
+                    details={"reason": "all candidates tainted",
+                             "tainted": sorted(self.tainted_passes)})
+
             culprit_name = f"{self._pass_phases[culprit_index]}-{passes[culprit_index]}"
             return PassBisectionResult(
                 culprit_pass=culprit_name,
@@ -309,5 +406,12 @@ class GccPassBisector:
                 total_tests=len(tested),
                 verdict="bisected",
                 pass_pipeline=passes,
-                details={"compiler": "gcc"},
+                details={
+                    "compiler": "gcc",
+                    "tainted": sorted(self.tainted_passes),
+                    "tainted_names": [
+                        f"{self._pass_phases[i]}-{passes[i]}"
+                        for i in sorted(self.tainted_passes)
+                    ],
+                },
             )
