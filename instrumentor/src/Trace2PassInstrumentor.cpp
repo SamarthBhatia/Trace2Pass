@@ -187,6 +187,13 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
   //   TRACE2PASS_ENABLE_ALL_CHECKS=1           Enable ALL checks (overrides above)
   //   TRACE2PASS_DISABLE_BACKEND_CHECKSUM=1    Opt OUT of the default checksum
   //
+  // Per-default-check opt-outs (used by the Heisenberg-taxonomy leave-one-out
+  // probe to identify which check is responsible for preventing a given bug):
+  //   TRACE2PASS_DISABLE_ARITHMETIC=1
+  //   TRACE2PASS_DISABLE_UNREACHABLE=1
+  //   TRACE2PASS_DISABLE_DIVISION=1
+  //   TRACE2PASS_DISABLE_PURE_FUNCTION=1
+  //
   auto envIsSet = [](const char *name) -> bool {
     const char *val = getenv(name);
     return val && strcmp(val, "1") == 0;
@@ -207,12 +214,16 @@ PreservedAnalyses Trace2PassInstrumentorPass::run(Function &F,
   // used the accumulator runs but the compare stays dormant. Escape hatch for
   // extra-tight-overhead setups: TRACE2PASS_DISABLE_BACKEND_CHECKSUM=1.
   bool enable_backend_checksum = !envIsSet("TRACE2PASS_DISABLE_BACKEND_CHECKSUM");
+  bool enable_arithmetic       = !envIsSet("TRACE2PASS_DISABLE_ARITHMETIC");
+  bool enable_unreachable      = !envIsSet("TRACE2PASS_DISABLE_UNREACHABLE");
+  bool enable_division         = !envIsSet("TRACE2PASS_DISABLE_DIVISION");
+  bool enable_pure_function    = !envIsSet("TRACE2PASS_DISABLE_PURE_FUNCTION");
 
-  // Always-on checks (production)
-  Modified |= instrumentArithmeticOperations(F);
-  Modified |= instrumentUnreachableCode(F);
-  Modified |= instrumentDivisionByZero(F);
-  Modified |= instrumentPureFunctionCalls(F);
+  // Always-on checks (production) — individually opt-out via TRACE2PASS_DISABLE_*
+  if (enable_arithmetic)    Modified |= instrumentArithmeticOperations(F);
+  if (enable_unreachable)   Modified |= instrumentUnreachableCode(F);
+  if (enable_division)      Modified |= instrumentDivisionByZero(F);
+  if (enable_pure_function) Modified |= instrumentPureFunctionCalls(F);
 
   // Optional checks (individually toggleable)
   if (enable_gep)   Modified |= instrumentMemoryAccess(F);
