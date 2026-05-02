@@ -192,6 +192,34 @@ LLVM additions (11): #79861, #64669, #71330, #70509, #75298, #68260, #63645,
 #76162, #74739, #64047 (--no-docker, latent on clang 18), #63764 (--no-docker,
 latent since clang-9). Alive2 (1): #105785.
 
+### Setup heterogeneity (column 18: `setup`)
+
+Of the 51 bisected+healed bugs, the evaluation harness uses three setup
+tiers depending on whether a parent-of-fix LLVM commit exists. The tier
+is recorded per-bug in `bug-dataset.csv` under the new `setup` column:
+
+| setup                | count | meaning |
+|----------------------|------:|---------|
+| `custom_buggy_image` |    37 | Custom Docker image built at parent-of-fix commit (`trace2pass-instrumented:<bug_id>`); plugin baked against the bug's pinned LLVM. |
+| `release_llvm_image` |    11 | OPEN bugs or bugs that still reproduce on released LLVM 21.x; evaluated against `trace2pass-release-instrumented:21` since no parent-of-fix exists. |
+| `host_only`          |     3 | Bugs evaluated against host LLVM 21 only (no Docker; latent on a release clang and reproducible directly). |
+
+The 11 `release_llvm_image` bugs (HEAD~0 in `build-instrumented-images.sh`):
+#59679, #79743, #87534, #116483, #116668, #127511, #129181, #164617, #166496,
+#175018, #181103.
+
+Pass-bisection accuracy and healing success are unchanged across the three
+tiers — the distinction is methodological provenance, not result quality.
+Detection-class verdicts in §25.15 hold across the tier mix.
+
+```
+$ awk -F, 'NR>1 && $11=="bisected" && $15=="yes" {print $18}' \
+    evaluation/real-bugs/bug-dataset.csv | sort | uniq -c
+     37 custom_buggy_image
+      3 host_only
+     11 release_llvm_image
+```
+
 Documented failures (kept in CSV as `pass_bisect=no_repro`):
 - #64259 — bug elides printf side-effect; abort-oracle can't detect since
   the value being printed is unchanged.
