@@ -151,8 +151,9 @@ class GccPassBisector:
         Phase membership ("tree-" vs "rtl-") is tracked in a parallel
         list internally; see `_pass_phases`.
         """
+        source_file_abs = os.path.abspath(source_file)
         cmd = [self.gcc_path, self.opt_level, "-fdump-passes",
-               "-c", source_file, "-o", "/dev/null"]
+               "-c", source_file_abs, "-o", "/dev/null"]
         cmd.extend(self.extra_compile_flags)
 
         self._log(f"discover_passes: {' '.join(shlex.quote(c) for c in cmd)}")
@@ -217,9 +218,10 @@ class GccPassBisector:
         """Compile + run; return PASS / FAIL / ERROR per the three-state oracle."""
         binary_path = os.path.join(tmpdir, f"test_{tag}")
 
+        source_file_abs = os.path.abspath(source_file)
         cmd = [self.gcc_path, self.opt_level]
         cmd.extend(self._disable_flags(passes, disable_indices))
-        cmd.extend([source_file, "-o", binary_path])
+        cmd.extend([source_file_abs, "-o", binary_path])
         cmd.extend(self.extra_compile_flags)
 
         try:
@@ -252,8 +254,14 @@ class GccPassBisector:
         test_func: Callable[[str], bool],
         tmpdir: str,
     ) -> Optional[int]:
-        """Binary subsearch: given a disable set that ERRORs, find one pass
-        whose individual presence in the disable set causes the ERROR.
+        """Subset-bisection: given a disable set that ERRORs, find one pass
+        whose presence in the disable set causes the ERROR.
+
+        Strategy: recursively halve the candidate list, keeping the half that
+        still ERRORs. Converges in O(log n) compiles regardless of how many
+        essential passes are in the set. If neither half ERRORs alone, the
+        ERROR is combinatorial — fall back to tainting the highest-index
+        pass and let the outer loop revisit.
 
         Returns the offending pass index, or None if the empty disable set
         also ERRORs (pathological — should not happen if baseline compiled).
@@ -261,46 +269,52 @@ class GccPassBisector:
         if not candidate_disable:
             return None
 
-        # First confirm: does removing all candidates resolve the ERROR?
-        # If the empty set still ERRORs, we cannot recover.
+        # Confirm: does removing all candidates resolve the ERROR?
         baseline_res = self._compile_and_test(
             source_file, passes, [], test_func, tmpdir, "taint_empty"
         )
         if baseline_res is BisectResult.ERROR:
             return None
 
-        # Linearly walk back through the candidate list — singleton disable
-        # checks are O(n) compiles but n is the number of passes JUST
-        # introduced into the disabled set this iteration, not the full pass
-        # list. In practice this is small (often 1).
-        for idx in candidate_disable:
-            r = self._compile_and_test(
-                source_file, passes, [idx], test_func, tmpdir, f"taint_{idx}"
-            )
-            if r is BisectResult.ERROR:
-                return idx
+        current = list(candidate_disable)
+        while len(current) > 1:
+            mid_b = len(current) // 2
+            left = current[:mid_b]
+            right = current[mid_b:]
 
-        # No single pass in candidate_disable causes ERROR on its own — the
-        # ERROR is combinatorial (pass X breaks compile only when Y is also
-        # disabled). Bisect within the set to find a minimal ERRORing subset
-        # via simple linear bisection on the candidate list.
-        lo_b, hi_b = 0, len(candidate_disable)
-        last_err_subset: List[int] = list(candidate_disable)
-        while hi_b - lo_b > 1:
-            mid_b = (lo_b + hi_b) // 2
-            left = candidate_disable[:mid_b]
-            r = self._compile_and_test(
+            r_left = self._compile_and_test(
                 source_file, passes, left, test_func, tmpdir,
-                f"taint_subset_{lo_b}_{mid_b}"
+                f"taint_left_{len(left)}"
             )
-            if r is BisectResult.ERROR:
-                hi_b = mid_b
-                last_err_subset = left
-            else:
-                lo_b = mid_b
-        # Taint the highest-index pass in the minimal ERRORing subset (the
-        # most-recently introduced one, by the bisection's natural order).
-        return last_err_subset[-1] if last_err_subset else None
+            if r_left is BisectResult.ERROR:
+                current = left
+                continue
+
+            r_right = self._compile_and_test(
+                source_file, passes, right, test_func, tmpdir,
+                f"taint_right_{len(right)}"
+            )
+            if r_right is BisectResult.ERROR:
+                current = right
+                continue
+
+            # Combinatorial ERROR — neither half alone causes the failure,
+            # so the ERROR depends on a pair across the split. Conservatively
+            # taint the highest-index pass in the original candidate set and
+            # let the outer loop retry with a smaller disable_set.
+            return current[-1]
+
+        # Singleton — verify it ERRORs alone before returning.
+        only = current[0]
+        r = self._compile_and_test(
+            source_file, passes, [only], test_func, tmpdir, f"taint_single_{only}"
+        )
+        if r is BisectResult.ERROR:
+            return only
+        # Singleton doesn't ERROR alone — combinatorial. Taint it anyway so
+        # the outer loop makes progress (the smaller disable_set will be
+        # retested without `only`, breaking the ERROR-causing combination).
+        return only
 
     # ------------------------------------------------------------------
     # Bisection (with three-state oracle + taint tracking)

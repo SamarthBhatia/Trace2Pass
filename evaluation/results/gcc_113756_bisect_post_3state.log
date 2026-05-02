@@ -1,0 +1,437 @@
+Using custom Docker image: trace2pass-gcc-buggy:113756
+Routing to GccPassBisector (docker image trace2pass-gcc-buggy:113756)
+[GccPassBisector] discover_passes: gcc -O2 -fdump-passes -c /home/sbhatia/Trace2Pass/evaluation/real-bugs/gcc-113756/test_bug.c -o /dev/null
+[GccPassBisector] discovered 230 disposable pass instances
+[GccPassBisector] compile failed (tag=k115): cc1: note: disable pass tree-loopdone for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-slp2 fo
+[GccPassBisector] compile failed (tag=taint_left_57): cc1: note: disable pass tree-loopdone for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-slp2 fo
+[GccPassBisector] compile failed (tag=taint_left_28): cc1: note: disable pass tree-loopdone for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-slp2 fo
+[GccPassBisector] compile failed (tag=taint_left_14): cc1: note: disable pass tree-loopdone for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-slp2 fo
+[GccPassBisector] compile failed (tag=taint_left_7): cc1: note: disable pass tree-loopdone for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-slp2 fo
+[GccPassBisector] compile failed (tag=taint_left_3): cc1: note: disable pass tree-loopdone for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-slp2 fo
+[GccPassBisector] compile failed (tag=taint_left_1): cc1: note: disable pass tree-loopdone for functions in the range of [0, 4294967295]
+during GIMPLE pass: strlen
+/home/sbh
+[GccPassBisector] compile failed (tag=taint_single_115): cc1: note: disable pass tree-loopdone for functions in the range of [0, 4294967295]
+during GIMPLE pass: strlen
+/home/sbh
+[GccPassBisector] tainting pass 115 (loopdone) and retrying k=115
+[GccPassBisector] compile failed (tag=k115): cc1: note: disable pass tree-slp2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-veclower21
+[GccPassBisector] compile failed (tag=taint_left_57): cc1: note: disable pass tree-slp2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-veclower21
+[GccPassBisector] compile failed (tag=taint_right_29): cc1: note: disable pass tree-uncprop1 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-cplxlow
+[GccPassBisector] compile failed (tag=taint_right_15): cc1: note: disable pass tree-tmmark for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-tmedge fo
+[GccPassBisector] compile failed (tag=taint_right_8): cc1: note: disable pass tree-isel for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-waccess3 fo
+[GccPassBisector] compile failed (tag=taint_left_4): cc1: note: disable pass tree-isel for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-waccess3 fo
+[GccPassBisector] compile failed (tag=taint_right_2): cc1: note: disable pass tree-optimized for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-expand
+[GccPassBisector] compile failed (tag=taint_right_1): cc1: note: disable pass rtl-expand for functions in the range of [0, 4294967295]
+during RTL pass: *rest_of_compilation
+/
+[GccPassBisector] compile failed (tag=taint_single_168): cc1: note: disable pass rtl-expand for functions in the range of [0, 4294967295]
+during RTL pass: *rest_of_compilation
+/
+[GccPassBisector] tainting pass 168 (expand) and retrying k=115
+[GccPassBisector] compile failed (tag=k115): cc1: note: disable pass tree-slp2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-veclower21
+[GccPassBisector] compile failed (tag=taint_left_56): cc1: note: disable pass tree-slp2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-veclower21
+[GccPassBisector] compile failed (tag=taint_right_28): cc1: note: disable pass tree-uncprop1 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-cplxlow
+[GccPassBisector] compile failed (tag=taint_right_14): cc1: note: disable pass tree-tmmark for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-tmedge fo
+[GccPassBisector] compile failed (tag=taint_right_7): cc1: note: disable pass tree-isel for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-waccess3 fo
+[GccPassBisector] compile failed (tag=taint_right_4): cc1: note: disable pass rtl-vregs for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-into_cfglayo
+[GccPassBisector] compile failed (tag=taint_left_2): cc1: note: disable pass rtl-vregs for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-into_cfglayo
+[GccPassBisector] compile failed (tag=taint_right_1): cc1: note: disable pass rtl-into_cfglayout for functions in the range of [0, 4294967295]
+during RTL pass: loop2_init
+/ho
+[GccPassBisector] compile failed (tag=taint_single_170): cc1: note: disable pass rtl-into_cfglayout for functions in the range of [0, 4294967295]
+during RTL pass: loop2_init
+/ho
+[GccPassBisector] tainting pass 170 (into_cfglayout) and retrying k=115
+[GccPassBisector] compile failed (tag=k115): cc1: note: disable pass tree-slp2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-veclower21
+[GccPassBisector] compile failed (tag=taint_left_56): cc1: note: disable pass tree-slp2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-veclower21
+[GccPassBisector] compile failed (tag=taint_right_28): cc1: note: disable pass tree-uncprop1 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-cplxlow
+[GccPassBisector] compile failed (tag=taint_right_14): cc1: note: disable pass tree-tmmark for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-tmedge fo
+[GccPassBisector] compile failed (tag=taint_right_7): cc1: note: disable pass tree-isel for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-waccess3 fo
+[GccPassBisector] compile failed (tag=taint_right_4): cc1: note: disable pass rtl-vregs for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-jump for fun
+[GccPassBisector] compile failed (tag=taint_right_2): cc1: note: disable pass rtl-subreg1 for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-dfinit for
+[GccPassBisector] compile failed (tag=taint_right_1): cc1: note: disable pass rtl-dfinit for functions in the range of [0, 4294967295]
+during RTL pass: cse1
+/home/sbhatia/Tra
+[GccPassBisector] compile failed (tag=taint_single_173): cc1: note: disable pass rtl-dfinit for functions in the range of [0, 4294967295]
+during RTL pass: cse1
+/home/sbhatia/Tra
+[GccPassBisector] tainting pass 173 (dfinit) and retrying k=115
+[GccPassBisector] compile failed (tag=k115): cc1: note: disable pass tree-slp2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-veclower21
+[GccPassBisector] compile failed (tag=taint_right_56): cc1: note: disable pass rtl-cse1 for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-fwprop1 for f
+[GccPassBisector] compile failed (tag=taint_left_28): cc1: note: disable pass rtl-cse1 for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-fwprop1 for f
+[GccPassBisector] compile failed (tag=taint_left_14): cc1: note: disable pass rtl-cse1 for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-fwprop1 for f
+[GccPassBisector] compile failed (tag=taint_left_7): cc1: note: disable pass rtl-cse1 for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-fwprop1 for f
+[GccPassBisector] compile failed (tag=taint_right_4): cc1: note: disable pass rtl-cprop2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-ce1 for fun
+[GccPassBisector] compile failed (tag=taint_right_2): cc1: note: disable pass rtl-reginfo for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-loop2 for
+[GccPassBisector] compile failed (tag=taint_right_1): cc1: note: disable pass rtl-loop2 for functions in the range of [0, 4294967295]
+during RTL pass: ce3
+/home/sbhatia/Trace
+[GccPassBisector] compile failed (tag=taint_single_180): cc1: note: disable pass rtl-loop2 for functions in the range of [0, 4294967295]
+during RTL pass: ce3
+/home/sbhatia/Trace
+[GccPassBisector] tainting pass 180 (loop2) and retrying k=115
+[GccPassBisector] compile failed (tag=k115): cc1: note: disable pass tree-slp2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-veclower21
+[GccPassBisector] compile failed (tag=taint_right_55): cc1: note: disable pass rtl-cse1 for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-fwprop1 for f
+[GccPassBisector] compile failed (tag=taint_left_27): cc1: note: disable pass rtl-cse1 for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-fwprop1 for f
+[GccPassBisector] compile failed (tag=taint_left_13): cc1: note: disable pass rtl-cse1 for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-fwprop1 for f
+[GccPassBisector] compile failed (tag=taint_right_7): cc1: note: disable pass rtl-loop2_init for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-loop2_i
+[GccPassBisector] compile failed (tag=taint_right_4): cc1: note: disable pass rtl-loop2_done for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-cprop3
+[GccPassBisector] compile failed (tag=taint_left_2): cc1: note: disable pass rtl-loop2_done for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-cprop3
+[GccPassBisector] compile failed (tag=taint_left_1): cc1: note: disable pass rtl-loop2_done for functions in the range of [0, 4294967295]
+during RTL pass: ce3
+/home/sbhatia/
+[GccPassBisector] compile failed (tag=taint_single_184): cc1: note: disable pass rtl-loop2_done for functions in the range of [0, 4294967295]
+during RTL pass: ce3
+/home/sbhatia/
+[GccPassBisector] tainting pass 184 (loop2_done) and retrying k=115
+[GccPassBisector] compile failed (tag=k115): cc1: note: disable pass tree-slp2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-veclower21
+[GccPassBisector] compile failed (tag=taint_right_55): cc1: note: disable pass rtl-subreg1 for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-cse1 for f
+[GccPassBisector] compile failed (tag=taint_left_27): cc1: note: disable pass rtl-subreg1 for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-cse1 for f
+[GccPassBisector] compile failed (tag=taint_right_14): cc1: note: disable pass rtl-dse1 for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-fwprop2 for f
+[GccPassBisector] compile failed (tag=taint_right_7): cc1: note: disable pass rtl-jump_after_combine for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl
+[GccPassBisector] compile failed (tag=taint_right_4): cc1: note: disable pass rtl-split1 for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-subreg3 for
+[GccPassBisector] compile failed (tag=taint_left_2): cc1: note: disable pass rtl-split1 for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-subreg3 for
+[GccPassBisector] compile failed (tag=taint_left_1): cc1: note: disable pass rtl-split1 for functions in the range of [0, 4294967295]
+/home/sbhatia/Trace2Pass/evaluation/rea
+[GccPassBisector] compile failed (tag=taint_single_198): cc1: note: disable pass rtl-split1 for functions in the range of [0, 4294967295]
+/home/sbhatia/Trace2Pass/evaluation/rea
+[GccPassBisector] tainting pass 198 (split1) and retrying k=115
+[GccPassBisector] compile failed (tag=k115): cc1: note: disable pass tree-slp2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-veclower21
+[GccPassBisector] compile failed (tag=taint_right_54): cc1: note: disable pass rtl-subreg1 for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-cse1 for f
+[GccPassBisector] compile failed (tag=taint_left_27): cc1: note: disable pass rtl-subreg1 for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-cse1 for f
+[GccPassBisector] compile failed (tag=taint_right_14): cc1: note: disable pass rtl-dse1 for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-fwprop2 for f
+[GccPassBisector] compile failed (tag=taint_right_7): cc1: note: disable pass rtl-jump_after_combine for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl
+[GccPassBisector] compile failed (tag=taint_right_4): cc1: note: disable pass rtl-subreg3 for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-mode_sw fo
+[GccPassBisector] compile failed (tag=taint_right_2): cc1: note: disable pass rtl-asmcons for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-ira for fu
+[GccPassBisector] compile failed (tag=taint_right_1): cc1: note: disable pass rtl-ira for functions in the range of [0, 4294967295]
+during RTL pass: reload
+/home/sbhatia/Trac
+[GccPassBisector] compile failed (tag=taint_single_202): cc1: note: disable pass rtl-ira for functions in the range of [0, 4294967295]
+during RTL pass: reload
+/home/sbhatia/Trac
+[GccPassBisector] tainting pass 202 (ira) and retrying k=115
+[GccPassBisector] compile failed (tag=k115): cc1: note: disable pass tree-slp2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-veclower21
+[GccPassBisector] compile failed (tag=taint_right_54): cc1: note: disable pass rtl-jump for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-subreg1 for f
+[GccPassBisector] compile failed (tag=taint_right_27): cc1: note: disable pass rtl-reload for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-split2 for
+[GccPassBisector] compile failed (tag=taint_left_13): cc1: note: disable pass rtl-reload for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-split2 for
+[GccPassBisector] compile failed (tag=taint_left_6): cc1: note: disable pass rtl-reload for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-split2 for
+[GccPassBisector] compile failed (tag=taint_left_3): cc1: note: disable pass rtl-reload for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-split2 for
+[GccPassBisector] compile failed (tag=taint_left_1): cc1: note: disable pass rtl-reload for functions in the range of [0, 4294967295]
+during RTL pass: combine
+/home/sbhatia/
+[GccPassBisector] compile failed (tag=taint_single_203): cc1: note: disable pass rtl-reload for functions in the range of [0, 4294967295]
+during RTL pass: combine
+/home/sbhatia/
+[GccPassBisector] tainting pass 203 (reload) and retrying k=115
+[GccPassBisector] compile failed (tag=k115): cc1: note: disable pass tree-slp2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-veclower21
+[GccPassBisector] compile failed (tag=taint_right_53): cc1: note: disable pass rtl-jump for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-subreg1 for f
+[GccPassBisector] compile failed (tag=taint_right_27): cc1: note: disable pass rtl-asmcons for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-split2 for
+[GccPassBisector] compile failed (tag=taint_right_14): cc1: note: disable pass rtl-rtl_dce for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-bbro for f
+[GccPassBisector] compile failed (tag=taint_left_7): cc1: note: disable pass rtl-rtl_dce for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-bbro for f
+[GccPassBisector] compile failed (tag=taint_left_3): cc1: note: disable pass rtl-rtl_dce for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-bbro for f
+[GccPassBisector] compile failed (tag=taint_right_2): cc1: note: disable pass rtl-bbro for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-split3 for fu
+[GccPassBisector] compile failed (tag=taint_left_1): cc1: note: disable pass rtl-bbro for functions in the range of [0, 4294967295]
+during RTL pass: *free_cfg
+/home/sbhatia/
+[GccPassBisector] compile failed (tag=taint_single_217): cc1: note: disable pass rtl-bbro for functions in the range of [0, 4294967295]
+during RTL pass: *free_cfg
+/home/sbhatia/
+[GccPassBisector] tainting pass 217 (bbro) and retrying k=115
+[GccPassBisector] compile failed (tag=k115): cc1: note: disable pass tree-slp2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-veclower21
+[GccPassBisector] compile failed (tag=taint_right_53): cc1: note: disable pass rtl-vregs for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-jump for fun
+[GccPassBisector] compile failed (tag=taint_right_27): cc1: note: disable pass rtl-mode_sw for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-asmcons fo
+[GccPassBisector] compile failed (tag=taint_right_14): cc1: note: disable pass rtl-cprop_hardreg for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-rtl_
+[GccPassBisector] compile failed (tag=taint_right_7): cc1: note: disable pass rtl-mach for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-barriers for
+[GccPassBisector] compile failed (tag=taint_left_3): cc1: note: disable pass rtl-mach for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-barriers for
+[GccPassBisector] compile failed (tag=taint_right_2): cc1: note: disable pass rtl-barriers for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-shorten f
+[GccPassBisector] compile failed (tag=taint_right_1): cc1: note: disable pass rtl-shorten for functions in the range of [0, 4294967295]
+during RTL pass: final
+/home/sbhatia/T
+[GccPassBisector] compile failed (tag=taint_single_225): cc1: note: disable pass rtl-shorten for functions in the range of [0, 4294967295]
+during RTL pass: final
+/home/sbhatia/T
+[GccPassBisector] tainting pass 225 (shorten) and retrying k=115
+[GccPassBisector] compile failed (tag=k115): cc1: note: disable pass tree-slp2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-veclower21
+[GccPassBisector] compile failed (tag=taint_right_52): cc1: note: disable pass rtl-vregs for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-jump for fun
+[GccPassBisector] compile failed (tag=taint_right_26): cc1: note: disable pass rtl-mode_sw for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-asmcons fo
+[GccPassBisector] compile failed (tag=taint_right_13): cc1: note: disable pass rtl-cprop_hardreg for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-rtl_
+[GccPassBisector] compile failed (tag=taint_right_7): cc1: note: disable pass rtl-alignments for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-mach fo
+[GccPassBisector] compile failed (tag=taint_right_4): cc1: note: disable pass rtl-nothrow for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-dwarf2 for
+[GccPassBisector] compile failed (tag=taint_right_2): cc1: note: disable pass rtl-final for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-dfinish for
+[GccPassBisector] compile failed (tag=taint_left_1): cc1: note: disable pass rtl-final for functions in the range of [0, 4294967295]
+/usr/bin/ld: /lib/x86_64-linux-gnu/crt1.
+[GccPassBisector] compile failed (tag=taint_single_228): cc1: note: disable pass rtl-final for functions in the range of [0, 4294967295]
+/usr/bin/ld: /lib/x86_64-linux-gnu/crt1.
+[GccPassBisector] tainting pass 228 (final) and retrying k=115
+[GccPassBisector] compile failed (tag=k115): cc1: note: disable pass tree-slp2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-veclower21
+[GccPassBisector] compile failed (tag=taint_right_52): cc1: note: disable pass tree-optimized for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-vregs f
+[GccPassBisector] compile failed (tag=taint_right_26): cc1: note: disable pass rtl-subreg3 for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-mode_sw fo
+[GccPassBisector] compile failed (tag=taint_right_13): cc1: note: disable pass rtl-fold_mem_offsets for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-c
+[GccPassBisector] compile failed (tag=taint_right_7): cc1: note: disable pass rtl-zero_call_used_regs for functions in the range of [0, 4294967295]
+cc1: note: disable pass rt
+[GccPassBisector] compile failed (tag=taint_right_4): cc1: note: disable pass rtl-barriers for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-nothrow f
+[GccPassBisector] compile failed (tag=taint_right_2): cc1: note: disable pass rtl-dwarf2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-dfinish for
+[GccPassBisector] compile failed (tag=taint_right_1): cc1: note: disable pass rtl-dfinish for functions in the range of [0, 4294967295]
+during RTL pass: expand
+/home/sbhatia/
+[GccPassBisector] compile failed (tag=taint_single_229): cc1: note: disable pass rtl-dfinish for functions in the range of [0, 4294967295]
+during RTL pass: expand
+/home/sbhatia/
+[GccPassBisector] tainting pass 229 (dfinish) and retrying k=115
+[GccPassBisector] compile failed (tag=k115): cc1: note: disable pass tree-slp2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-veclower21
+[GccPassBisector] compile failed (tag=taint_right_51): cc1: note: disable pass tree-optimized for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-vregs f
+[GccPassBisector] compile failed (tag=taint_right_26): cc1: note: disable pass rtl-outof_cfglayout for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-su
+[GccPassBisector] tainting pass 227 (dwarf2) and retrying k=115
+[GccPassBisector] compile failed (tag=k115): cc1: note: disable pass tree-slp2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-veclower21
+[GccPassBisector] compile failed (tag=taint_right_51): cc1: note: disable pass tree-waccess3 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-optimiz
+[GccPassBisector] compile failed (tag=taint_right_26): cc1: note: disable pass rtl-bbpart for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-outof_cfgla
+[GccPassBisector] tainting pass 226 (nothrow) and retrying k=115
+[GccPassBisector] compile failed (tag=k115): cc1: note: disable pass tree-slp2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-veclower21
+[GccPassBisector] compile failed (tag=taint_right_50): cc1: note: disable pass tree-waccess3 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-optimiz
+[GccPassBisector] compile failed (tag=taint_right_25): cc1: note: disable pass rtl-bbpart for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-outof_cfgla
+[GccPassBisector] tainting pass 224 (barriers) and retrying k=115
+[GccPassBisector] compile failed (tag=k115): cc1: note: disable pass tree-slp2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-veclower21
+[GccPassBisector] compile failed (tag=taint_right_50): cc1: note: disable pass tree-isel for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-waccess3 fo
+[GccPassBisector] compile failed (tag=taint_right_25): cc1: note: disable pass rtl-jump_after_combine for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl
+[GccPassBisector] tainting pass 223 (mach) and retrying k=115
+[GccPassBisector] compile failed (tag=k115): cc1: note: disable pass tree-slp2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-veclower21
+[GccPassBisector] compile failed (tag=taint_right_49): cc1: note: disable pass tree-isel for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-waccess3 fo
+[GccPassBisector] compile failed (tag=taint_right_25): cc1: note: disable pass rtl-ce2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-jump_after_com
+[GccPassBisector] tainting pass 222 (alignments) and retrying k=115
+[GccPassBisector] compile failed (tag=k115): cc1: note: disable pass tree-slp2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-veclower21
+[GccPassBisector] compile failed (tag=taint_right_49): cc1: note: disable pass tree-nrv for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-isel for fun
+[GccPassBisector] compile failed (tag=taint_right_25): cc1: note: disable pass rtl-stv2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-ce2 for funct
+[GccPassBisector] tainting pass 221 (zero_call_used_regs) and retrying k=115
+[GccPassBisector] compile failed (tag=k115): cc1: note: disable pass tree-slp2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-veclower21
+[GccPassBisector] compile failed (tag=taint_right_48): cc1: note: disable pass tree-nrv for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-isel for fun
+[GccPassBisector] compile failed (tag=taint_right_24): cc1: note: disable pass rtl-stv2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-ce2 for funct
+[GccPassBisector] tainting pass 220 (stack) and retrying k=115
+[GccPassBisector] compile failed (tag=k115): cc1: note: disable pass tree-slp2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-veclower21
+[GccPassBisector] compile failed (tag=taint_right_48): cc1: note: disable pass tree-bitintlower0 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-nrv
+[GccPassBisector] compile failed (tag=taint_right_24): cc1: note: disable pass rtl-combine for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-stv2 for f
+[GccPassBisector] tainting pass 219 (sched2) and retrying k=115
+[GccPassBisector] compile failed (tag=k115): cc1: note: disable pass tree-slp2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-veclower21
+[GccPassBisector] compile failed (tag=taint_right_47): cc1: note: disable pass tree-bitintlower0 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-nrv
+[GccPassBisector] compile failed (tag=taint_right_24): cc1: note: disable pass rtl-ud_dce for functions in the range of [0, 4294967295]
+cc1: note: disable pass rtl-combine for
+[GccPassBisector] tainting pass 218 (split3) and retrying k=115
+[GccPassBisector] k=115: FAIL (first bad)
+[GccPassBisector] k=57: FAIL (first bad)
+[GccPassBisector] compile failed (tag=k28): cc1: note: disable pass tree-iftoswitch for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-switc
+[GccPassBisector] compile failed (tag=taint_left_90): cc1: note: disable pass tree-iftoswitch for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-switc
+[GccPassBisector] compile failed (tag=taint_left_45): cc1: note: disable pass tree-iftoswitch for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-switc
+[GccPassBisector] compile failed (tag=taint_left_22): cc1: note: disable pass tree-iftoswitch for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-switc
+[GccPassBisector] compile failed (tag=taint_left_11): cc1: note: disable pass tree-iftoswitch for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-switc
+[GccPassBisector] compile failed (tag=taint_right_6): cc1: note: disable pass tree-modref1 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-fnsplit
+[GccPassBisector] compile failed (tag=taint_right_3): cc1: note: disable pass tree-local-fnsummary2 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree
+[GccPassBisector] compile failed (tag=taint_left_1): cc1: note: disable pass tree-local-fnsummary2 for functions in the range of [0, 4294967295]
+during GIMPLE pass: einline
+[GccPassBisector] compile failed (tag=taint_single_36): cc1: note: disable pass tree-local-fnsummary2 for functions in the range of [0, 4294967295]
+during GIMPLE pass: einline
+[GccPassBisector] tainting pass 36 (local-fnsummary2) and retrying k=28
+[GccPassBisector] k=28: FAIL (first bad)
+[GccPassBisector] k=14: FAIL (first bad)
+[GccPassBisector] k=7: FAIL (first bad)
+[GccPassBisector] compile failed (tag=k3): cc1: note: disable pass tree-cfg for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-ompexp for f
+[GccPassBisector] compile failed (tag=taint_left_102): cc1: note: disable pass tree-cfg for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-ompexp for f
+[GccPassBisector] compile failed (tag=taint_left_51): cc1: note: disable pass tree-cfg for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-ompexp for f
+[GccPassBisector] compile failed (tag=taint_left_25): cc1: note: disable pass tree-cfg for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-ompexp for f
+[GccPassBisector] compile failed (tag=taint_left_12): cc1: note: disable pass tree-cfg for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-ompexp for f
+[GccPassBisector] compile failed (tag=taint_left_6): cc1: note: disable pass tree-cfg for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-ompexp for f
+[GccPassBisector] compile failed (tag=taint_left_3): cc1: note: disable pass tree-cfg for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-ompexp for f
+[GccPassBisector] compile failed (tag=taint_left_1): cc1: note: disable pass tree-cfg for functions in the range of [0, 4294967295]
+during GIMPLE pass: *build_cgraph_edges
+/
+[GccPassBisector] compile failed (tag=taint_single_3): cc1: note: disable pass tree-cfg for functions in the range of [0, 4294967295]
+during GIMPLE pass: *build_cgraph_edges
+/
+[GccPassBisector] tainting pass 3 (cfg) and retrying k=3
+[GccPassBisector] compile failed (tag=k3): cc1: note: disable pass tree-ompexp for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-fixup_cfg
+[GccPassBisector] compile failed (tag=taint_left_101): cc1: note: disable pass tree-ompexp for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-fixup_cfg
+[GccPassBisector] compile failed (tag=taint_left_50): cc1: note: disable pass tree-ompexp for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-fixup_cfg
+[GccPassBisector] compile failed (tag=taint_left_25): cc1: note: disable pass tree-ompexp for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-fixup_cfg
+[GccPassBisector] compile failed (tag=taint_left_12): cc1: note: disable pass tree-ompexp for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-fixup_cfg
+[GccPassBisector] compile failed (tag=taint_left_6): cc1: note: disable pass tree-ompexp for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-fixup_cfg
+[GccPassBisector] compile failed (tag=taint_left_3): cc1: note: disable pass tree-ompexp for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-fixup_cfg
+[GccPassBisector] compile failed (tag=taint_right_2): cc1: note: disable pass tree-fixup_cfg1 for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-ssa f
+[GccPassBisector] compile failed (tag=taint_right_1): cc1: note: disable pass tree-ssa for functions in the range of [0, 4294967295]
+during GIMPLE pass: local-fnsummary
+/home
+[GccPassBisector] compile failed (tag=taint_single_6): cc1: note: disable pass tree-ssa for functions in the range of [0, 4294967295]
+during GIMPLE pass: local-fnsummary
+/home
+[GccPassBisector] tainting pass 6 (ssa) and retrying k=3
+[GccPassBisector] k=3: FAIL (first bad)
+[GccPassBisector] compile failed (tag=k1): cc1: note: disable pass tree-lower for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-eh for fun
+[GccPassBisector] compile failed (tag=taint_left_102): cc1: note: disable pass tree-lower for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-eh for fun
+[GccPassBisector] compile failed (tag=taint_left_51): cc1: note: disable pass tree-lower for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-eh for fun
+[GccPassBisector] compile failed (tag=taint_left_25): cc1: note: disable pass tree-lower for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-eh for fun
+[GccPassBisector] compile failed (tag=taint_left_12): cc1: note: disable pass tree-lower for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-eh for fun
+[GccPassBisector] compile failed (tag=taint_left_6): cc1: note: disable pass tree-lower for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-eh for fun
+[GccPassBisector] compile failed (tag=taint_left_3): cc1: note: disable pass tree-lower for functions in the range of [0, 4294967295]
+cc1: note: disable pass tree-eh for fun
+[GccPassBisector] compile failed (tag=taint_left_1): cc1: note: disable pass tree-lower for functions in the range of [0, 4294967295]
+during GIMPLE pass: eh
+/home/sbhatia/Tr
+[GccPassBisector] compile failed (tag=taint_single_1): cc1: note: disable pass tree-lower for functions in the range of [0, 4294967295]
+during GIMPLE pass: eh
+/home/sbhatia/Tr
+[GccPassBisector] tainting pass 1 (lower) and retrying k=1
+[GccPassBisector] k=1: FAIL (first bad)
+=== Pass Bisection Result (gcc -fdisable-{tree,rtl}-PASSn) ===
+Verdict: bisected
+Culprit pass: tree-omplower
+Culprit index: 0
+Total tests: 8
+=== JSON Result ===
+{
+  "verdict": "bisected",
+  "culprit_pass": "tree-omplower",
+  "culprit_index": 0,
+  "total_passes": 230,
+  "total_tests": 8,
+  "mode": "gcc_fdisable"
+}

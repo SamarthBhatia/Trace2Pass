@@ -227,10 +227,48 @@ Documented failures (kept in CSV as `pass_bisect=no_repro`):
 GCC source (deferred, scaffolded): see
 `.trace2pass/expansion-notes/SESSION_2026-04-27_SUMMARY.md`. Dockerfile +
 build script + GccPassBisector + diagnose.py dispatch are all committed and
-end-to-end validated against `trace2pass-gcc-buggy:113756`. Bisector accuracy
-needs algorithm fix (compile-failures non-monotonic across `-fdisable-tree-X`
-range mislead binary search; converges on last pass `rtl-dfinish@229` instead
-of true VRP culprit). 7 candidates with verified parent-of-fix SHAs ready.
+end-to-end validated against `trace2pass-gcc-buggy:113756`. 7 candidates with
+verified parent-of-fix SHAs are ready in `build-gcc-buggy-images.sh` but not
+yet built or evaluated.
+
+### GCC bisector — three-state oracle (May 2026)
+
+The original GCC bisector treated `-fdisable-{tree,rtl}-PASS` compile
+failures as PASS-equivalent ("the culprit isn't enabled yet, plus we
+broke compile"). With many GCC passes essential to producing *any*
+binary, this consistently misled the binary search into converging on
+whichever essential pass landed at the bisection boundary
+(empirically: `rtl-dfinish@229`, the very last pass).
+
+`gcc_pass_bisector.py` now uses a three-state oracle (`BisectResult.PASS /
+FAIL / ERROR`) plus a `tainted_passes: set[int]`. When a candidate disable
+set causes ERROR, an O(log n) subset-bisection isolates one offending pass,
+which is permanently tainted (excluded from future disable sets). The
+binary search then runs only over passes that produce a working compile
+when disabled. Six unit tests cover the taint logic and pin the regression
+that an essential pass cannot surface as the named culprit
+(`diagnoser/tests/test_gcc_pass_bisector.py`).
+
+Validation re-run on #113756 (`evaluation/results/gcc_113756_bisect_post_3state.log`):
+the bisector no longer misconverges on `rtl-dfinish@229` — that false
+positive is eliminated. However, it now converges on `tree-omplower@0`,
+which is also wrong (the real culprit is a VRP-related tree pass). Root
+cause of the remaining inaccuracy: GCC's bug-causing tree passes can
+themselves be essential to a working compile (disabling them breaks
+GIMPLE lowering or SSA construction). When that happens the bisector
+taints the culprit and then converges on whatever non-tainted prefix pass
+remains.
+
+Status: **partial fix.** The 3-state oracle removes the rtl-dfinish-class
+false positive but is not sufficient when the culprit pass is itself
+essential. A full fix needs a different algorithm — e.g., enumerating
+single-pass *enables* on top of an otherwise minimally-disabled baseline
+(GCC's `-fdisable-X` is awkward for this; a fork that supports
+`-fenable-only-X` would help) — and is deferred. **GCC bug sourcing
+(Workstream 2 Step 2d) is NOT performed**, per the original plan's stop
+condition: "If the 3-state fix doesn't make #113756 converge correctly,
+document as a known limitation and stop. Do not pad the GCC count with
+bugs that don't actually bisect."
 
 ## §25.15 Re-evaluation on expanded 51-bug dataset (Apr 28 2026)
 
